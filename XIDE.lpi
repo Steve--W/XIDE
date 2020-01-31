@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <PathDelim Value="\"/>
+    <General>
+      <Flags>
+        <CompatibilityMode Value="True"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+      <Title Value="XIDE"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes Count="1">
+        <Mode0 Name="default"/>
+      </Modes>
+    </RunParams>
+    <RequiredPackages Count="6">
+      <Item1>
+        <PackageName Value="LazMouseAndKeyInput"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="TurboPowerIPro"/>
+      </Item2>
+      <Item3>
+        <PackageName Value="DateTimeCtrls"/>
+      </Item3>
+      <Item4>
+        <PackageName Value="XComponents"/>
+      </Item4>
+      <Item5>
+        <PackageName Value="LCL"/>
+      </Item5>
+      <Item6>
+        <PackageName Value="FCL"/>
+      </Item6>
+    </RequiredPackages>
+    <Units Count="18">
+      <Unit0>
+        <Filename Value="XIDE.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="XIDEMain.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="XIDEForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="xobjectinsp.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="XObjectInsp"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="codeeditor.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="CodeEditForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="CodeEditor"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="compileusercode.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="CompileUserCode"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="propertyeditunit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="PropertyEditForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="PropertyEditUnit"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="inputselectunit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="InputSelectForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="InputSelectUnit"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="popupmemo.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="PopupMemoForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="PopupMemo"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="interfacetypes.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="InterfaceTypes"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="aboutunit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="AboutXIDEForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="AboutUnit"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="xidehelpunit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="XIDEHelpForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="XIDEHelpUnit"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="interfacetypesdll.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="InterfaceTypesDll"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="dllinterface.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="DllInterface"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="savedsystems.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="SavedSystemsForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="SavedSystems"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="stylesutils.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="StylesUtils"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="eventlogging.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="EventLogging"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="replayuserdialog.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ReplayUserDialogForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="ReplayUserDialog"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="macrocomment.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="MacroCommentForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="MacroComment"/>
+      </Unit17>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+    </SearchPaths>
+    <Conditionals Value="UnitPath += &apos;;$PkgOutDir(CEF4Delphi_Lazarus)&apos;;
+UnitPath += &apos;;XIDEComponents&apos;;
+IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
+    <CodeGeneration>
+      <RelocatableUnit Value="True"/>
+      <Checks>
+        <RangeChecks Value="True"/>
+        <OverflowChecks Value="True"/>
+        <StackChecks Value="True"/>
+      </Checks>
+    </CodeGeneration>
+    <Linking>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True"/>
+        </Win32>
+      </Options>
+    </Linking>
+    <Other>
+      <Verbosity>
+        <ShowDebugInfo Value="True"/>
+      </Verbosity>
+      <CustomOptions Value="-dChromium"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="6">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+      <Item4>
+        <Name Value="EPasResolve"/>
+      </Item4>
+      <Item5>
+        <Name Value="ECompilerTerminate"/>
+      </Item5>
+      <Item6>
+        <Name Value="EPropertyError"/>
+      </Item6>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

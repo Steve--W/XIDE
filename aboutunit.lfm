@@ -1,0 +1,74 @@
+object AboutXIDEForm: TAboutXIDEForm
+  Left = 585
+  Height = 641
+  Top = 131
+  Width = 734
+  Caption = 'About XIDE'
+  ClientHeight = 641
+  ClientWidth = 734
+  Color = 8421440
+  OnCreate = FormCreate
+  OnResize = FormResize
+  OnShow = FormShow
+  LCLVersion = '2.1.0.0'
+  object AboutFormXVBox1: TXVBox
+    Name = 'AboutFormXVBox1'
+    Tag = 402196832
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrCenter
+    Left = 0
+    Height = 637
+    Top = 0
+    Width = 734
+    Align = alTop
+    AutoSize = True
+    IsContainer = True
+    AlignChildrenVertical = True
+    Alignment = 'Left'
+    IsVisible = True
+    ContainerHeight = '100%'
+    BgColor = 8421440
+    SpacingAround = 0
+    Border = True
+    InheritColor = False
+    object AboutFormXMemo1: TXMemo
+      Name = 'AboutFormXMemo1'
+      Tag = -1
+      Left = 7
+      Height = 609
+      Top = 7
+      Width = 720
+      Align = alTop
+      AutoSize = True
+      myControl.Tag = 402196896
+      myControl.AnchorSideLeft.Control = AboutFormXMemo1
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrBottom
+      myControl.Left = 13
+      myControl.Height = 601
+      myControl.Top = 6
+      myControl.Width = 695
+      myControl.Constraints.MaxHeight = 601
+      myControl.Constraints.MaxWidth = 695
+      myControl.Constraints.MinHeight = 601
+      myControl.Constraints.MinWidth = 695
+      myControl.Lines.Strings = (
+        'hclasclkjsc'
+      )
+      myControl.ScrollBars = ssVertical
+      myControl.TabOrder = 0
+      IsContainer = False
+      AlignChildrenVertical = True
+      Alignment = 'Centre'
+      LabelPos = 'Top'
+      IsVisible = True
+      BgColor = clNone
+      SpacingAround = 5
+      Border = True
+      ItemValue = 'hclasclkjsc'
+      ReadOnly = False
+      MemoHeight = '95%'
+      MemoWidth = '95%'
+    end
+  end
+end

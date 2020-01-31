@@ -1,0 +1,76 @@
+object PopupMemoForm: TPopupMemoForm
+  Left = 495
+  Height = 516
+  Top = 204
+  Width = 939
+  Caption = 'XIDE Code Help'
+  ClientHeight = 516
+  ClientWidth = 939
+  OnCreate = FormCreate
+  OnResize = FormResize
+  OnShow = FormShow
+  LCLVersion = '2.1.0.0'
+  object PopupMemoVBox: TXVBox
+    Name = 'PopupMemoVBox'
+    Tag = 454631408
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrCenter
+    Left = 0
+    Height = 512
+    Top = 0
+    Width = 937
+    Align = alTop
+    AutoSize = True
+    IsContainer = True
+    AlignChildrenVertical = True
+    Alignment = 'Left'
+    IsVisible = True
+    ContainerWidth = '100%'
+    ContainerHeight = '100%'
+    BgColor = clWhite
+    SpacingAround = 0
+    Border = True
+    InheritColor = False
+    object PopupHelpText: TXMemo
+      Name = 'PopupHelpText'
+      Tag = -1
+      Left = 4
+      Height = 526
+      Top = 4
+      Width = 929
+      Align = alTop
+      AutoSize = True
+      myControl.Tag = 454631488
+      myControl.AnchorSideLeft.Control = PopupHelpText
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrBottom
+      myControl.Left = 6
+      myControl.Height = 508
+      myControl.Top = 18
+      myControl.Width = 916
+      myControl.Constraints.MaxHeight = 508
+      myControl.Constraints.MaxWidth = 916
+      myControl.Constraints.MinHeight = 508
+      myControl.Constraints.MinWidth = 916
+      myControl.Lines.Strings = (
+        '....text....'
+      )
+      myControl.ReadOnly = True
+      myControl.ScrollBars = ssVertical
+      myControl.TabOrder = 0
+      IsContainer = False
+      AlignChildrenVertical = True
+      Alignment = 'Centre'
+      LabelText = 'Available Interface Functions'
+      LabelPos = 'Top'
+      IsVisible = True
+      BgColor = clNone
+      SpacingAround = 2
+      Border = False
+      ItemValue = '....text....'
+      ReadOnly = True
+      MemoHeight = '100%'
+      MemoWidth = '98%'
+    end
+  end
+end

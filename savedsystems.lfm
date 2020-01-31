@@ -1,0 +1,199 @@
+object SavedSystemsForm: TSavedSystemsForm
+  Left = 274
+  Height = 400
+  Top = 122
+  Width = 400
+  Caption = 'XIDE Saved Systems'
+  ClientHeight = 400
+  ClientWidth = 400
+  OnCreate = FormCreate
+  OnResize = FormResize
+  LCLVersion = '2.1.0.0'
+  object SavedSystemsVBox: TXVBox
+    Name = 'SavedSystemsVBox'
+    Tag = 419424288
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrCenter
+    Left = 0
+    Height = 396
+    Top = 0
+    Width = 400
+    Align = alTop
+    AutoSize = True
+    IsContainer = True
+    AlignChildrenVertical = True
+    Alignment = 'Left'
+    IsVisible = True
+    ContainerHeight = '100%'
+    BgColor = clSkyBlue
+    SpacingAround = 0
+    Border = False
+    InheritColor = False
+    object SavedSystemsList: TXTree
+      Name = 'SavedSystemsList'
+      Tag = -1
+      Left = 2
+      Height = 15
+      Top = 2
+      Width = 396
+      Align = alTop
+      AutoSize = True
+      myControl.Tag = 419393664
+      myControl.AnchorSideLeft.Control = SavedSystemsList
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrCenter
+      myControl.Left = 0
+      myControl.Height = 312
+      myControl.Top = -148
+      myControl.Width = 398
+      myControl.Anchors = []
+      myControl.Constraints.MaxHeight = 312
+      myControl.Constraints.MaxWidth = 398
+      myControl.Constraints.MinHeight = 312
+      myControl.Constraints.MinWidth = 398
+      myControl.DragMode = dmAutomatic
+      myControl.ReadOnly = True
+      myControl.SelectionColor = clYellow
+      myControl.TabOrder = 0
+      myControl.Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips]
+      myControl.Items.Data = {
+        F9FFFFFF020001000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF050000000000
+        0000010A0000006D79547265654E616D65FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        FF010000000000000001060000004C61796F7574FFFFFFFFFFFFFFFFFFFFFFFF
+        FFFFFFFF00000000000000000009000000546573745374756666FFFFFFFFFFFF
+        FFFFFFFFFFFFFFFFFFFF0000000000000000000B00000053696D706C65497465
+        6D73FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000001000000043
+        6F6C6C656374696F6E204974656D73FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF01
+        00000000000000010B0000004D65646961206974656D73FFFFFFFFFFFFFFFFFF
+        FFFFFFFFFFFFFF0000000000000000000D000000546573744D6F726553747566
+        66FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000000C0000004F70
+        74696F6E20466F726D73
+      }
+      IsContainer = False
+      AlignChildrenVertical = True
+      Alignment = 'Left'
+      LabelText = 'Saved Systems'
+      LabelPos = 'Top'
+      IsVisible = True
+      BgColor = clWhite
+      SpacingAround = 2
+      Border = False
+      TreeData = '["myTreeName",["Layout","TestStuff"],"SimpleItems","Collection Items",["Media items","TestMoreStuff"],"Option Forms"]'
+      TreeHeight = '80%'
+      TreeWidth = '100%'
+      ReadOnly = True
+      Draggable = True
+      OpenToLevel = 1
+      AllowDrop = False
+    end
+    object SavedSystemsBtns: TXHBox
+      Name = 'SavedSystemsBtns'
+      Tag = -1
+      Left = 0
+      Height = 40
+      Top = 19
+      Width = 400
+      Align = alTop
+      AutoSize = True
+      IsContainer = True
+      AlignChildrenVertical = False
+      Alignment = 'Left'
+      IsVisible = True
+      ContainerHeight = '40'
+      BgColor = clNone
+      SpacingAround = 0
+      Border = False
+      InheritColor = True
+      object SavedSystemsLoad: TXButton
+        Name = 'SavedSystemsLoad'
+        Tag = -1
+        Left = 1
+        Height = 38
+        Top = 1
+        Width = 52
+        Align = alLeft
+        AutoSize = True
+        myControl.Tag = -1
+        myControl.AnchorSideLeft.Side = asrCenter
+        myControl.AnchorSideTop.Control = SavedSystemsLoad
+        myControl.Left = 0
+        myControl.Height = 25
+        myControl.Top = 0
+        myControl.Width = 52
+        myControl.AutoSize = True
+        myControl.Caption = 'Load'
+        myControl.TabOrder = 0
+        IsContainer = False
+        AlignChildrenVertical = True
+        Alignment = 'Top'
+        IsVisible = True
+        BgColor = clNone
+        SpacingAround = 1
+        Border = False
+        Caption = 'Load'
+        Enabled = True
+        HandleButtonClick = SavedSystemsLoadHandleButtonClick
+      end
+      object SavedSystemsCancel: TXButton
+        Name = 'SavedSystemsCancel'
+        Tag = -1
+        Left = 54
+        Height = 38
+        Top = 1
+        Width = 62
+        Align = alLeft
+        AutoSize = True
+        myControl.Tag = -1
+        myControl.AnchorSideLeft.Side = asrCenter
+        myControl.AnchorSideTop.Control = SavedSystemsCancel
+        myControl.Left = 0
+        myControl.Height = 25
+        myControl.Top = 0
+        myControl.Width = 62
+        myControl.AutoSize = True
+        myControl.Caption = 'Cancel'
+        myControl.TabOrder = 0
+        IsContainer = False
+        AlignChildrenVertical = True
+        Alignment = 'Top'
+        IsVisible = True
+        BgColor = clNone
+        SpacingAround = 1
+        Border = False
+        Caption = 'Cancel'
+        Enabled = True
+        HandleButtonClick = SavedSystemsCancelHandleButtonClick
+      end
+      object SavedSystemsDelete: TXButton
+        Name = 'SavedSystemsDelete'
+        Tag = -1
+        Left = 117
+        Height = 38
+        Top = 1
+        Width = 59
+        Align = alLeft
+        AutoSize = True
+        myControl.Tag = -1
+        myControl.AnchorSideLeft.Side = asrCenter
+        myControl.AnchorSideTop.Control = SavedSystemsDelete
+        myControl.Left = 0
+        myControl.Height = 25
+        myControl.Top = 0
+        myControl.Width = 59
+        myControl.AutoSize = True
+        myControl.Caption = 'Delete'
+        myControl.TabOrder = 0
+        IsContainer = False
+        AlignChildrenVertical = True
+        Alignment = 'Top'
+        IsVisible = True
+        BgColor = clNone
+        SpacingAround = 1
+        Border = False
+        Caption = 'Delete'
+        Enabled = True
+        HandleButtonClick = SavedSystemsDeleteHandleButtonClick
+      end
+    end
+  end
+end

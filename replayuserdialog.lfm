@@ -1,0 +1,48 @@
+object ReplayUserDialogForm: TReplayUserDialogForm
+  Left = 695
+  Height = 84
+  Top = 370
+  Width = 437
+  Caption = 'User Dialog Replay'
+  ClientHeight = 84
+  ClientWidth = 437
+  OnCreate = FormCreate
+  OnShow = FormShow
+  LCLVersion = '2.1.0.0'
+  object ReplayUserEntry: TXEditBox
+    Name = 'ReplayUserEntry'
+    Tag = -1
+    Left = 2
+    Height = 41
+    Top = 2
+    Width = 433
+    Align = alTop
+    AutoSize = True
+    myControl.Tag = -1
+    myControl.AnchorSideLeft.Control = ReplayUserEntry
+    myControl.AnchorSideTop.Side = asrBottom
+    myControl.Left = 0
+    myControl.Height = 23
+    myControl.Top = 18
+    myControl.Width = 400
+    myControl.Constraints.MaxWidth = 400
+    myControl.Constraints.MinWidth = 400
+    myControl.TabOrder = 0
+    IsContainer = False
+    AlignChildrenVertical = True
+    Alignment = 'Left'
+    LabelText = 'Edit Box..'
+    LabelPos = 'Top'
+    IsVisible = True
+    BgColor = clNone
+    SpacingAround = 2
+    Border = False
+    ReadOnly = False
+    BoxWidth = '400'
+    PasswordBox = False
+  end
+  object ReplayUserDialogTimer: TTimer
+    Left = 392
+    Top = 48
+  end
+end
