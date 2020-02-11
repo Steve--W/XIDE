@@ -98,6 +98,8 @@ begin
   '   ''Init'' section of an event handler. The result here is a blank string.                  ' + LineEnding +
   '   The clipboard string is held in e.ReturnString, which cn be picked up in the              ' + LineEnding +
   '   ''Main'' section of the event handler.                                                    ' + LineEnding +
+  'function  LoadTableFromExcelCopy(TableName,CopiedString:String);  '  + LineEnding +
+  '                            Populate the given TXTable component with a string in Excel format (eg. as copied from a spreadsheet)  '  + LineEnding +
   'procedure DoEvent(EventType,NodeId,myValue:String); '  + LineEnding +
   '                            executes the event handler defined for the given event type and component. '  + LineEnding +
   'procedure MoveComponent(nodeId:string;NewParentId:string); '  + LineEnding +
@@ -134,6 +136,18 @@ begin
   '                            Imports a new user system to the XIDE framework (can only be done in ''Design'' mode) '  + LineEnding +
   'procedure ConsoleLog(txt:String);'  + LineEnding +
   '                            Writes a debug message to the console log  '  + LineEnding;
+  PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
+  'function  Array2DToString(arr:T2DNumArray):String;'  + LineEnding +
+  '                            Convert numeric 2D array to string form eg. [[...],...,[...]]  '  + LineEnding +
+  'function  GetGPUPixelArray(GPUName:String):T3DNumArray; '  + LineEnding +
+  '                            Fetch the current Pixel array for the given TXGPUCanvas component  '  + LineEnding +
+  'function  GetGPUPixelArrayAsString(GPUName:String):String;'  + LineEnding +
+  '                            Fetch the current Pixel array in string format for the given TXGPUCanvas component  '  + LineEnding +
+  'function  GetGPUStageArray(GPUName:String):T3DNumArray; '  + LineEnding +
+  '                            Fetch the stage array (resulting from the non-graphical kernel stack) for the given TXGPUCanvas component  '  + LineEnding +
+  'function  GetGPUStageArrayAsString(GPUName:String):String;'  + LineEnding +
+  '                            Fetch the stage array in string format for the given TXGPUCanvas component  '  + LineEnding;
+
 end;
 
 end.

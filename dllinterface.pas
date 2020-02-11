@@ -20,7 +20,7 @@ interface
 
 uses
   Classes, SysUtils, StringUtils, ExtCtrls, Dialogs, Clipbrd, Forms, Controls,
-  NodeUtils, LazsUtils, EventsInterface, Events, XForm, XBitMap, XObjectInsp, XGPUCanvas,
+  NodeUtils, LazsUtils, EventsInterface, Events, XForm, XBitMap, XObjectInsp, XGPUCanvas, XTable,
   XComposite, EventLogging,
   MouseAndKeyInput, LCLType, TypInfo;
 
@@ -38,6 +38,7 @@ IMyMethodInterface = interface(IInterface)
     Function mmiprompt(TextMessage,promptString:string):string;  stdcall;
     procedure mmiCopyToClip(str:String);  stdcall;
     function mmiCopyFromClip(e:TEventStatus):String;  stdcall;
+    procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
@@ -56,6 +57,11 @@ IMyMethodInterface = interface(IInterface)
     function mmiUserSystemAsString():String; stdcall;
     procedure mmiLoadUserSystemString(SystemString:String); stdcall;
     procedure mmiConsoleLog(txt:String);  stdcall;
+    function mmiArray2DToString(arr:T2DNumArray):String;           stdcall;
+    function mmiGetGPUPixelArray(GPUName:String):T3DNumArray;                                stdcall;
+    function mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
+    function mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
+    function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
 end;
 
 type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
@@ -72,6 +78,7 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       Function mmiprompt(TextMessage,promptString:string):string;   stdcall;
       procedure mmiCopyToClip(str:String);  stdcall;
       function mmiCopyFromClip(e:TEventStatus):String;    stdcall;
+      procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
       procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
       procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
       procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
@@ -90,6 +97,11 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       function mmiUserSystemAsString():String; stdcall;
       procedure mmiLoadUserSystemString(SystemString:String); stdcall;
       procedure mmiConsoleLog(txt:String);  stdcall;
+      function mmiArray2DToString(arr:T2DNumArray):String;         stdcall;
+      function mmiGetGPUPixelArray(GPUName:String):T3DNumArray;                                stdcall;
+      function mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
+      function mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
+      function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
   end;
 
 type TEventTimerTag = class
@@ -292,6 +304,17 @@ end;
      end;
    end;
 
+   procedure TMyMethodObject.mmiLoadTableFromExcelCopy(TableName,CopiedString:String);   stdcall;
+   var
+    myNode:TDataNode;
+   begin
+     myNode:=FindDataNodeById(SystemNodetree,TableName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXTable') then
+     begin
+       TXTable(myNode.ScreenObject).LoadTableFromExcelCopy(CopiedString);
+     end;
+   end;
+
    procedure TMyMethodObject.mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
    var
      mv:PChar;
@@ -454,6 +477,77 @@ end;
      //showmessage(txt);
    end;
 
+   function TMyMethodObject.mmiArray2DToString(arr:T2DNumArray):String;    stdcall;
+   var
+     str:string;
+   begin
+     str:=StringUtils.Num2DArrayToString(arr);
+     result:=str;
+   end;
+
+   function TMyMethodObject.mmiGetGPUPixelArray(GPUName:String):T3DNumArray;                                stdcall;
+   var
+     myNode:TDataNode;
+   begin
+     result:=nil;
+    //showmessage('mmiGetGPUPixelArray GPUName='+GPUName);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+     begin
+       {$ifdef Chromium}
+       result:=JsonStringTo3DNumArray(TXGPUCanvas(myNode.ScreenObject).GPUOutputString);
+       {$else}
+       {$endif}
+     end;
+   end;
+
+   function TMyMethodObject.mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
+   var
+     myNode:TDataNode;
+   begin
+     result:='';
+    //showmessage('mmiGetGPUPixelArray GPUName='+GPUName);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+     begin
+       {$ifdef Chromium}
+       result:=TXGPUCanvas(myNode.ScreenObject).GPUOutputString;
+       {$else}
+       {$endif}
+     end;
+   end;
+
+   function TMyMethodObject.mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
+   var
+     myNode:TDataNode;
+   begin
+     result:=nil;
+    //showmessage('mmiGetGPUStageArray GPUName='+GPUName);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+     begin
+       {$ifdef Chromium}
+       result:=JsonStringTo3DNumArray(TXGPUCanvas(myNode.ScreenObject).GPUStageString);
+       {$else}
+       {$endif}
+     end;
+   end;
+
+   function TMyMethodObject.mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
+   var
+     myNode:TDataNode;
+   begin
+     result:='';
+    //showmessage('mmiGetGPUStageArray GPUName='+GPUName);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+     begin
+       {$ifdef Chromium}
+       result:=TXGPUCanvas(myNode.ScreenObject).GPUStageString;
+       {$else}
+       {$endif}
+     end;
+   end;
 begin
     EventsNameSpace:='';
     mmo := TMyMethodObject.Create();

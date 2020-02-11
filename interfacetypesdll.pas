@@ -36,6 +36,7 @@ Tshowxform=procedure(XFormID:String; modal:Boolean) of object;                  
 Tclosexform=procedure(XFormID:String) of object;                                                     stdcall;
 TCopyToClip=procedure(str:String) of object;                                                         stdcall;
 TCopyFromClip=function(e:TEventStatus):String of object;                                             stdcall;
+TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;                         stdcall;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;                                      stdcall;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;                                stdcall;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;                                stdcall;
@@ -54,6 +55,11 @@ THidePointer=procedure of object; stdcall;
 TUserSystemAsString=function():String of object; stdcall;
 TLoadUserSystemString=procedure(SystemString:String) of object; stdcall;
 TConsoleLog=procedure(txt:String) of object; stdcall;
+TArray2DToString=function(arr:T2DNumArray):String of object;                                 stdcall;
+TGetGPUPixelArray=function(GPUName:String):T3DNumArray of object;                                stdcall;
+TGetGPUPixelArrayAsString=function(GPUName:String):String of object;                                stdcall;
+TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;                                stdcall;
+TGetGPUStageArrayAsString=function(GPUName:String):String of object;                                stdcall;
 
 
 type
@@ -70,6 +76,7 @@ IMyMethodInterface = interface(IInterface)
     Function mmiprompt(TextMessage,promptString:string):string;  stdcall;
     procedure mmiCopyToClip(str:String);  stdcall;
     function mmiCopyFromClip(e:TEventStatus):String;  stdcall;
+    procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String); stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
@@ -88,6 +95,11 @@ IMyMethodInterface = interface(IInterface)
     function mmiUserSystemAsString():String; stdcall;
     procedure mmiLoadUserSystemString(SystemString:String); stdcall;
     procedure mmiConsoleLog(txt:String);  stdcall;
+    function mmiArray2DToString(arr:T2DNumArray):String;         stdcall;
+    function mmiGetGPUPixelArray(GPUName:String):T3DNumArray;                                stdcall;
+    function mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
+    function mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
+    function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
 end;
 
 
@@ -105,6 +117,7 @@ getpropertyvalue:Tgetpropertyvalue;
 //getpropertyvalueindexed:Tgetpropertyvalueindexed;
 copytoclip:TCopyToClip;
 copyfromclip:TCopyFromClip;
+LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
 doevent:TDoEvent;
 movecomponent:TMoveComponent;
 copycomponent:TCopyComponent;
@@ -123,6 +136,11 @@ HidePointer:THidePointer;
 UserSystemAsString:TUserSystemAsString;
 LoadUserSystemString:TLoadUserSystemString;
 ConsoleLog:TConsoleLog;
+Array2DToString:TArray2DToString;
+GetGPUPixelArray:TGetGPUPixelArray;
+GetGPUPixelArrayAsString:TGetGPUPixelArrayAsString;
+GetGPUStageArray:TGetGPUStageArray;
+GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
 
 
 procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
@@ -150,6 +168,7 @@ begin
   prompt:=@AppMethods.mmiprompt;
   copytoclip:=@AppMethods.mmiCopyToClip;
   copyfromclip:=@AppMethods.mmiCopyFromClip;
+  LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
   doevent:=@appmethods.mmiDoEvent;
   movecomponent:=@appmethods.mmiMoveComponent;
   copycomponent:=@appmethods.mmiCopyComponent;
@@ -168,6 +187,11 @@ begin
   UserSystemAsString:=@appmethods.mmiUserSystemAsString;
   LoadUserSystemString:=@appmethods.mmiLoadUserSystemString;
   ConsoleLog:=@appmethods.mmiConsoleLog;
+  Array2DToString:=@appmethods.mmiArray2DToString;
+  GetGPUPixelArray:=@appmethods.mmiGetGPUPixelArray;
+  GetGPUPixelArrayAsString:=@appmethods.mmiGetGPUPixelArrayAsString;
+  GetGPUStageArray:=@appmethods.mmiGetGPUStageArray;
+  GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
 
  // dummy:=GetPropertyValue('UIRoot','Name');     // fudge...didn't work
 

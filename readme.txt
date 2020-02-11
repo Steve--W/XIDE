@@ -3,7 +3,7 @@ XIDE Project
 
 Overview
 --------
-This Lazarus project provides a RAD IDE for Free Pascal in the browser (Chrome) or the desktop.
+This Lazarus project provides a RAD IDE for Free Pascal in the browser (Chrome) or desktop.
 
 It is not intended for general purpose web page development, but for Line Of Business or Embedded System apps where 
 pascal is needed to provide extensive client side functionality and/or you need to share a code base between browser 

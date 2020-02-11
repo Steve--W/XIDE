@@ -35,6 +35,7 @@ Tshowxform=procedure(XFormID:String; modal:Boolean) of object;
 Tclosexform=procedure(XFormID:String) of object;
 TCopyToClip=procedure(str:String) of object;
 TCopyFromClip=function(e:TEventStatus):String of object;
+TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;
@@ -53,6 +54,11 @@ THidePointer=procedure of object;
 TUserSystemAsString=function():String of object;
 TLoadUserSystemString=procedure(SystemString:String) of object;
 TConsoleLog=procedure(txt:String) of object;
+TArray2DToString=function(arr:T2DNumArray):String of object;
+TGetGPUPixelArray=function(GPUName:String):T3DNumArray of object;
+TGetGPUPixelArrayAsString=function(GPUName:String):String of object;
+TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;
+TGetGPUStageArrayAsString=function(GPUName:String):String of object;
 
 {$ifdef JScript}
 var
@@ -67,6 +73,7 @@ getpropertyvalue:Tgetpropertyvalue;
 //getpropertyvalueindexed:Tgetpropertyvalueindexed;
 copytoclip:TCopyToClip;
 copyfromclip:TCopyFromClip;
+LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
 doevent:TDoEvent;
 movecomponent:TMoveComponent;
 copycomponent:TCopyComponent;
@@ -85,6 +92,11 @@ hidepointer:THidePointer;
 UserSystemAsString:TUserSystemAsString;
 LoadUserSystemString:TLoadUserSystemString;
 ConsoleLog:TConsoleLog;
+Array2DToString:TArray2DToString;
+GetGPUPixelArray:TGetGPUPixelArray;
+GetGPUPixelArrayAsString:TGetGPUPixelArrayAsString;
+GetGPUStageArray:TGetGPUStageArray;
+GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
 
 
 var EventsNameSpace:String;
@@ -106,6 +118,7 @@ type TMethodsClass = class(TObject)
  Function mmiprompt(TextMessage,promptString:string):string;
  procedure mmiCopyToClip(str:String);
  function mmiCopyFromClip(e:TEventStatus):String;
+ procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
  procedure mmiDoEvent(EventType,NodeId,myValue:String);
  procedure mmiMoveComponent(nodeId:string;NewParentId:string);
  procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);
@@ -124,6 +137,11 @@ type TMethodsClass = class(TObject)
  function mmiUserSystemAsString():String;
  procedure mmiLoadUserSystemString(SystemString:String);
  procedure mmiConsoleLog(txt:String);
+ function mmiArray2DToString(arr:T2DNumArray):String;
+ function mmiGetGPUPixelArray(GPUName:String):T3DNumArray;
+ function mmiGetGPUPixelArrayAsString(GPUName:String):String;
+ function mmiGetGPUStageArray(GPUName:String):T3DNumArray;
+ function mmiGetGPUStageArrayAsString(GPUName:String):String;
 end;
 
 type AnsiString=String;
@@ -151,6 +169,7 @@ begin
   prompt:=@AppMethods.mmiprompt;
   copytoclip:=@AppMethods.mmiCopyToClip;
   copyfromclip:=@AppMethods.mmiCopyFromClip;
+  LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
   doevent:=@appmethods.mmiDoEvent;
   movecomponent:=@appmethods.mmiMoveComponent;
   copycomponent:=@appmethods.mmiCopyComponent;
@@ -169,6 +188,11 @@ begin
   UserSystemAsString:=@appmethods.mmiUserSystemAsString;
   LoadUserSystemString:=@appmethods.mmiLoadUserSystemString;
   ConsoleLog:=@appmethods.mmiConsoleLog;
+  Array2DToString:=@appmethods.mmiArray2DToString;
+  GetGPUPixelArray:=@appmethods.mmiGetGPUPixelArray;
+  GetGPUPixelArrayAsString:=@appmethods.mmiGetGPUPixelArrayAsString;
+  GetGPUStageArray:=@appmethods.mmiGetGPUStageArray;
+  GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
 end;
 
 procedure TMethodsClass.mmiSetEventsNameSpace(NameSpace:String);
@@ -321,6 +345,17 @@ begin
     }
   end;
   result:=str;   // have to await user pressing ctrl-v to get pasted data
+end;
+
+procedure TMethodsClass.mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
+    {
+      myNode.LoadTableFromExcelCopy(CopiedString);
+    }
+  end;
 end;
 
 procedure TMethodsClass.mmiDoEvent(EventType,NodeId,myValue:String);
@@ -483,6 +518,72 @@ begin
   asm
     console.log(txt);
   end;
+end;
+
+function TMethodsClass.mmiArray2DToString(arr:T2DNumArray):String;
+var
+  str:String;
+begin
+  asm
+    str=pas.StringUtils.Num2dArrayToString(arr);
+  end;
+  result:=str;
+end;
+
+function TMethodsClass.mmiGetGPUPixelArray(GPUName:String):T3DNumArray;
+var
+  pxval:T3DNumArray;
+begin
+  pxval:=nil;
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      pxval=pas.XGPUCanvas.GetOutputArrayValue(GPUName);
+    }
+  end;
+  result:=pxval;
+end;
+
+function TMethodsClass.mmiGetGPUPixelArrayAsString(GPUName:String):String;
+var
+  pxval:String;
+begin
+  pxval:='';
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      pxval=pas.XGPUCanvas.GetOutputArrayString(GPUName);
+    }
+  end;
+  result:=pxval;
+end;
+
+function TMethodsClass.mmiGetGPUStageArray(GPUName:String):T3DNumArray;
+var
+  pxval:T3DNumArray;
+begin
+  pxval:=nil;
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      pxval=pas.XGPUCanvas.GetStageArrayValue(GPUName);
+    }
+  end;
+  result:=pxval;
+end;
+
+function TMethodsClass.mmiGetGPUStageArrayAsString(GPUName:String):String;
+var
+  pxval:String;
+begin
+  pxval:='';
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      pxval=pas.XGPUCanvas.GetStageArrayString(GPUName);
+    }
+  end;
+  result:=pxval;
 end;
 
 
