@@ -41,11 +41,11 @@ type TGPUNumParam = record
   ParamValue:TNumArray;
   end;
 type TGPUNumParams = Array of TGPUNumParam;
-type TGPUImgParam = record
-  ParamName:String;
-  ParamValue:TImgArray;
-  end;
-type TGPUImgParams = Array of TGPUImgParam;
+//type TGPUImgParam = record
+//  ParamName:String;
+//  ParamValue:TImgArray;
+//  end;
+//type TGPUImgParams = Array of TGPUImgParam;
 type TGPUIntConst = record
   ConstName:String;
   ConstValue:integer;
@@ -57,7 +57,7 @@ type
   private
     { Private declarations }
     ParamNumArray:TGPUNumParams;
-    ParamImgArray:TGPUImgParams;
+//    ParamImgArray:TGPUImgParams;
     ConstIntArray:TGPUIntConsts;
 //    {$ifndef JScript}
 //    fHandleOnNewFrame:TEventHandler;
@@ -68,32 +68,30 @@ type
     function GetAnimated:Boolean;
     function GetParamNumList:string;
     function GetConstIntList:string;
-    function GetParamImgList:string;
+//    function GetParamImgList:string;
     function GetMaxIterations:integer;
     function GetStartIteration:integer;
     function GetNumFrames:integer;
     function GetMaxFramesPerSec:integer;
 //    function GetFetchFrameOutput:Boolean;
-//    function GetOutputArray:string;
-//    function GetGPUStageArray:string;
     function GetNumKernels:integer;
-    function GetZDimension:integer;
+    function GetDfltZDepth:integer;
+    function GetInitStageData:string;
 
     procedure SetAnimationCode(AValue:string);
     procedure SetActive(AValue:Boolean);
     procedure SetAnimated(AValue:Boolean);
     procedure SetParamNumList(AValue:string);
     procedure SetConstIntList(AValue:string);
-    procedure SetParamImgList(AValue:string);
+//    procedure SetParamImgList(AValue:string);
     procedure SetMaxIterations(AValue:integer);
     procedure SetStartIteration(AValue:integer);
     procedure SetNumFrames(AValue:integer);
     procedure SetMaxFramesPerSec(AValue:integer);
 //    procedure SetFetchFrameOutput(AValue:Boolean);
-//    procedure SetOutputArray(AValue:string);
-//    procedure SetGPUStageArray(AValue:string);
     procedure SetNumKernels(AValue:integer);
-    procedure SetZDimension(AValue:integer);
+    procedure SetDfltZDepth(AValue:integer);
+    procedure SetInitStageData(AValue:string);
 
     procedure SetMyEventTypes;  override;
     procedure SetPropertyDefaults;
@@ -101,7 +99,7 @@ type
     procedure StopMyGPU;
     function BuildPascalAnimationUnit(Compiler:TObject):String;
     function CompileGPUToJS(var GPUJSOutput:String):Boolean;
-    function GPUJSCode(AnimCode:TStringList):String;
+    function GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
     function GPUJSAnimationFooter:String;
     procedure setupGPUPage;
 
@@ -118,6 +116,7 @@ type
     GPUOutputArray:T3DNumArray;            // output from non-graphical nested kernels
     GPUStageString:String;
     GPUOutputString:String;
+    Dimensions:TDimsArray;
     {$ifndef JScript}
     constructor Create(TheOwner: TComponent); override;
     constructor Create(TheOwner: TComponent;IsDynamic:Boolean); override;
@@ -138,10 +137,10 @@ type
     function FullXMLString:String;
     function GetParamNumValue(pName:String):TNumArray;
     function GetConstIntValue(pName:String):integer;
-    function GetParamImgValue(pName:String):TImgArray;
+//    function GetParamImgValue(pName:String):TImgArray;
     procedure SetParamNumValue(pName:String;pValue:TNumArray;ForwardToWidget:Boolean);
     procedure SetConstIntValue(pName:String;pValue:integer);
-    procedure SetParamImgValue(pName:String;pValue:TImgArray;ForwardToWidget:Boolean);
+//    procedure SetParamImgValue(pName:String;pValue:TImgArray;ForwardToWidget:Boolean);
     function CompileAnimCode:TStringList;
     function FetchAllAnimCode:TAnimCodeArray;
     function BuildKernelList:String;
@@ -155,16 +154,15 @@ published
     property AnimationCode: String read GetAnimationCode write SetAnimationCode;
     property ParamNumList: String read GetParamNumList write SetParamNumList;
     property ConstIntList: String read GetConstIntList write SetConstIntList;
-    property ParamImgList: String read GetParamImgList write SetParamImgList;
+//    property ParamImgList: String read GetParamImgList write SetParamImgList;
     property MaxIterations: integer read GetMaxIterations write SetMaxIterations;
     property StartIteration: integer read GetStartIteration write SetStartIteration;
     property NumFrames: integer read GetNumFrames write SetNumFrames;
     property MaxFramesPerSec: integer read GetMaxFramesPerSec write SetMaxFramesPerSec;
 //    property FetchFrameOutput: Boolean read GetFetchFrameOutput write SetFetchFrameOutput;
-//    property OutputArray:String read GetOutputArray write SetOutputArray;
-//    property GPUStageArray:String read GetGPUStageArray write SetGPUStageArray;
     property NumKernels:integer read GetNumKernels write SetNumKernels;
-    property ZDimension:integer read GetZDimension write SetZDimension;
+    property DfltZDepth:integer read GetDfltZDepth write SetDfltZDepth;
+    property InitStageData: String read GetInitStageData write SetInitStageData;
 
   end;
 
@@ -430,10 +428,10 @@ function TXGPUCanvas.GetConstIntList:string;
 begin
   result:=myNode.getAttribute('ConstIntList',true).AttribValue;
 end;
-function TXGPUCanvas.GetParamImgList:string;
-begin
-  result:=myNode.getAttribute('ParamImgList',true).AttribValue;
-end;
+//function TXGPUCanvas.GetParamImgList:string;
+//begin
+//  result:=myNode.getAttribute('ParamImgList',true).AttribValue;
+//end;
 function TXGPUCanvas.GetMaxIterations:integer;
 begin
   result:=StrToInt(myNode.getAttribute('MaxIterations',true).AttribValue);
@@ -450,21 +448,17 @@ function TXGPUCanvas.GetMaxFramesPerSec:integer;
 begin
   result:=StrToInt(myNode.getAttribute('MaxFramesPerSec',true).AttribValue);
 end;
-//function TXGPUCanvas.GetOutputArray:String;
-//begin
-//  result:=myNode.getAttribute('OutputArray',true).AttribValue;
-//end;
-//function TXGPUCanvas.GetGPUStageArray:String;
-//begin
-//  result:=myNode.getAttribute('GPUStageArray',true).AttribValue;
-//end;
 function TXGPUCanvas.GetNumKernels:integer;
 begin
   result:=StrToInt(myNode.getAttribute('NumKernels',true).AttribValue);
 end;
-function TXGPUCanvas.GetZDimension:integer;
+function TXGPUCanvas.GetDfltZDepth:integer;
 begin
-  result:=StrToInt(myNode.getAttribute('ZDimension',true).AttribValue);
+  result:=StrToInt(myNode.getAttribute('DfltZDepth',true).AttribValue);
+end;
+function TXGPUCanvas.GetInitStageData:string;
+begin
+  result:=myNode.getAttribute('InitStageData',true).AttribValue;
 end;
 
 function TXGPUCanvas.FullParamList:String;
@@ -474,17 +468,17 @@ begin
   plist:='';
   if self.ParamNumList<>'' then plist:=','+self.ParamNumList;
  // if self.ParamIntList<>'' then plist:=plist+','+self.ParamIntList;
-  if self.ParamImgList<>'' then plist:=plist+','+self.ParamImgList;
+//  if self.ParamImgList<>'' then plist:=plist+','+self.ParamImgList;
   result:=plist;
 end;
 
-function TXGPUCanvas.GPUJSCode(AnimCode:TStringList):String;
+function TXGPUCanvas.GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
 var
   str,vstr,cma, plist, KName:String;
-  i,j,ZDim:integer;
+  i,j,d:integer;
   vn:TNumArray;
   vi:TIntArray;
-  vb:TImgArray;
+//  vb:TImgArray;
   h,w,n:integer;
 begin
   //numKernels:=2;
@@ -500,26 +494,6 @@ begin
     result:='';
     EXIT;
   end;
-
-  {$ifndef JScript}
-  h:=trunc(self.ActualHeight);
-  w:=trunc(self.ActualWidth);
-  //showmessage('h='+inttostr(h)+' w='+inttostr(w));
-  {$else}
-  asm
-    var ob=document.getElementById(this.NameSpace+this.NodeName);
-    if (ob!=null) {
-      var style = window.getComputedStyle(ob);
-      var hh = style.height;
-      h = parseInt(hh, 10);
-      var ww = style.width;
-      w = parseInt(ww, 10);
-    }
-    else {h=301; w=301;}
-    if (w==undefined) {w=302;}
-    if (h==undefined) {h=302;}
-  end;
-  {$endif}
 
   str:=
 //  'document.domain = "/abc"; ' + LineEnding
@@ -544,78 +518,34 @@ begin
     str:=str+'   let '+ParamNumArray[i].ParamName+' = '+vstr+';' +LineEnding;
   end;
 
-  // Image parameters are 1-D arrays of values
-  for i:=0 to length(self.ParamImgArray)-1 do
-  begin
-    vb:=ParamImgArray[i].ParamValue;
-    vstr:='[';
-    for j:=0 to length(vb)-1 do
-    begin
-      if j>0 then vstr:=vstr+',';
-      vstr:=vstr+vb[j];
-    end;
-    vstr:=vstr+']';
-    str:=str+'   let '+ParamImgArray[i].ParamName+' = '+vstr+';' +LineEnding;
-  end;
+  //!! cef
+  // cef.  write to console log to trigger a cef event...
+  str:=str
+  +'function PostMessageOutputArray(objid, cval) {'  + LineEnding
+  +'   var oa = document.getElementById("oarr");' + LineEnding
+  +'   if (oa==null) {oa=document.createElement("DIV"); oa.id="oarr"; ' + LineEnding
+  +'     oa.style.display="none";' + LineEnding
+  +'     document.body.appendChild(oa);}' + LineEnding
+  +'   var sa = document.getElementById("sarr");' + LineEnding
+  +'   if (sa==null) {sa=document.createElement("DIV"); sa.id="sarr"; ' + LineEnding
+  +'     sa.style.display="none";' + LineEnding
+  +'     document.body.appendChild(sa);}' + LineEnding
+  +'   if (running) {oa.innerHTML=outputArrayString;' + LineEnding
+  +'                 sa.innerHTML=JSON.stringify(stageArray);' + LineEnding
+  {$ifndef JScript}
+  {$ifdef Chromium}
+  +'                 console.log("'+myNode.NodeName+'O ");' + LineEnding
+  {$endif}
+  {$else}
+  +'    window.parent.postMessage({"objid":objid,"mtype":"FrameOutput","outputArray":oa.innerHTML},"*"); ' + LineEnding;
+  if numKernels>0 then
+    str:=str+'    window.parent.postMessage({"objid":objid,"mtype":"StageOutput","stageArray":sa.innerHTML},"*"); ' + LineEnding
+  {$endif}
+  ;
+  str:=str+'} }'+LineEnding;
 
 
-//  {$ifdef JScript}
-//  str:=str
-//  +'  function PostMessageStageArray(objid, cval, stageArrayString) {'  + LineEnding
-//  +'    window.parent.postMessage({"objid":objid,"mtype":"StageOutput","stageArray":stageArrayString},"*"); ' + LineEnding;
-//  str:=str+'}'+LineEnding;
-//  {$else}
-//  {$ifdef Chromium}
-//  //!! cef
-//  // cef.  write to console log to trigger a cef event...
-//  str:=str
-//  +'  function PostMessageStageArray(objid, cval, stageArrayString) {'  + LineEnding
-////  +'   if (running) {console.log("'+myNode.NodeName+'S "+stageArrayString);}' + LineEnding ;
-//  +'   if (running) {console.log("'+myNode.NodeName+'S ");}' + LineEnding ;
-//  str:=str+'}'+LineEnding;
-//  {$endif}
-//  {$endif}
-//  if self.FetchFrameOutput = true then
-//  begin
-//    {$ifdef JScript}
-//    str:=str
-//    +'  function PostMessageOutputArray(objid, cval) {'  + LineEnding
-//    +'    window.parent.postMessage({"objid":objid,"mtype":"FrameOutput","outputArray":outputArrayString},"*"); ' + LineEnding;
-//    str:=str+'}'+LineEnding;
-//    {$else}
-//    {$ifdef Chromium}
-    //!! cef
-    // cef.  write to console log to trigger a cef event...
-    str:=str
-    +'function PostMessageOutputArray(objid, cval) {'  + LineEnding
-    +'   var oa = document.getElementById("oarr");' + LineEnding
-    +'   if (oa==null) {oa=document.createElement("DIV"); oa.id="oarr"; ' + LineEnding
-    +'     oa.style.display="none";' + LineEnding
-    +'     document.body.appendChild(oa);}' + LineEnding
-    +'   var sa = document.getElementById("sarr");' + LineEnding
-    +'   if (sa==null) {sa=document.createElement("DIV"); sa.id="sarr"; ' + LineEnding
-    +'     sa.style.display="none";' + LineEnding
-    +'     document.body.appendChild(sa);}' + LineEnding
-    +'   if (running) {oa.innerHTML=outputArrayString;' + LineEnding
-    +'                 sa.innerHTML=JSON.stringify(stageArray);' + LineEnding
-    {$ifndef JScript}
-    {$ifdef Chromium}
-    +'                 console.log("'+myNode.NodeName+'O ");' + LineEnding
-    {$endif}
-    {$else}
-    +'    window.parent.postMessage({"objid":objid,"mtype":"FrameOutput","outputArray":oa.innerHTML},"*"); ' + LineEnding;
-    if numKernels>0 then
-      str:=str+'    window.parent.postMessage({"objid":objid,"mtype":"StageOutput","stageArray":sa.innerHTML},"*"); ' + LineEnding
-    {$endif}
-    ;
-    str:=str+'} }'+LineEnding;
-//    {$endif}
-//    {$endif}
-
-//  end;
-
-  // function GetTheArray - returns an array string - image of the canvas pixel colours [[r,g,b,a],....]
-  //     called from the FrameDone function.
+//     called from the FrameDone function.
 //  if self.FetchFrameOutput=true then
     str:=str+'  function GetPixelArray(kernel) { ' + LineEnding
     //+'return(kernel.getPixels()); ' + LineEnding          // needs gpujs v2
@@ -662,7 +592,6 @@ begin
 
   plist:=self.FullParamList;
   KName:=self.MyNode.NodeName+'CanvasRenderFn';
-  ZDim:=self.ZDimension;
 
   // Create the required set of non-graphical kernels.
   // All these kernels operate with the same set of parameters.
@@ -674,13 +603,20 @@ begin
     +') { ' + LineEnding;
     str:=str + 'var myValue=0.0;' + LineEnding;
     str:=str + AnimCode[n+1];
-    str:=str + 'return myValue;' + LineEnding;         // this goes into the relevant x,y position in outputArray
+    str:=str + 'return myValue;' + LineEnding;         // this goes into the relevant x,y,z position in outputArray
     str:= str
     +'     })  '+LineEnding
     +'  /*/------- end of create Kernel routine ---------------/*/ ' + LineEnding
-    +'       .setOutput(['+intToStr(w)+','+ intToStr(h)+','+inttostr(ZDim)+']) ' + LineEnding   // 3-D output
- //   +'       .setOutput([3,2])              ' + LineEnding
-    +'       .setGraphical(false)                                         ' + LineEnding;
+//    +'       .setOutput(['+intToStr(w)+','+ intToStr(h)+','+inttostr(ZDim)+']) ' + LineEnding   // 3-D output
+    +'       .setOutput([';
+    for d:=0 to length(self.Dimensions[n+1])-1 do
+    begin
+      if d>0 then str:=str+',';
+      str:= str + inttostr(self.Dimensions[n+1,d]);
+    end;
+    str:= str
+    +']) ' + LineEnding
+    +'       .setGraphical(false)             ' + LineEnding;
     // integer parameters are loaded as constants
     if length(self.ConstIntArray)>0 then
     begin
@@ -699,6 +635,9 @@ begin
   end;
 
 //.......... Create a final Kernel (Graphical) ..............
+h:=self.ActualHeight;
+w:=self.ActualWidth;
+
 str:=str
 +'     /*/------------ start of create Kernel routine -------/*/ ' + LineEnding
 +'     const '+KName+'G = '+self.MyNode.NodeName+'.createKernel(function(myArray,AnimationCounterValue'+plist
@@ -734,10 +673,7 @@ end;
   str:=str
   +'     /*/-------------------Run the nested Kernel codes ----------------------/*/    ' + LineEnding
   +'     let AnimationCounterValue='+IntToStr(self.StartIteration)+'; '                                         +LineEnding
-  +'     let AnimationCounterMax='+IntToStr(self.MaxIterations)+'; '                                         +LineEnding;
-
-//  str:=str
-//  +' let dummyArray=[[0,1,2],[3,4,5]]; '+LineEnding;
+  +'     let AnimationCounterMax='+IntToStr(self.NumFrames)+'; '                                         +LineEnding;
 
 //combineKernels(k,k,...,lastKernel,combinedKernel)
   if numKernels>0 then
@@ -776,28 +712,15 @@ end;
     +'      return rslt;                                 });'+LineEnding;
   end;
 
-  // Initialise the stageArray...   [array of array of real]
-str:=str
-+'     let stageArray=[];   '+LineEnding
-+'     for (var z=0; z<'+inttostr(ZDim)+'; z++) {  '+LineEnding
-+'       var newZ=[];  '+LineEnding
-+'       for (var i=0; i<'+intToStr(h)+'; i++)   '+LineEnding
-+'       {  '+LineEnding
-+'         var newrow=[];  '+LineEnding
-+'         for (var j=0; j<'+intToStr(w)+'; j++) {  '+LineEnding
-+'           newrow.push(0.0);  '+LineEnding
-+'           }  '+LineEnding
-+'         newZ.push(newrow);  '+LineEnding
-+'       }  '+LineEnding
-+'       stageArray.push(newZ);  '+LineEnding
-+'     }  '+LineEnding;
+  // Initialise the stageArray...   [3D array of real]
+  // Initial values come from the 'XGPU3DTable' component (data held in property InitStageData)
+  str:=str
+  +'     let stageArray='+StringUtils.DelChars(self.InitStageData,'"')+';   '+LineEnding;
 
   // Run the combined non-graphical kernels...
   if numKernels>0 then
     str:=str
-    +'     stageArray = superKernel(stageArray,AnimationCounterValue'+plist+');  '+LineEnding
-//    +'     PostMessageStageArray("'+myNode.NodeName+'",AnimationCounterValue,JSON.stringify(stageArray));' + LineEnding
-    ;
+    +'     stageArray = superKernel(stageArray,AnimationCounterValue'+plist+');  '+LineEnding;
 
   str:=str
   +'     /*/-------------------Run the Graphical Kernel code and place it on the web page----------------------/*/    ' + LineEnding
@@ -1046,38 +969,89 @@ end;
 function TXGPUCanvas.FetchAllAnimCode:TAnimCodeArray;
 var
   allcode:TAnimCodeArray;
-  bits:TStringList;
-  n:integer;
+  bits,cdbits,dimbits:TStringList;
+  n,d:integer;
   RevisedAnimCode:String;
 begin
+  // The property 'AnimationCode' contains a string which is a concatenation of:
+  //     Code block for the graphical output kernel
+  //     Code block(s) for the non-graphical nested kernels (number of these is in property NumKernels).
+  //     Delimiter between code blocks is eventListdelimiter
+  //     Each code block is further subdivided into:
+  //         Pascal Code block
+  //         Dimensions of output array (eg.  x,y,z)
+  //         Delimiter between code block and dimensions spec is EventAttributeDelimiter
+
   setlength(allcode,numKernels+1);
   bits:= stringsplit(self.AnimationCode,eventListdelimiter);
 
-//  if bits.Count>numKernels+1 then
-//  begin
-//    showmessage('Warning: GPUCanvas '+self.myNode.NodeName+' expected '+inttostr(numKernels+1)+' code blocks, found '+inttostr(bits.count));
-//    for n:=0 to bits.count-1 do
-//      showmessage(bits[n]);
-//  end;
   for n:=0 to bits.count-1 do
   begin
     if length(allcode)<=n then
       setlength(allcode,n+1);
-    allcode[n]:=TStringList.Create;
-    allcode[n].Text:=bits[n];
+    // get the code block for this kernel...
+    allcode[n].CodeBlock:=TStringList.Create;
+    cdbits:=StringSplit(bits[n],EventAttributeDelimiter);
+    allcode[n].CodeBlock.Text:=cdbits[0];
+    if cdbits.Count<2 then
+    begin
+      cdbits.Add('');
+    end;
+    if trim(cdbits[1])='' then
+      if n>0 then
+        cdbits[1]:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight)+','+inttostr(self.DfltZDepth)
+      else
+        // output for the graphical kernel is current pixel size
+        cdbits[1]:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight);
+    // get the output dimensions for this kernel...
+    allcode[n].KDimensionsStr:=cdbits[1];
+
+    dimbits:=StringSplit(cdbits[1],',');
+    if dimbits.count>3 then
+      showmessage('Warning: Kernel outputs must be max 3 dimensions');
+    setlength(allcode[n].KDimensions,dimbits.count);
+    try
+    for d:=0 to min(dimbits.count,3)-1 do
+      allcode[n].KDimensions[d]:=strtoint(dimbits[d]);
+    except
+      showmessage('Warning: Found non-integer Kernel output dimensions in GPUCanvas '+self.myNode.NodeName);
+    end;
   end;
+
   // Add Empty code blocks for missing stages (number of code blocks == numKernels+1)
   for n:=bits.Count to numKernels do
   begin
-    allcode[n]:=TStringList.Create;
-    allcode[n].Text:='//Kernel '+inttostr(n)+LineEnding
+    allcode[n].CodeBlock:=TStringList.Create;
+    allcode[n].CodeBlock.Text:='//Kernel '+inttostr(n)+LineEnding
       +'begin'+LineEnding
+      +'  //eg. for 3D array stages, this will pass through the prior kernel result...'+LineEnding
+      +'  //Note. Dimensions of myArray are as specified for the prior kernel output.'+LineEnding
+      +'  myValue:=myArray[this.thread.z,this.thread.y,this.thread.x]; '+LineEnding
       +'end;'+LineEnding;
+
+    setlength(allcode[n].KDimensions,3);
+    allcode[n].KDimensionsStr:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight)+','+inttostr(self.DfltZDepth);
+    allcode[n].KDimensions[0]:=self.ActualWidth;
+    allcode[n].KDimensions[1]:=self.ActualHeight;
+    allcode[n].KDimensions[2]:=self.DfltZDepth;
   end;
+
+  // In case this has adjusted the data, save the concatenated code block again to the AnimationCode property
+  RevisedAnimCode:='';
+  setlength(self.Dimensions,numKernels+1);
   for n:=0 to numKernels do
   begin
-    if n>0 then RevisedAnimCode:=RevisedAnimCode + eventListdelimiter;
-    RevisedAnimCode:=RevisedAnimCode + allcode[n].Text;
+    if n>0 then
+      RevisedAnimCode:=RevisedAnimCode + eventListdelimiter;
+    RevisedAnimCode:=RevisedAnimCode + allcode[n].CodeBlock.Text;
+    RevisedAnimCode:=RevisedAnimCode + EventAttributeDelimiter;
+    RevisedAnimCode:=RevisedAnimCode + allcode[n].KDimensionsStr;
+    // store numeric dimensions data with the GPUCanvas component
+    setlength(self.Dimensions[n],length(allcode[n].KDimensions));
+    for d:=0 to length(allcode[n].KDimensions)-1 do
+    begin
+      self.Dimensions[n,d]:=allcode[n].KDimensions[d];
+    end;
   end;
   self.myNode.SetAttributeValue('AnimationCode',RevisedAnimCode);
   result:=allcode;
@@ -1096,6 +1070,7 @@ var
 begin
   PascalHeader:=TStringList.Create;
   PascalHeader.Add(' unit GPUCode; ');
+  PascalHeader.Add('{$ifdef Dll}{$mode objfpc}{$H+}{$R+}{$endif}');
   PascalHeader.Add('interface');
   PascalHeader.Add('uses Classes, SysUtils, Math;');
   PascalHeader.Add(' type ');
@@ -1145,10 +1120,10 @@ begin
   begin
     PascalHeader.Add('   var '+ParamNumArray[i].ParamName+':TNumArray;');
   end;
-  for i:=0 to length(self.ParamImgArray)-1 do
-  begin
-    PascalHeader.Add('   var '+ParamImgArray[i].ParamName+':TImgArray;');
-  end;
+//  for i:=0 to length(self.ParamImgArray)-1 do
+//  begin
+//    PascalHeader.Add('   var '+ParamImgArray[i].ParamName+':TImgArray;');
+//  end;
   PascalHeader.Add('   var  this:TGPUThread;');
   PascalHeader.Add('   type  T2DArray=Array of Array of real;');
   PascalHeader.Add('   type  TmyArray=Array of T2DArray;');
@@ -1175,7 +1150,7 @@ begin
       PascalHeader.Add('var kkkkk'+inttostr(n)+':integer;')
     else
       PascalHeader.Add('procedure kkkkk'+inttostr(n)+';');
-    TheAnimationCode.Text:=AllAnimationCode[n].Text;
+    TheAnimationCode.Text:=AllAnimationCode[n].CodeBlock.Text;
     WriteIncFile(Compiler,myNode.NodeName+'.'+inttostr(n),'','tempinc/',PascalHeader,TheAnimationCode);
   end;
   //..........................................................
@@ -1449,6 +1424,7 @@ var
   Pas2JSTrimmed:TstringList;   // one string per kernel
   tmp:String;
   FullString:String;
+//  Dims:TDimsArray;
 begin
   {$ifndef JScript}
   if not (csDesigning in ComponentState) then
@@ -1461,8 +1437,11 @@ begin
       EXIT;
     end;
 
+    // Get the set of kernel output dimensions
+//    Dims:=self.Dimensions;
+
     // and wrap it with the GPU JS...
-    tmp:= GPUJSCode(Pas2JSTrimmed);
+    tmp:= GPUJSCode(Pas2JSTrimmed,self.Dimensions);
     FullString:= tmp;
     if self.Animated then
       FullString:=FullString + GPUJSAnimationFooter;
@@ -1529,19 +1508,19 @@ begin
   result:=pval;
 end;
 
-function TXGPUCanvas.GetParamImgValue(pName:String):TImgArray;
-var
-  i:integer;
-  tmp:String;
-  pval:TImgArray;
-begin
-  for i:=0 to length(ParamImgArray)-1 do
-    if ParamImgArray[i].ParamName=pName then
-    begin
-      pval:=ParamImgArray[i].ParamValue;
-    end;
-  result:=pval;
-end;
+//function TXGPUCanvas.GetParamImgValue(pName:String):TImgArray;
+//var
+//  i:integer;
+//  tmp:String;
+//  pval:TImgArray;
+//begin
+//  for i:=0 to length(ParamImgArray)-1 do
+//    if ParamImgArray[i].ParamName=pName then
+//    begin
+//      pval:=ParamImgArray[i].ParamValue;
+//    end;
+//  result:=pval;
+//end;
 
 procedure TXGPUCanvas.SetParamNumValue(pName:String;pValue:TNumArray;ForwardToWidget:Boolean);
 var
@@ -1602,7 +1581,7 @@ begin
     end;
 end;
 
-procedure TXGPUCanvas.SetParamImgValue(pName:String;pValue:TImgArray;ForwardToWidget:Boolean);
+(*procedure TXGPUCanvas.SetParamImgValue(pName:String;pValue:TImgArray;ForwardToWidget:Boolean);
 var
   i,j:integer;
   tmp:String;
@@ -1646,6 +1625,7 @@ begin
       end;
     end;
 end;
+*)
 
 procedure TXGPUCanvas.SetAnimationCode(AValue:string);
 var
@@ -1814,7 +1794,12 @@ begin
 
 end;
 
-procedure TXGPUCanvas.SetParamImgList(AValue:string);
+procedure TXGPUCanvas.SetInitStageData(AValue:string);
+begin
+  myNode.SetAttributeValue('InitStageData',AValue,'String');
+end;
+
+(*procedure TXGPUCanvas.SetParamImgList(AValue:string);
 var
   pNames:TStringList;
   i:integer;
@@ -1840,7 +1825,7 @@ begin
     pNames.Free;
   end;
 
-end;
+end; *)
 
 procedure TXGPUCanvas.SetMaxIterations(AValue:integer);
 begin
@@ -1870,9 +1855,9 @@ procedure TXGPUCanvas.SetNumKernels(AValue:integer);
 begin
   myNode.SetAttributeValue('NumKernels',IntToStr(AValue),'Integer');
 end;
-procedure TXGPUCanvas.SetZDimension(AValue:integer);
+procedure TXGPUCanvas.SetDfltZDepth(AValue:integer);
 begin
-  myNode.SetAttributeValue('ZDimension',IntToStr(AValue),'Integer');
+  myNode.SetAttributeValue('DfltZDepth',IntToStr(AValue),'Integer');
 end;
 
 
@@ -1891,19 +1876,18 @@ begin
   AddDefaultAttribute(myDefaultAttribs,'HTMLSource','String','','',false,false);
   AddDefaultAttribute(myDefaultAttribs,'Active','Boolean','False','',false,false);
   AddDefaultAttribute(myDefaultAttribs,'Animated','Boolean','False','',false);
-  AddDefaultAttribute(myDefaultAttribs,'ParamNumList','String','','',false);
-  AddDefaultAttribute(myDefaultAttribs,'ParamImgList','String','','',false);
-  AddDefaultAttribute(myDefaultAttribs,'ConstIntList','String','','',false);
-  AddDefaultAttribute(myDefaultAttribs,'MaxIterations','Integer','512','',false);
-  AddDefaultAttribute(myDefaultAttribs,'StartIteration','Integer','1','',false);
-  AddDefaultAttribute(myDefaultAttribs,'NumFrames','Integer','100','',false);
-  AddDefaultAttribute(myDefaultAttribs,'MaxFramesPerSec','Integer','10','',false);
+  AddDefaultAttribute(myDefaultAttribs,'ParamNumList','String','','List of numeric parameters (1D arrays) to be passed in to kernels',false);
+//  AddDefaultAttribute(myDefaultAttribs,'ParamImgList','String','','',false);
+  AddDefaultAttribute(myDefaultAttribs,'ConstIntList','String','','List of integer constants to be passed in to kernels',false);
+  AddDefaultAttribute(myDefaultAttribs,'MaxIterations','Integer','512','Any loops defined inside a kernel must have a maximum iteration count defined by MaxIterations',false);
+  AddDefaultAttribute(myDefaultAttribs,'StartIteration','Integer','1','Initial value for AnimationCounterValue',false);
+  AddDefaultAttribute(myDefaultAttribs,'NumFrames','Integer','100','Number of frames after which AnimationCounterValue resets to 0',false);
+  AddDefaultAttribute(myDefaultAttribs,'MaxFramesPerSec','Integer','10','Target frame rate (may be slower if kernel processing times are long)',false);
 //  AddDefaultAttribute(myDefaultAttribs,'FetchFrameOutput','Boolean','False','',false);
-//  AddDefaultAttribute(myDefaultAttribs,'OutputArray','String','','',true,false);
-//  AddDefaultAttribute(myDefaultAttribs,'GPUStageArray','String','','3-D array output from nested non-graphical kernels',true,false);
   AddDefaultAttribute(myDefaultAttribs,'AnimationCode','String','','',false);
   AddDefaultAttribute(myDefaultAttribs,'NumKernels','Integer','0','Number of nested non-graphical kernels',false);
-  AddDefaultAttribute(myDefaultAttribs,'ZDimension','Integer','1','Number of z-planes in the stage array handled by non-graphical kernels',false);
+  AddDefaultAttribute(myDefaultAttribs,'DfltZDepth','Integer','1','Default Number of z-planes in the stage arrays handled by non-graphical kernels',false);
+  AddDefaultAttribute(myDefaultAttribs,'InitStageData','String','[[["1"]]]','3D Array string for input to the first non-graphical kernel',false);
   AddDefaultsToTable(MyNodeType,myDefaultAttribs);
 
   AddAttribOptions(MyNodeType,'Alignment',AlignmentOptions);

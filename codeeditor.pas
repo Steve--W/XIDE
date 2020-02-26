@@ -838,7 +838,7 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
           AllKernels:=TXGPUCanvas(CurrentItem.ScreenObject).FetchAllAnimCode;
           for k:=0 to length(AllKernels)-1 do
           begin
-            SearchThisText(CurrentItem.nodeName+'.'+inttostr(k),'AnimationCode',AllKernels[k].Text);
+            SearchThisText(CurrentItem.nodeName+'.'+inttostr(k),'AnimationCode',AllKernels[k].CodeBlock.Text);
           end;
         end;
 

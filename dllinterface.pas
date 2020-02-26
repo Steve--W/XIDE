@@ -39,16 +39,18 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiCopyToClip(str:String);  stdcall;
     function mmiCopyFromClip(e:TEventStatus):String;  stdcall;
     procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
+    procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
+    function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
     function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
-    function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
+//    function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
     procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
-    procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
+//    procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
     procedure mmiShowBusy;    stdcall;
     procedure mmiHideBusy;   stdcall;
     procedure mmiProcessMessages;   stdcall;
@@ -79,16 +81,18 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiCopyToClip(str:String);  stdcall;
       function mmiCopyFromClip(e:TEventStatus):String;    stdcall;
       procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
+      procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
+      function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
       procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
       procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
       procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
       function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
       function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
       function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
-      function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
+//      function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
       procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
       procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
-      procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
+//      procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
       procedure mmiShowBusy; stdcall;
       procedure mmiHideBusy; stdcall;
       procedure mmiProcessMessages; stdcall;
@@ -315,6 +319,30 @@ end;
      end;
    end;
 
+   procedure TMyMethodObject.mmiLoadTableFromNumArray(TableName:String; NumArray:T2DNumArray);   stdcall;
+   var
+    myNode:TDataNode;
+   begin
+     myNode:=FindDataNodeById(SystemNodetree,TableName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXTable') then
+     begin
+       TXTable(myNode.ScreenObject).LoadTableFromNumArray(NumArray);
+     end;
+   end;
+
+   function TMyMethodObject.mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;   stdcall;
+   var
+    myNode:TDataNode;
+    arr:T2DStringArray;
+   begin
+     myNode:=FindDataNodeById(SystemNodetree,TableName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXTable') then
+     begin
+       arr:=TXTable(myNode.ScreenObject).GetCellsAsArray(SkipHeader);
+     end;
+     result:=arr;
+   end;
+
    procedure TMyMethodObject.mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
    var
      mv:PChar;
@@ -371,18 +399,18 @@ end;
 
    end;
 
-   procedure TMyMethodObject.mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
-   var
-     myNode:TDataNode;
-   begin
-    //showmessage('mmiSetGPUParamImgValue GPUName='+GPUName);
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
-     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
-     begin
-       TXGPUCanvas(myNode.ScreenObject).SetParamImgValue(pName,pValue,true);
-     end;
-
-   end;
+//   procedure TMyMethodObject.mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
+//   var
+//     myNode:TDataNode;
+//   begin
+//    //showmessage('mmiSetGPUParamImgValue GPUName='+GPUName);
+//     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+//     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+//     begin
+//       TXGPUCanvas(myNode.ScreenObject).SetParamImgValue(pName,pValue,true);
+//     end;
+//
+//   end;
 
    function TMyMethodObject.mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
    var
@@ -410,18 +438,18 @@ end;
      end;
    end;
 
-   function TMyMethodObject.mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
-   var
-     myNode:TDataNode;
-   begin
-     result:=nil;
-    //showmessage('mmiSetGPUParamImgValue GPUName='+GPUName);
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
-     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
-     begin
-       result:=TXGPUCanvas(myNode.ScreenObject).GetParamImgValue(pName);
-     end;
-   end;
+//   function TMyMethodObject.mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
+//   var
+//     myNode:TDataNode;
+//   begin
+//     result:=nil;
+//    //showmessage('mmiSetGPUParamImgValue GPUName='+GPUName);
+//     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+//     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+//     begin
+//       result:=TXGPUCanvas(myNode.ScreenObject).GetParamImgValue(pName);
+//     end;
+//   end;
    procedure TMyMethodObject.mmiShowBusy; stdcall;
    begin
      Screen.Cursor := crHourglass;

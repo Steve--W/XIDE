@@ -36,16 +36,18 @@ Tclosexform=procedure(XFormID:String) of object;
 TCopyToClip=procedure(str:String) of object;
 TCopyFromClip=function(e:TEventStatus):String of object;
 TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;
+TLoadTableFromNumArray=procedure(TableName:String;NumArray:T2DNumArray) of object;
+TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray of object;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;
 TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean of object;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
-TGetGPUParamImgValue=function(GPUName,pName:String):TImgArray of object;
+//TGetGPUParamImgValue=function(GPUName,pName:String):TImgArray of object;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;
 TSetGPUConstIntValue=procedure(GPUName,pName:String;pValue:integer) of object;
-TSetGPUParamImgValue=procedure(GPUName,pName:String;pValue:TImgArray) of object;
+//TSetGPUParamImgValue=procedure(GPUName,pName:String;pValue:TImgArray) of object;
 TShowBusy=procedure of object;
 THideBusy=procedure of object;
 TProcessMessages=procedure of object;
@@ -74,16 +76,18 @@ getpropertyvalue:Tgetpropertyvalue;
 copytoclip:TCopyToClip;
 copyfromclip:TCopyFromClip;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
+LoadTableFromNumArray:TLoadTableFromNumArray;
+GetTableDataArray:TGetTableDataArray;
 doevent:TDoEvent;
 movecomponent:TMoveComponent;
 copycomponent:TCopyComponent;
 deletecomponent:TDeleteComponent;
 getgpuparamnumvalue:TGetGPUParamNumValue;
 getgpuconstintvalue:TGetGPUConstIntValue;
-getgpuparamimgvalue:TGetGPUParamImgValue;
+//getgpuparamimgvalue:TGetGPUParamImgValue;
 setgpuparamnumvalue:TSetGPUParamNumValue;
 setgpuconstintvalue:TSetGPUConstIntValue;
-setgpuparamimgvalue:TSetGPUParamImgValue;
+//setgpuparamimgvalue:TSetGPUParamImgValue;
 showbusy:TShowBusy;
 hidebusy:THideBusy;
 processmessages:TProcessMessages;
@@ -119,16 +123,18 @@ type TMethodsClass = class(TObject)
  procedure mmiCopyToClip(str:String);
  function mmiCopyFromClip(e:TEventStatus):String;
  procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
+ procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);
+ function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;
  procedure mmiDoEvent(EventType,NodeId,myValue:String);
  procedure mmiMoveComponent(nodeId:string;NewParentId:string);
  procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);
  function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;
  function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
  function mmiGetGPUConstIntValue(GPUName,pName:String):integer;
- function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;
+// function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;
  procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
  procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);
- procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);
+// procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);
  procedure mmiShowBusy;
  procedure mmiHideBusy;
  procedure mmiProcessMessages;
@@ -170,16 +176,18 @@ begin
   copytoclip:=@AppMethods.mmiCopyToClip;
   copyfromclip:=@AppMethods.mmiCopyFromClip;
   LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
+  LoadTableFromNumArray:=@AppMethods.mmiLoadTableFromNumArray;
+  GetTableDataArray:=@AppMethods.mmiGetTableDataArray;
   doevent:=@appmethods.mmiDoEvent;
   movecomponent:=@appmethods.mmiMoveComponent;
   copycomponent:=@appmethods.mmiCopyComponent;
   deletecomponent:=@appmethods.mmiDeleteComponent;
   getgpuparamnumvalue:=@appmethods.mmiGetGPUParamNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
-  getgpuparamimgvalue:=@appmethods.mmiGetGPUParamImgValue;
+//  getgpuparamimgvalue:=@appmethods.mmiGetGPUParamImgValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
   setgpuconstintvalue:=@appmethods.mmiSetGPUConstIntValue;
-  setgpuparamimgvalue:=@appmethods.mmiSetGPUParamImgValue;
+//  setgpuparamimgvalue:=@appmethods.mmiSetGPUParamImgValue;
   showbusy:=@appmethods.mmiShowBusy;
   hidebusy:=@appmethods.mmiHideBusy;
   processmessages:=@appmethods.mmiProcessMessages;
@@ -247,9 +255,11 @@ begin
       //alert('mmigetpropertyvalue resetting h/w');
       pas.XIFrame.ResetHWAttributes(myNode);
     }
-
-    val=myNode.GetAttributeAnyCase(propName,true).AttribValue;
-
+    var attr=myNode.GetAttributeAnyCase(propName,false);
+    if (attr!=null) {
+      val=attr.AttribValue;
+      }
+      else val='';
     }
   else  {
     val='';
@@ -358,6 +368,32 @@ begin
   end;
 end;
 
+procedure TMethodsClass.mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
+    {
+      myNode.LoadTableFromNumArray(NumArray);
+    }
+  end;
+end;
+
+function TMethodsClass.mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;
+var
+  arr:T2DStringArray;
+begin
+  setlength(arr,0);
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
+    {
+      arr = myNode.GetCellsAsArray(SkipHeader);
+    }
+  end;
+  result:=arr;
+end;
+
 procedure TMethodsClass.mmiDoEvent(EventType,NodeId,myValue:String);
 begin
   asm
@@ -410,17 +446,17 @@ asm
   }
 end;
 end;
-procedure TMethodsClass.mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);
-begin
-  asm
-  //alert('mmiSetGPUParamImgValue '+GPUName+' '+pName);
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
-    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-      //alert('calling SetParamImgValue '+pName+' '+pValue);
-      myNode.SetParamImgValue(pName,pValue,true);
-    }
-  end;
-end;
+//procedure TMethodsClass.mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);
+//begin
+//  asm
+//  //alert('mmiSetGPUParamImgValue '+GPUName+' '+pName);
+//    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+//    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+//      //alert('calling SetParamImgValue '+pName+' '+pValue);
+//      myNode.SetParamImgValue(pName,pValue,true);
+//    }
+//  end;
+//end;
 function TMethodsClass.mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
 var
   pval:TNumArray;
@@ -446,18 +482,18 @@ begin
   result:=pval;
 end;
 
-function TMethodsClass.mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;
-var
-  pval:TImgArray;
-begin
-  asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
-    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-      pval=myNode.GetParamImgValue(pName);
-    }
-  end;
-  result:=pval;
-end;
+//function TMethodsClass.mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;
+//var
+//  pval:TImgArray;
+//begin
+//  asm
+//    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+//    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+//      pval=myNode.GetParamImgValue(pName);
+//    }
+//  end;
+//  result:=pval;
+//end;
 procedure TMethodsClass.mmiShowBusy;
 begin
   asm

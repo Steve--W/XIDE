@@ -15,6 +15,7 @@ unit XIDEMain;
 {$INTERFACES CORBA}
 {$endif}
 
+
 interface
 
 uses
@@ -36,7 +37,7 @@ uses
   XBitMap, XTrapEvents, XIDEHelpUnit,
   XHTMLText, XHTMLEditor, EventsInterface,
   // XIDEComponents units...
-  XGPUCanvas, XGPUEditor, XThreads, XComposite,
+  XGPUCanvas, XGPUEditor, X3DTable, XThreads, XComposite,
   // XIDE project units...
   CompileUserCode, XObjectInsp,EventLogging,
   CodeEditor, PropertyEditUnit, InputSelectUnit,
@@ -333,7 +334,6 @@ begin
     end;
   end;
 end;
-
 
 procedure TXIDEForm.DummyPositionMarker;     // do not delete this procedure
 begin
@@ -703,7 +703,6 @@ begin
   XForm.ShowXForm('XIDEHelpForm',false);
 end;
 
-
 procedure TXIDEForm.MyRootDivClick(Sender: TObject);
 begin
 end;
@@ -871,6 +870,7 @@ begin
   AddRequiredFile('xthreads','resources/project/xthreads.pas');
   AddRequiredFile('xgpucanvas','resources/project/xgpucanvas.pas');
   AddRequiredFile('xgpueditor','resources/project/xgpueditor.pas');
+  AddRequiredFile('x3dtable','resources/project/x3dtable.pas');
   AddRequiredFile('xcomposite','resources/project/xcomposite.pas');
   AddRequiredFile('xcompositeintf','resources/project/xcompositeintf.pas');
   AddRequiredFile('gpu','resources/project/gpu.js');
@@ -1102,7 +1102,6 @@ begin
   {$I systemnodetree.inc}
   XMLToNodeTree(LoadedSystemString,UIRootNode);   //! has been saved by the 'Run in Browser' menu button
 //  showmessage('after XMLToNodeTree. Node '+SystemRootName+' has '+inttostr(length(systemnodetree.childnodes))+' children');
-
   InitialiseXIDE;
 
   PopupMemoForm.InitialiseMemo;

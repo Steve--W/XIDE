@@ -1535,7 +1535,7 @@ begin
   if UnitType='RawUnit' then
     result:='unit '+UnitName+';' + LineEnding
           +'{$ifdef Dll}'+ LineEnding
-          +'{$mode objfpc}{$H+}'+ LineEnding
+          +'{$mode objfpc}{$H+}{$R+}'+ LineEnding
           +'{$endif}'+ LineEnding
           + 'interface '+ LineEnding
           + 'uses Classes, Sysutils,'+ LineEnding

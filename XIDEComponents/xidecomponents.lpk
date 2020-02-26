@@ -26,7 +26,7 @@ if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
         <CustomOptions Value="-dChromium"/>
       </Other>
     </CompilerOptions>
-    <Files Count="7">
+    <Files Count="8">
       <Item1>
         <Filename Value="xgpucanvas.pas"/>
         <UnitName Value="XGPUCanvas"/>
@@ -55,6 +55,10 @@ if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
         <Filename Value="xgpueditor.pas"/>
         <UnitName Value="xgpueditor"/>
       </Item7>
+      <Item8>
+        <Filename Value="x3dtable.pas"/>
+        <UnitName Value="x3dtable"/>
+      </Item8>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

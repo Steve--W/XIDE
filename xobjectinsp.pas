@@ -78,7 +78,7 @@ procedure OICodeTreeNodeChange(nodeId:string;myValue:string);
 procedure OIResourceTreeNodeChange(nodeId:string;myValue:string);
 procedure OIDragItem(e:TEventStatus;nodeId:string;myValue:string);
 procedure OIDropItem(e:TEventStatus;nodeId:string;myValue:string);
-procedure OIPasteItem(nodeId:string;myValue:string);
+function OIPasteItem(nodeId:string;myValue:string):boolean;
 procedure OICutItem(nodeId:string;myValue:string);
 procedure CopyNavNode( NodeToCopy:TDataNode);
 procedure OICopySelectedItem;
@@ -1788,7 +1788,7 @@ begin
 
 end;
 
-function DeleteItemQuietly(InTree,SelectedNode:TDataNode):string;
+procedure DeleteItemQuietly(InTree,SelectedNode:TDataNode);
 var
    ParentNode:TDataNode;
 begin
@@ -2127,16 +2127,16 @@ begin
 
 end;
 
-function PasteItem(NavTreeDestinationNode:TDataNode;OrigSourceNode:TDataNode;NewName:String):string;
+function PasteItem(NavTreeDestinationNode:TDataNode;OrigSourceNode:TDataNode;NewName:String):boolean;
 var
-//   NewName:string;
    SourceNode,ParentNode, NewNode:TDataNode;
    TreePos:integer;
-   TargetIsContainer:Boolean;
+   ok,TargetIsContainer:Boolean;
    CompositeResource:Boolean;
    InterfaceNodes:TNodesArray;
    i,j:integer;
 begin
+  ok:=false;
   if  OrigSourceNode.NodeClass='RSS' then
     EXIT;
   // make a copy of the source node (as we may make changes here)
@@ -2177,6 +2177,9 @@ begin
     if (NavTreeDestinationNode = UIRootNode)
     or (NavTreeDestinationNode.NodeType='TXForm') then
       TargetIsContainer:=true
+    else if (NavTreeDestinationNode.NodeType='TXTabSheet')
+    and (SourceNode.NodeType='TXTabSheet') then
+      TargetIsContainer:=false
     else
     begin
       if (NavTreeDestinationNode.ScreenObject = nil)                    //eg. is nil for SVG internal widgets
@@ -2232,6 +2235,7 @@ begin
        begin
          SourceNode.NodeName:=NewName;
          PasteItemQuietly(UIRootNode,TreePos,ParentNode,SourceNode);
+         ok:=true;
 
           if CompositeResource then
           begin
@@ -2254,8 +2258,7 @@ begin
     end;
 
   end;
-  //SourceNode.Free;
-
+  result:=ok;
 end;
 
 procedure ShowHideNode(aNode:TDataNode;show:Boolean);
@@ -2850,12 +2853,14 @@ begin
   end;
 end;
 
-procedure OIPasteItem(nodeId:string;myValue:string);
+function OIPasteItem(nodeId:string;myValue:string):boolean;
 // if called via drag/drop, myvalue is the text of the destination node
 // otherwise, from Paste button, destination node is ObjectInspectorSelectedNavTreeNode.
 var dst:string;
   DestNode:TDataNode;
+  ok:boolean;
 begin
+  ok:=false;
 //showmessage('OIPasteItem. '+nodeId);
   if (TreeInFocus<>nil) and (ObjectInspectorSourceNode<>nil) then
   begin
@@ -2869,7 +2874,7 @@ begin
 //showmessage('dest node '+DestNode.NodeName);
     if TreeInFocus.NodeName=SystemRootName then
     begin
-      PasteItem(DestNode,ObjectInspectorSourceNode,'');
+      ok:=PasteItem(DestNode,ObjectInspectorSourceNode,'');
     end;
   end
   else
@@ -2877,14 +2882,16 @@ begin
        ShowMessage('Select Paste destination first')
     else if ObjectInspectorSourceNode=nil then
          ShowMessage('Copy an item first');
-
+  result:=ok;
 end;
 
 procedure OIDropItem(e:TEventStatus;nodeId:string;myValue:string);
 var
   TreeNodeId:string;
-  OriginalSource:TDataNode;
+  OriginalSource, OriginalParent:TDataNode;
   values:TNodeEventValue;
+  OriginalPos:integer;
+  ok,ItemWasCut:boolean;
 begin
   // Drop an item on the Navigator tree
   //showmessage('OIDropItem.  myValue='+myValue);
@@ -2903,16 +2910,24 @@ begin
   // if an intra-tree drag/drop, then cut the source node first
   // find the original source node (still in the nav tree)
   OriginalSource:=FindDataNodeById(SystemNodeTree,ObjectInspectorSourceNode.NodeName,'',false);
+  OriginalParent:=FindParentOfNode(SystemNodeTree,OriginalSource,true,OriginalPos);
   if (OriginalSource<>nil)
   and (OriginalSource <> ObjectInspectorSelectedNavTreeNode)
   and (OriginalSource.IsDynamic=true)
   and (NodeIsDescendantOf(OriginalSource,UIRootNode.NodeName) > -1)   // is in Nav tree
   then
-     CutItemQuietly(UIRootNode,OriginalSource);
+  begin
+    CutItemQuietly(UIRootNode,OriginalSource);
+    ItemWasCut:=true;
+  end;
 
   // paste the source node into the Nav tree
   if (OriginalSource <> ObjectInspectorSelectedNavTreeNode) then
-    OIPasteItem(nodeId,myValue);
+    ok:=OIPasteItem(nodeId,myValue);
+  if not ok then
+    if ItemWasCut then
+      // reverse the cut
+      PasteItemQuietly(UIRootNode,OriginalPos,OriginalParent,OriginalSource);
 end;
 
 procedure OIMoveNavSiblingUpDown(UpDown:String);
@@ -3867,7 +3882,7 @@ begin
   targetAttribute:= targetNode.GetAttribute(PropertyToEdit,true);
 
   if (targetNode.NodeType<>'TXGPUCanvas')
-  or (targetAttribute.AttribName<>'AnimationCode') then
+  or ((targetAttribute.AttribName<>'AnimationCode') and (targetAttribute.AttribName<>'InitStageData')) then
   begin
     // pop up the property editor.
     PropertyEditForm.TargetNode:=targetNode;
@@ -3893,23 +3908,12 @@ begin
   end
   else
   // Special Case - edit the AnimationCode in a TXGPUCanvas component using the dedicated popup editor...
+  // Special Case - edit the InitStageData in a TXGPUCanvas component using the dedicated popup editor...
   begin
-    ShowGPUEditor(targetNode);
-//     // the animation code may consist of several kernel procedures.
-//     // These are delimited by the EventListDelimiter string.
-//     // The GPU Code Editor needs to show the first kernel proc.
-//     AllKernels:=TXGPUCanvas(targetNode.ScreenObject).FetchAllAnimCode;
-//     XGPUEditor.GPUCodeEditor.ItemValue:=AllKernels[0].Text;
-//     XGPUEditor.GPUCodeEditor.MessageLines:='';
-//     XGPUEditor.GPUCodeEditor.MessagesHeight:='1';
-//     XGPUEditor.GPUMemo.ItemValue:=TXGPUCanvas(targetNode.ScreenObject).GeneratedHTML;
-//     EditingGPUNode:=targetNode;
-//     GPUEditorMode:='Animation';
-//     XGPUEditor.GPUCodeEditor.ReadOnly:=false;
-//     GPUComboBox.OptionList:=TXGPUCanvas(targetNode.ScreenObject).BuildKernelList;
-//     GPUComboBox.ItemIndex:=0;
-//     GPUComboBox.PriorIndex:=0;
-//     GPUEditorForm.Showing:='Modal';
+    if targetAttribute.AttribName='InitStageData' then
+      ShowGPUEditor(targetNode,2)
+    else
+      ShowGPUEditor(targetNode,0);
   end;
 
 end;
@@ -4739,22 +4743,7 @@ begin
         else if (ObjectInspectorSelectedCodeTreeNode.NodeType='TXGPUCanvas')
         then
         begin
-          ShowGPUEditor(ObjectInspectorSelectedCodeTreeNode);
- //         // Edit the AnimationCode in a TXGPUCanvas component using the dedicated popup editor...
- //         AllKernels:=TXGPUCanvas(ObjectInspectorSelectedCodeTreeNode.ScreenObject).FetchAllAnimCode;
- //         //XGPUCanvas.GPUCodeEditor.ItemValue:=ObjectInspectorSelectedCodeTreeNode.GetAttribute('AnimationCode',true).AttribValue;
- //         XGPUEditor.GPUCodeEditor.ItemValue:=AllKernels[0].Text;
- //         XGPUEditor.GPUCodeEditor.MessageLines:='';
- //         XGPUEditor.GPUCodeEditor.MessagesHeight:='1';
- //      //   XGPUEditor.GPUMemo.ItemValue:=TXGPUCanvas(ObjectInspectorSelectedCodeTreeNode.ScreenObject).GeneratedHTML;
- //         //!! Lazarus bug?     Have to populate GPUMemo later (eg. on tab change), otherwise the popup form crashes.
- //         EditingGPUNode:=ObjectInspectorSelectedCodeTreeNode;
- //         GPUEditorMode:='Animation';
- //         GPUComboBox.OptionList:=TXGPUCanvas(ObjectInspectorSelectedCodeTreeNode.ScreenObject).BuildKernelList;
- //         GPUComboBox.ItemIndex:=0;
- //         GPUComboBox.PriorIndex:=0;
- //         XGPUEditor.GPUCodeEditor.ReadOnly:=false;
- //         GPUEditorForm.Showing:='Modal';
+          ShowGPUEditor(ObjectInspectorSelectedCodeTreeNode,0);
         end;
 
       end;

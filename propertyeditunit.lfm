@@ -11,7 +11,7 @@ object PropertyEditForm: TPropertyEditForm
   LCLVersion = '2.1.0.0'
   object PropertyEditVBox1: TXVBox
     Name = 'PropertyEditVBox1'
-    Tag = 436553872
+    Tag = 405372944
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -32,7 +32,7 @@ object PropertyEditForm: TPropertyEditForm
     InheritColor = False
     object PropertyEditFormXTabControl11: TXTabControl
       Name = 'PropertyEditFormXTabControl11'
-      Tag = 436553488
+      Tag = 405372560
       Left = 2
       Height = 373
       Top = 2
@@ -62,9 +62,11 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditTab1VBox1: TXVBox
           Name = 'PropertyEditTab1VBox1'
-          Tag = 436553408
+          Tag = 405372480
+          AnchorSideLeft.Control = PropertyEditTabSheet1
+          AnchorSideTop.Side = asrCenter
           Left = 0
-          Height = 341
+          Height = 369
           Top = 0
           Width = 637
           Align = alTop
@@ -114,6 +116,7 @@ object PropertyEditForm: TPropertyEditForm
             ReadOnly = True
             BoxWidth = '300'
             PasswordBox = False
+            HasFocus = False
           end
           object PropertyEditType: TXEditBox
             Name = 'PropertyEditType'
@@ -151,6 +154,7 @@ object PropertyEditForm: TPropertyEditForm
             ReadOnly = True
             BoxWidth = '300'
             PasswordBox = False
+            HasFocus = False
           end
         end
       end
@@ -165,7 +169,7 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditSourceHBox: TXHBox
           Name = 'PropertyEditSourceHBox'
-          Tag = 436553808
+          Tag = 405372880
           Left = 0
           Height = 341
           Top = 0
@@ -187,17 +191,19 @@ object PropertyEditForm: TPropertyEditForm
             Left = 0
             Height = 341
             Top = 0
-            Width = 468
+            Width = 66
             Align = alLeft
             AutoSize = True
             myControl.Tag = -1
-            myControl.AnchorSideLeft.Side = asrBottom
+            myControl.AnchorSideLeft.Side = asrCenter
             myControl.AnchorSideTop.Control = PropertyEditSourceBox
+            myControl.AnchorSideTop.Side = asrCenter
             myControl.AnchorSideBottom.Side = asrBottom
-            myControl.Left = 69
+            myControl.Left = -161
             myControl.Height = 23
             myControl.Top = 0
             myControl.Width = 399
+            myControl.Anchors = []
             myControl.Constraints.MaxWidth = 399
             myControl.Constraints.MinWidth = 399
             myControl.TabOrder = 0
@@ -213,11 +219,12 @@ object PropertyEditForm: TPropertyEditForm
             ReadOnly = False
             BoxWidth = '399'
             PasswordBox = False
+            HasFocus = False
           end
           object PropertyEditSourceBtn: TXButton
             Name = 'PropertyEditSourceBtn'
             Tag = -1
-            Left = 468
+            Left = 66
             Height = 341
             Top = 0
             Width = 35
@@ -257,9 +264,11 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditVBox99: TXVBox
           Name = 'PropertyEditVBox99'
-          Tag = 436553856
+          Tag = 405372928
+          AnchorSideLeft.Control = PropertyEditTabSheet3
+          AnchorSideTop.Side = asrCenter
           Left = 0
-          Height = 341
+          Height = 369
           Top = 0
           Width = 643
           Align = alTop
@@ -276,7 +285,7 @@ object PropertyEditForm: TPropertyEditForm
           InheritColor = False
           object PropertyEditLabel: TXLabel
             Name = 'PropertyEditLabel'
-            Tag = 436553824
+            Tag = 405372896
             Left = 0
             Height = 32
             Top = 0
@@ -303,7 +312,9 @@ object PropertyEditForm: TPropertyEditForm
           end
           object PropertyEditVBox66: TXVBox
             Name = 'PropertyEditVBox66'
-            Tag = 436553840
+            Tag = 405372912
+            AnchorSideLeft.Control = PropertyEditVBox99
+            AnchorSideTop.Side = asrCenter
             Left = 0
             Height = 328
             Top = 32

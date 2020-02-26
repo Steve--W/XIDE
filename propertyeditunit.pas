@@ -217,6 +217,7 @@ begin
   else if TargetAttribute.AttribType='TableString' then
   begin
     NewTable:=TXTable(AddDynamicWidget('TXTable',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditWidget','','Left',-1).ScreenObject);
+    NewTable.IsNumeric:=TXTable(TargetNode.ScreenObject).IsNumeric;
     NewTable.TableData:=TargetAttribute.AttribValue;
     str:= NewTable.TableData;
     NewTable.TableHeight:='80%';
@@ -229,12 +230,8 @@ begin
         NewTable.ColWidth:=strtoint(str);
     end;
 
+    //NewTable.HasHeaderRow:=TXTable(TargetNode.ScreenObject).HasHeaderRow;
     NewTable.HasHeaderRow:=false;       // allow for editing col headers
-//    {$ifndef JScript}
-//    TStringGrid(NewTable.myControl).FixedRows:=0; //allow editing column headers
-//    {$else}
-//    //!!!!
-//    {$endif}
 
     NewHBox:=TXHBox(AddDynamicWidget('TXHBox',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditHBox66','','Left',-1).ScreenObject);
     NewHBox.ContainerHeight:='';

@@ -4,6 +4,7 @@ c:/Laz19Projects/XIDE/XIDEComponents/xgpucanvas.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xgpueditor.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xcomposite.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xcompositeintf.pas
+c:/Laz19Projects/XIDE/XIDEComponents/x3dtable.pas
 c:/Laz19Projects/XIDE/XIDEComponents/gpu.js
 c:/Laz19Projects/XIDE/XIDEMain.pas
 c:/Laz19Projects/XIDE/xobjectinsp.pas
