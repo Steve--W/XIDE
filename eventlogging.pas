@@ -499,12 +499,12 @@ begin
        function GetElementXY(SelectedControlName) {
          var SelectedElement = document.getElementById(SelectedControlName);
          var rect = SelectedElement.getBoundingClientRect();
-         console.log('GetElementXY('+SelectedControlName+') rect='+rect.top+','+rect.left+' '+rect.width+','+rect.height);
+         //console.log('GetElementXY('+SelectedControlName+') rect='+rect.top+','+rect.left+' '+rect.width+','+rect.height);
          var p = new Point(Math.trunc(rect.left + rect.width/2), Math.trunc(rect.top + rect.height/2));
          return p;
        }
 
-       console.log(' CursorMove '+NodeName1+':'+Sub1+' to '+NodeName2+':'+Sub2);
+       //console.log(' CursorMove '+NodeName1+':'+Sub1+' to '+NodeName2+':'+Sub2);
        var ptr = document.getElementById("AutomatedCursor");
        ptr.style.display = "block";
 
@@ -525,7 +525,7 @@ begin
          p2=GetElementXY(Sub2);
        }
        if ((p2.x==0)&&(p2.y==0)) {p2.x=p1.x; p2.y=p1.y}   //!! sometimes the returned rect is zero...
-       console.log('cursormove '+p1.x+','+p1.y+' to '+p2.x+','+p2.y);
+       //console.log('cursormove '+p1.x+','+p1.y+' to '+p2.x+','+p2.y);
        CursorMove(p1.x,p1.y,p2.x,p2.y,drag);
        DoAnimation();
      end;
@@ -600,7 +600,7 @@ begin
            ThisNode:=FindDataNodeById(SystemNodeTree,MacroEventList.MacroEvents[i].NodeId,'',true);
            {$ifdef JScript}
            asm
-           console.log('DoNextEvent '+i+' EventType='+p1+' LastNode='+LastNode.NodeName+' ThisNode='+ThisNode.NodeName);
+           //console.log('DoNextEvent '+i+' EventType='+p1+' LastNode='+LastNode.NodeName+' ThisNode='+ThisNode.NodeName);
            end;
            {$endif}
            if (LastNode<>nil) and (ThisNode<>nil) then

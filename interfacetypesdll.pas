@@ -49,7 +49,8 @@ TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;          
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;                        stdcall;
 TSetGPUConstIntValue=procedure(GPUName,pName:String;pValue:integer) of object;                        stdcall;
 //TSetGPUParamImgValue=procedure(GPUName,pName:String;pValue:TImgArray) of object;                        stdcall;
-TShowBusy=procedure of object;                        stdcall;
+TStartMain=procedure(e:TEventStatus) of object;                        stdcall;
+TShowBusy=procedure(e:TEventStatus) of object;                        stdcall;
 THideBusy=procedure of object;                        stdcall;
 TProcessMessages=procedure of object;                        stdcall;
 TMovePointerBetweenComponents=procedure(NodeName1,NodeName2,Sub1,Sub2:String) of object; stdcall;
@@ -62,6 +63,8 @@ TGetGPUPixelArray=function(GPUName:String):T3DNumArray of object;               
 TGetGPUPixelArrayAsString=function(GPUName:String):String of object;                                stdcall;
 TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;                                stdcall;
 TGetGPUStageArrayAsString=function(GPUName:String):String of object;                                stdcall;
+TDebugStart=procedure of object; stdcall;
+TRunPython=procedure(str:String) of object; stdcall;
 
 
 type
@@ -91,7 +94,8 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
     procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
 //    procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
-    procedure mmiShowBusy; stdcall;
+    procedure mmiStartMain(e:TEventStatus); stdcall;
+    procedure mmiShowBusy(e:TEventStatus); stdcall;
     procedure mmiHideBusy; stdcall;
     procedure mmiProcessMessages; stdcall;
     procedure mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String); stdcall;
@@ -104,6 +108,8 @@ IMyMethodInterface = interface(IInterface)
     function mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
     function mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
     function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
+    procedure mmiDebugStart; stdcall;
+    procedure mmiRunPython(str:String); stdcall;
 end;
 
 
@@ -134,6 +140,7 @@ getgpuconstintvalue:TGetGPUConstIntValue;
 setgpuparamnumvalue:TSetGPUParamNumValue;
 setgpuconstintvalue:TSetGPUConstIntValue;
 //setgpuparamimgvalue:TSetGPUParamImgValue;
+startmain:TStartMain;
 showbusy:TShowBusy;
 hidebusy:THideBusy;
 ProcessMessages:TProcessMessages;
@@ -147,6 +154,8 @@ GetGPUPixelArray:TGetGPUPixelArray;
 GetGPUPixelArrayAsString:TGetGPUPixelArrayAsString;
 GetGPUStageArray:TGetGPUStageArray;
 GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
+DebugStart:TDebugStart;
+RunPython:TRunPython;
 
 
 procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
@@ -187,6 +196,7 @@ begin
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
   setgpuconstintvalue:=@appmethods.mmiSetGPUConstIntValue;
 //  setgpuparamimgvalue:=@appmethods.mmiSetGPUParamImgValue;
+  startmain:=@appmethods.mmiStartMain;
   showbusy:=@appmethods.mmiShowBusy;
   hidebusy:=@appmethods.mmiHideBusy;
   ProcessMessages:=@appmethods.mmiProcessMessages;
@@ -200,6 +210,8 @@ begin
   GetGPUPixelArrayAsString:=@appmethods.mmiGetGPUPixelArrayAsString;
   GetGPUStageArray:=@appmethods.mmiGetGPUStageArray;
   GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
+  DebugStart:=@appmethods.mmiDebugStart;
+  RunPython:=@appmethods.mmiRunPython;
 
  // dummy:=GetPropertyValue('UIRoot','Name');     // fudge...didn't work
 

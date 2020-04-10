@@ -129,6 +129,7 @@ begin
   myTableView.TableWidth:='98%';
   myTableView.LabelText:='';
   myTableView.HasHeaderRow:=false;
+  myTableView.IsNumeric:=true;
   TblNode.registerEvent('Change',@self.TableChange);
 
   BtnNode:=AddDynamicWidget('TXButton',self.myNode.MyForm,self.myNode,'PasteBtn',self.myNode.NodeName,'Left',-1);
@@ -371,9 +372,10 @@ procedure TX3DTable.SetNew3DTableData;
 var
     arr:T3DStringArray;
     z:integer;
-    zData:String;
+    str,zData:String;
 begin
 //  Redisplay the data for the current Z index, from new 3d data string
+  str:=self.Table3DData;
   arr:=JsonStringTo3DStringArray(self.Table3DData);
   z:=self.ZSelector.ItemValue;
   if z>length(arr)-1 then
@@ -382,9 +384,34 @@ begin
     self.ZSelector.ItemValue:=z;
   end;
   if z<0 then z:=0;
-  self.YDimEdit.ItemValue:=inttostr(length(Arr[0]));
-  self.XDimEdit.ItemValue:=inttostr(length(Arr[0,0]));
   self.ZDimEdit.ItemValue:=inttostr(length(arr));
+  self.YDimEdit.ItemValue:=inttostr(length(arr[0]));
+  self.XDimEdit.ItemValue:=inttostr(length(arr[0,0]));
+(*  {$ifdef JScript}
+  asm
+  console.log('ZDIM='+arr.length);
+  console.log('YDIM='+arr[0].length);
+  console.log('XDIM='+arr[0][0].length);
+  var s='';
+  for (var i=0; i<arr.length; i++) {
+    console.log('i='+i);
+    for (var j=0; j<arr[i].length; j++) {
+      console.log('s=>'+s+'<');
+      console.log('j='+j);
+      s='';
+      for (var k=0; k<arr[i][j].length; k++) {
+        if (k>0) {s=s+',';}
+        s=s+arr[i][j][k];
+      }
+    }
+    console.log('s=>'+s+'<');
+  }
+  console.log('calling ConstructTableStringFromArray. z='+z);
+  console.log('arr[z]='+arr[z]);
+  end;
+  {$endif}
+  *)
+
   zData:=myTableView.ConstructTableStringFromArray(arr[z]);
   self.myTableView.TableData:=zData;
 end;

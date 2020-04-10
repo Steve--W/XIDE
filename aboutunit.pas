@@ -26,7 +26,7 @@ uCEFApplication,
 {$else}
 HTMLUtils,
 {$endif}
-WrapperPanel, XVBox, XHBox, XMemo, XButton,
+PyXUtils,WrapperPanel, XVBox, XHBox, XMemo, XButton,
 XLabel, XEditBox
 , EventsInterface;
 
@@ -93,6 +93,13 @@ begin
   str:=myStringReplace(str,'<<<CEF>>>',GlobalCEFApp.LibCefVersion,1,-1);
   //showmessage('CEF Library version '+GlobalCEFApp.LibCefVersion);
   {$endif}
+  {$ifdef Python}
+  str:=myStringReplace(str,'<<<Python>>>',PyXUtils.PythonVersion,1,-1);
+  {$endif}
+  {$else}
+  {$ifdef Python}
+  //!!!! (version of pyodide???)
+  {$endif}
   {$endif}
 
   AboutFormXMemo1.ItemValue:=str;
@@ -129,6 +136,13 @@ begin
      {$ifdef Chromium}
      +'            ..............CEF library <<<CEF>>>' + LineEnding
      {$endif}
+     {$ifdef Python}
+     {$ifndef JScript}
+     +'            ..............Python4Delphi  <<<Python>>>' + LineEnding
+     {$else}
+     +'            ..............Python     (pyodide)' + LineEnding
+     {$endif}
+     {$endif}
      +'        Copyright  © Steve Wright all rights reserved' + LineEnding
      +'        License: GPL' + LineEnding
      +'                                                               ' + LineEnding
@@ -136,6 +150,9 @@ begin
      +'            Pas2JS (http://wiki.freepascal.org/pas2js)  - GPL/LGPL Licence' + LineEnding
      +'            GPUJS  (https://github.com/gpujs/gpu.rocks) - MIT Licence' + LineEnding
      +'            Pell   (https://github.com/jaredreich/pell) - MIT Licence' + LineEnding
+     +'            CEF4Delphi  (https://github.com/salvadordf/CEF4Delphi)    - ?????????? Licence' + LineEnding
+     +'            Python4Delphi (https://github.com/pyscripter/python4delphi) - ?????????? Licence' + LineEnding
+     +'            pyodide (http://https://pyodide.readthedocs.io/en/latest/)  - ????? Licence' + LineEnding
      +'' + LineEnding
      +'This program is free software: you can redistribute it and/or modify' + LineEnding
      +'    it under the terms of the GNU General Public License as published by' + LineEnding

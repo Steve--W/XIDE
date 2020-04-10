@@ -1,7 +1,7 @@
 object CodeEditForm: TCodeEditForm
-  Left = 434
+  Left = 911
   Height = 604
-  Top = 115
+  Top = 258
   Width = 772
   BorderWidth = 1
   Caption = 'XIDE Code Editor'
@@ -13,7 +13,7 @@ object CodeEditForm: TCodeEditForm
   LCLVersion = '2.1.0.0'
   object CodeEditFormXVBox1: TXVBox
     Name = 'CodeEditFormXVBox1'
-    Tag = 422957120
+    Tag = 410004256
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 1
@@ -60,7 +60,7 @@ object CodeEditForm: TCodeEditForm
     end
     object CodeEditMainTabs: TXTabControl
       Name = 'CodeEditMainTabs'
-      Tag = 422955696
+      Tag = 410002832
       Left = 2
       Height = 536
       Top = 17
@@ -91,7 +91,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEditInputsVBox: TXVBox
           Name = 'CodeEditInputsVBox'
-          Tag = 422957072
+          Tag = 410004208
           Left = 0
           Height = 148
           Top = 0
@@ -110,7 +110,7 @@ object CodeEditForm: TCodeEditForm
           InheritColor = False
           object CodeEditInputsVBox1: TXVBox
             Name = 'CodeEditInputsVBox1'
-            Tag = 422957056
+            Tag = 410004192
             Left = 0
             Height = 152
             Top = 0
@@ -252,7 +252,7 @@ object CodeEditForm: TCodeEditForm
             end
             object CodeEditParamListScrollBox: TXScrollBox
               Name = 'CodeEditParamListScrollBox'
-              Tag = 422955904
+              Tag = 410003040
               Left = 2
               Height = 72
               Top = 42
@@ -279,7 +279,7 @@ object CodeEditForm: TCodeEditForm
             end
             object CodeEditFormXHBox2: TXHBox
               Name = 'CodeEditFormXHBox2'
-              Tag = 422955600
+              Tag = 410002736
               Left = 2
               Height = 41
               Top = 114
@@ -401,7 +401,7 @@ object CodeEditForm: TCodeEditForm
         end
         object CodeEdit: TXCode
           Name = 'CodeEdit'
-          Tag = 422957088
+          Tag = 410004224
           Left = 0
           Height = 300
           Top = 148
@@ -434,6 +434,7 @@ object CodeEditForm: TCodeEditForm
           SpacingAround = 0
           Border = True
           ItemValue = '....text....'
+          Language = 'Pascal'
           ReadOnly = False
           MessagesHeight = '1'
           HandleClickMessage = CodeEditHandleClickMessage
@@ -450,7 +451,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEditInit: TXCode
           Name = 'CodeEditInit'
-          Tag = 422957104
+          Tag = 410004240
           Left = 0
           Height = 515
           Top = 0
@@ -480,6 +481,7 @@ object CodeEditForm: TCodeEditForm
           SpacingAround = 0
           Border = True
           ItemValue = '...text...'
+          Language = 'Pascal'
           ReadOnly = False
           MessagesHeight = '1'
           HandleClickMessage = CodeEditInitHandleClickMessage

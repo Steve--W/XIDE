@@ -91,14 +91,14 @@ type
     procedure DoLocalSearch(TextToFind:String);
     procedure DoGlobalSearch(TextToFind:String);
     procedure NavigateToFirstError;
-    procedure DisplayTheCodeBlock(targetLine,targetChar:integer);
+    procedure SetCursorPosition(targetLine,targetChar:integer);
     procedure DisplayIncFile(FileName,lineNum,charPos:String);
     procedure HandleMessageClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString; ThisCodeEdit:TXCode);
     procedure CodeEditMainTabsHandleChange(e: TEventStatus; nodeID: AnsiString; myValue: AnsiString);
   private
 
   public
-    Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, RawUnitCode
+    Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode
     TargetNodeName:String;
     EventType:String;
 
@@ -193,7 +193,14 @@ begin
     CodeEditInputsVBox.IsVisible:=false;
     CodeEdit.MessagesHeight:='30%';
     CodeEditFindGlobal.Checked:=true;
+    CodeEditFindCase.Checked:=true;
     CodeEditFindTxt.HasFocus:=true;
+    {$ifdef JScript}
+    // if navigating here from a PasUnit sub-procedure on the code tree, then automatically run a search
+    // for instances of the procedure name...
+    if self.CodeEditFindTxt.ItemValue<>'' then
+      DoGlobalSearch(self.CodeEditFindTxt.ItemValue);
+    {$endif}
   end
   else
   begin
@@ -218,6 +225,11 @@ begin
 
   if (Mode<>'EventCode') then
     CodeEditMainTabs.TabIndex:=0;
+
+  if (Mode<>'PythonScriptCode') then
+    CodeEdit.Language:='Pascal'
+  else
+    CodeEdit.Language:='Python';
 
 end;
 
@@ -244,7 +256,13 @@ begin
   if (Mode='dll') then
     NavigateToFirstError
   else if (Mode='SearchCode') then
+  begin
+    // if navigating here from a PasUnit sub-procedure on the code tree, then automatically run a search
+    // for instances of the procedure name...
+    if self.CodeEditFindTxt.ItemValue<>'' then
+      DoGlobalSearch(self.CodeEditFindTxt.ItemValue);
     TEdit(CodeEditFindTxt.myControl).SetFocus;
+  end;
 end;
 
 {$endif}
@@ -532,7 +550,7 @@ begin
   end;
 end;
 
-procedure TCodeEditForm.DisplayTheCodeBlock(targetLine,targetChar:integer);
+procedure TCodeEditForm.SetCursorPosition(targetLine,targetChar:integer);
 begin
   // showmessage('targetline='+inttostr(targetline));
   // set cursor position
@@ -608,7 +626,7 @@ begin
         self.TargetNodeName:=FStrings2[0];
         self.EventType:='';
         self.Mode:='UnitCode';
-        Context:='RawUnit';
+        Context:='PasUnit';
         //self.CodeEditContextLabel.LabelCaption:=self.TargetNodeName;
         //CodeEdit.LabelText:=self.TargetNodeName;
         targetLine:=StrToInt(linenum);
@@ -616,7 +634,7 @@ begin
     end;
     FreeAndNil(FStrings2);
     self.InitialiseOnShow(Context,self.TargetNodeName,self.EventType);
-    DisplayTheCodeBlock(targetLine,strToInt(charPos));
+    SetCursorPosition(targetLine,strToInt(charPos));
   end
   else
   begin
@@ -677,7 +695,7 @@ begin
    begin
      //if Filename includes a dot, then it's a nodename and eventtype.
      //if it contains .AnimationCode, then it's a GPU kernel block
-     //Otherwise it's a code element (function or rawunit nodename)
+     //Otherwise it's a code element (function or Pasunit or PythonScript nodename)
 
      // save any edits already done...
      CodeEditStatus:='ok';
@@ -718,9 +736,9 @@ begin
          end
          else
          begin
-           if targetNode.NodeType='RawUnit' then
-             self.Mode:='RawUnitCode'
-           else
+           if targetNode.NodeType='PasUnit' then
+             self.Mode:='PasUnitCode'
+           else if targetNode.NodeType='Function' then
              self.Mode:='FunctionCode';
            Context:=targetNode.NodeType;
            self.EventType:='';
@@ -735,7 +753,7 @@ begin
      if self.Mode<>'AnimationCode' then
      begin
        self.InitialiseOnShow(Context,targetNode.NodeName,self.EventType);
-       DisplayTheCodeBlock(targetLine,strToInt(charPos));
+       SetCursorPosition(targetLine,strToInt(charPos));
      end
      else
      begin
@@ -853,7 +871,8 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
   var
     i:integer;
   begin
-    if (ThisNode.NodeType='RawUnit')
+    if (ThisNode.NodeType='PasUnit')
+    or (ThisNode.NodeType='PythonScript')
     or (ThisNode.NodeType='Function') then
     begin
       SearchThisText(ThisNode.NodeName,ThisNode.NodeType,ThisNode.GetAttribute('Code',true).AttribValue);
@@ -872,12 +891,14 @@ begin
   //!! save any changes first....??
   CodeEditStatus:='ok';
   if CodeEditForm.Mode<>'SearchCode' then
+  begin
     CodeEditorClosed(nil);
+    CodeEditForm.Mode:='SearchCode';
+    CodeEditForm.InitialiseOnShow('Search Results','','');
+  end;
 
   self.CodeEdit.MessageLines:='';
   self.CodeEdit.ItemValue:='';
-  CodeEditForm.Mode:='SearchCode';
-  CodeEditForm.InitialiseOnShow('Search Results','','');
   SearchCodeNode(CodeRootNode);
   SearchEventsCode(UIRootNode);
 

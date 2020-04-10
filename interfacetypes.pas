@@ -48,7 +48,8 @@ TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;
 TSetGPUConstIntValue=procedure(GPUName,pName:String;pValue:integer) of object;
 //TSetGPUParamImgValue=procedure(GPUName,pName:String;pValue:TImgArray) of object;
-TShowBusy=procedure of object;
+TStartMain=procedure(e:TEventStatus) of object;
+TShowBusy=procedure(e:TEventStatus) of object;
 THideBusy=procedure of object;
 TProcessMessages=procedure of object;
 TMovePointerBetweenComponents=procedure(NodeName1,NodeName2,Sub1,Sub2:String) of object;
@@ -61,38 +62,38 @@ TGetGPUPixelArray=function(GPUName:String):T3DNumArray of object;
 TGetGPUPixelArrayAsString=function(GPUName:String):String of object;
 TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;
 TGetGPUStageArrayAsString=function(GPUName:String):String of object;
+TDebugStart=procedure of object;
+TRunPython=procedure(str:String) of object;
 
 {$ifdef JScript}
 var
-showmessage:Tshowmessage;
-showxform:Tshowxform;
-closexform:Tclosexform;
-confirm:Tconfirm;
-prompt:Tprompt;
-setpropertyvalue:Tsetpropertyvalue;
-setpropertyvalueindexed:Tsetpropertyvalueindexed;
-getpropertyvalue:Tgetpropertyvalue;
+ShowMessage:Tshowmessage;
+ShowXForm:Tshowxform;
+CloseXForm:Tclosexform;
+Confirm:Tconfirm;
+Prompt:Tprompt;
+SetPropertyValue:Tsetpropertyvalue;
+SetPropertyValueIndexed:Tsetpropertyvalueindexed;
+GetPropertyValue:Tgetpropertyvalue;
 //getpropertyvalueindexed:Tgetpropertyvalueindexed;
-copytoclip:TCopyToClip;
-copyfromclip:TCopyFromClip;
+CopyToClip:TCopyToClip;
+CopyFromClip:TCopyFromClip;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
 LoadTableFromNumArray:TLoadTableFromNumArray;
 GetTableDataArray:TGetTableDataArray;
-doevent:TDoEvent;
-movecomponent:TMoveComponent;
-copycomponent:TCopyComponent;
-deletecomponent:TDeleteComponent;
-getgpuparamnumvalue:TGetGPUParamNumValue;
-getgpuconstintvalue:TGetGPUConstIntValue;
-//getgpuparamimgvalue:TGetGPUParamImgValue;
-setgpuparamnumvalue:TSetGPUParamNumValue;
-setgpuconstintvalue:TSetGPUConstIntValue;
-//setgpuparamimgvalue:TSetGPUParamImgValue;
-showbusy:TShowBusy;
-hidebusy:THideBusy;
-processmessages:TProcessMessages;
-movepointerbetweencomponents:TMovePointerBetweenComponents;
-hidepointer:THidePointer;
+DoEvent:TDoEvent;
+MoveComponent:TMoveComponent;
+CopyComponent:TCopyComponent;
+DeleteComponent:TDeleteComponent;
+GetGPUParamNumValue:TGetGPUParamNumValue;
+GetGPUConstIntValue:TGetGPUConstIntValue;
+SetGPUParamNumValue:TSetGPUParamNumValue;
+SetGPUConstIntValue:TSetGPUConstIntValue;
+ShowBusy:TShowBusy;
+HideBusy:THideBusy;
+ProcessMessages:TProcessMessages;
+MovePointerBetweenComponents:TMovePointerBetweenComponents;
+HidePointer:THidePointer;
 UserSystemAsString:TUserSystemAsString;
 LoadUserSystemString:TLoadUserSystemString;
 ConsoleLog:TConsoleLog;
@@ -101,6 +102,8 @@ GetGPUPixelArray:TGetGPUPixelArray;
 GetGPUPixelArrayAsString:TGetGPUPixelArrayAsString;
 GetGPUStageArray:TGetGPUStageArray;
 GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
+DebugStart:TDebugStart;
+RunPython:TRunPython;
 
 
 var EventsNameSpace:String;
@@ -135,7 +138,8 @@ type TMethodsClass = class(TObject)
  procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
  procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);
 // procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);
- procedure mmiShowBusy;
+ procedure mmiStartMain(e:TEventStatus);
+ procedure mmiShowBusy(e:TEventStatus);
  procedure mmiHideBusy;
  procedure mmiProcessMessages;
  procedure mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String);
@@ -148,6 +152,8 @@ type TMethodsClass = class(TObject)
  function mmiGetGPUPixelArrayAsString(GPUName:String):String;
  function mmiGetGPUStageArray(GPUName:String):T3DNumArray;
  function mmiGetGPUStageArrayAsString(GPUName:String):String;
+ procedure mmiDebugStart;
+ procedure mmiRunPython(str:String);
 end;
 
 type AnsiString=String;
@@ -164,7 +170,7 @@ implementation
 procedure SetInterfaceContext;
 begin
   appmethods:=TMethodsClass.Create;
-  showmessage:=@AppMethods.mmishowmessage;
+  ShowMessage:=@AppMethods.mmishowmessage;
   showxform:=@appmethods.mmishowxform;
   closexform:=@appmethods.mmiclosexform;
   setpropertyvalue:=@AppMethods.mmisetpropertyvalue;
@@ -201,6 +207,8 @@ begin
   GetGPUPixelArrayAsString:=@appmethods.mmiGetGPUPixelArrayAsString;
   GetGPUStageArray:=@appmethods.mmiGetGPUStageArray;
   GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
+  DebugStart:=@appmethods.mmiDebugStart;
+  RunPython:=@appmethods.mmiRunPython;
 end;
 
 procedure TMethodsClass.mmiSetEventsNameSpace(NameSpace:String);
@@ -328,6 +336,9 @@ begin
       //alert('CopyFromClip. not replaying');
       if (e!=null)
       {
+        if (e.InitRunning==false) {
+          alert('Warning: CopyFromClip must be called from the "Init" section of an event handler');
+          }
         e.AsyncProcsRunning.Add('CopyFromClip');
         //alert('mmiCopyFromClip. completion event is '+e.EventType);
         pas.PasteDialogUnit.CompletionEvent=e;
@@ -482,24 +493,45 @@ begin
   result:=pval;
 end;
 
-//function TMethodsClass.mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;
-//var
-//  pval:TImgArray;
-//begin
-//  asm
-//    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
-//    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-//      pval=myNode.GetParamImgValue(pName);
-//    }
-//  end;
-//  result:=pval;
-//end;
-procedure TMethodsClass.mmiShowBusy;
+procedure TMethodsClass.mmiStartMain(e:TEventStatus);
 begin
+  // eg. after the async function in an event 'Init' section is complete, fire off
+  // the event handler again to process the 'Main' section.
   asm
-    var ob=document.getElementById('Grey99');
-    if (ob==null) {
-    pas.HTMLUtils.ShowGreyOverlay('UIRoot','Grey99');
+    //console.log(this.EventType+' '+this.NodeId);
+    //console.log(this);
+    var evt = e.EventType;
+    var nid = e.NodeId;
+    var ns = e.NameSpace;
+    var eob = e;
+    setTimeout(function(){pas.Events.handleEvent(eob,
+                             evt,
+                             nid,
+                             ns,
+                             '','');  }, 100);
+  end;
+end;
+procedure TMethodsClass.mmiShowBusy(e:TEventStatus);
+begin
+  // ShowBusy is an async function (required for browser use), so it must be coded in the
+  // 'Init' section of an event handler.
+  asm
+    if (pas.EventLogging.MacroEventList.Replaying==false)
+    {
+      if (e!=null)
+      {
+        if (e.InitRunning==false) {
+          alert('Warning: ShowBusy must be called from the "Init" section of an event handler');
+          }
+        e.AsyncProcsRunning.Add('ShowBusy');
+//        pas.PasteDialogUnit.CompletionEvent=e;
+        var ob=document.getElementById('Grey99');
+        if (ob==null) {
+          pas.HTMLUtils.ShowGreyOverlay('UIRoot','Grey99');
+        }
+      }
+      else
+        alert('ShowBusy must be called with parameter "e"');
     }
   end;
 end;
@@ -620,6 +652,19 @@ begin
     }
   end;
   result:=pxval;
+end;
+procedure TMethodsClass.mmiDebugStart;
+begin
+  asm
+    debugger;
+  end;
+end;
+procedure TMethodsClass.mmiRunPython(str:String);
+begin
+  asm
+    //alert('RunPython - needs to be done');
+    pyodide.runPython(str);
+  end;
 end;
 
 

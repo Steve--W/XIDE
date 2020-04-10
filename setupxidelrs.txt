@@ -22,3 +22,4 @@ c:/Laz19Projects/XIDE/stylesutils.pas
 c:/Laz19Projects/XIDE/eventlogging.pas
 c:/Laz19Projects/XIDE/replayuserdialog.pas
 c:/Laz19Projects/XIDE/macrocomment.pas
+c:/Laz19Projects/XIDE/pyxutils.pas

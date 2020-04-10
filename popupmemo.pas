@@ -79,8 +79,6 @@ begin
   '                            set a component property (string value)  ' + LineEnding +
   'function  GetPropertyValue(nodeName,propName:String);  '  + LineEnding +
   '                            returns a component property value (as string) '   + LineEnding +
-//  'function  GetPropertyValueIndexed(nodeName,propName:String; x,y,w,h:integer):TstringArray; '  + LineEnding +
-//  '                            returns a portion of a component array property ' + LineEnding +
   'procedure SetPropertyValueIndexed(nodeName,propName:String;newValue:TStringArray; x,y:integer); '  + LineEnding +
   '                            set a portion of a component array property  '  + LineEnding +
   'procedure CopyToClip(str:String); '    + LineEnding +
@@ -106,8 +104,10 @@ begin
   '                            Returns the string representation of the current user system (can be imported to XIDE via System>Load)  '  + LineEnding +
   'function  LoadUserSystemString(SystemString:String);'  + LineEnding +
   '                            Imports a new user system to the XIDE framework (can only be done in ''Design'' mode) '  + LineEnding +
-  'procedure ShowBusy;'  + LineEnding +
+  'procedure ShowBusy(e:TEventStatus);'  + LineEnding +
   '                            Shows the busy cursor  '  + LineEnding +
+  '          ShowBusy is an async function (required for browser use), so it must be coded in the  ' + LineEnding +
+  '          ''Init'' section of an event handler.         ' + LineEnding +
   'procedure HideBusy;'   + LineEnding +
   '                            Hides the busy cursor  '  + LineEnding +
   'procedure MovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String);'  + LineEnding +
@@ -115,7 +115,11 @@ begin
   'procedure HidePointer;'  + LineEnding +
   '                            Hides the animated pointer (that was raised by MovePointerBetweenComponents)  '  + LineEnding +
   'procedure ProcessMessages;'  + LineEnding +
-  '                            tba  '  + LineEnding;
+  '                            Functional in Desktop execution only.  Executes a pascal Application.ProcessMessages statement.  '  + LineEnding +
+  'procedure DebugStart;'  + LineEnding +
+  '                            Functional in Browser execution only.  Executes a Javascript ''debugger;'' statement - starts the native browser debug facility.  '  + LineEnding+
+  'procedure RunPython(str:String);'  + LineEnding +
+  '                            Executes the given Python script  '  + LineEnding;
   PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
   ' ' + LineEnding +
   'Messages and Dialogs' + LineEnding +
@@ -150,14 +154,10 @@ begin
   '                            For the given TXGPUCanvas component, returns the value of the named numeric parameter as an array '  + LineEnding +
   'function  GetGPUConstIntValue(GPUName,pName:String):integer;'  + LineEnding +
   '                            For the given TXGPUCanvas component, returns the value of the named integer parameter '  + LineEnding +
-//  'function  GetGPUParamImgValue(GPUName,pName:String):TImgArray;'  + LineEnding +
-//  '                            For the given TXGPUCanvas component, returns the value of the named image parameter as an array '  + LineEnding +
   'procedure SetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);'  + LineEnding +
   '                            For the given TXGPUCanvas component, sets the value of the named image parameter as an array '  + LineEnding +
   'procedure SetGPUConstIntValue(GPUName,pName:String;pValue:integer);'  + LineEnding +
   '                            For the given TXGPUCanvas component, sets the value of the named integer parameter '  + LineEnding +
-//  'procedure SetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);'  + LineEnding +
-//  '                            For the given TXGPUCanvas component, sets the value of the named image parameter as an array  '  + LineEnding +
   'function  GetGPUPixelArray(GPUName:String):T3DNumArray; '  + LineEnding +
   '                            Fetch the current Pixel array for the given TXGPUCanvas component  '  + LineEnding +
   'function  GetGPUPixelArrayAsString(GPUName:String):String;'  + LineEnding +

@@ -21,9 +21,9 @@ uses
   Classes, SysUtils, TypInfo, Stringutils, NodeUtils, Events, PopupMemo,
 {$ifndef JScript}
   LazsUtils, Menus, DynLibs,
-  Controls,PropEdits, ExtCtrls, Dialogs,Forms,CompilerLogUnit,
+  Controls, ComCtrls, PropEdits, ExtCtrls, Dialogs,Forms,CompilerLogUnit, xpparser,
 {$else}
-  HTMLUtils,
+  pparser,HTMLUtils,
 {$endif}
   UtilsJSCompile,XIFrame, XSVGContainer,
   WrapperPanel,  CompileUserCode,
@@ -92,7 +92,7 @@ function OITreeNodeHint(TreeLabelStr:String):String;
 procedure PopulateObjectInspector(CurrentNode:TDataNode);
 procedure OIPropsEventsTabChange;
 function PopulateResourceInspector(CurrentNode:TDataNode):String;
-function TreeLabelToID(TreeLabelStr:String):String;
+function TreeLabelToID(TreeLabelStr,TreeName:String;var FirstBit:String):String;
 function GetNavigatorHint(InTree:TDataNode;SystemNodeName:String):String;
 function CompositeResourcesString(QuotedString:Boolean):String;
 function BuildSystemString(Encapsulate:Boolean):String;
@@ -159,6 +159,8 @@ var
   LastLazUserInterfaceItemSelected,LastHTMLUserInterfaceItemSelected:String;
   LastHTMLUserInterfaceItemHadBorder:Boolean;
   TreeInFocus, ObjectInspectorSelectedNavTreeNode, ObjectInspectorSelectedCodeTreeNode, ObjectInspectorSourceNode:TDataNode;
+  OISelectedCodeProcName:String;
+  OISelectedCodeLineNum:integer;
 
   {$ifndef JScript}
   UITopControl:TWinControl;
@@ -169,7 +171,7 @@ var
 
 
 implementation
-uses PasteDialogUnit, XIDEMain;
+uses PasteDialogUnit, PyXUtils, XIDEMain;
 
 const
   AttributeEditorNameDelimiter:string = '__';
@@ -329,8 +331,84 @@ begin
   result:= ArrayString;
 end;
 
+Function ConstructCodeTreeString(CurrentItem:TDataNode; level:Integer):String;
+// Recursive
+var ArrayString, ProcsString:String;
+    i,p,numchildren:integer;
+begin
+  if CurrentItem<>nil then
+  begin
+    if (CurrentItem.NameSpace='')
+    and (
+    (CurrentItem=CodeRootNode)
+    or (CurrentItem.NodeClass='Code')
+    )
+    then
+    begin
+      numchildren:=length(CurrentItem.ChildNodes);
 
-function TreeLabelToID(TreeLabelStr:String):String;
+      p:=0;
+      ProcsString:='';
+      if (CurrentItem.NodeClass='Code')
+      and (NumChildren=0) then
+      begin
+        // This is a raw unit.
+        // If the compiler has been run (pas2js), then there will be a list of defined procedures
+        // available for display in this tree.
+        for i:=0 to length(XIDEProcsList)-1 do
+        begin
+          if lowercase(XIDEProcsList[i].FileName) = lowercase(CurrentItem.NodeName)+'.pas' then
+          begin
+            p:=p+1;
+            //ProcsString:=ProcsString+',"'+inttostr(XIDEProcsList[i].LineNum)+'('+XIDEProcsList[i].Name+')"';
+            ProcsString:=ProcsString+',"'+XIDEProcsList[i].Name+'"';
+          end;
+        end;
+      end;
+
+
+      if level = 0 then ArrayString:=' ';
+
+      if level=0
+      then ArrayString:='['
+      else
+      begin
+        if (NumChildren>0) or (p>0)
+        then
+              ArrayString:=ArrayString+',['
+        else
+              ArrayString:=ArrayString+',';
+      end;
+
+      ArrayString:=ArrayString+'"'+CurrentItem.NodeType+'('+CurrentItem.NodeName+')"';
+
+
+      if (p>0) then
+      begin
+        // This is a raw unit.
+        // If the compiler has been run (pas2js), then there will be a list of defined procedures
+        // available for display in this tree.
+        ArrayString:=ArrayString+ProcsString+']';
+      end;
+
+      for i:=0 to numchildren-1 do
+      begin
+         ArrayString:=ArrayString+ConstructCodeTreeString(CurrentItem.ChildNodes[i],level+1);
+      end;
+
+      if ( NumChildren>0)
+      or (level=0)
+      then
+        ArrayString:=ArrayString+']';
+
+    end;
+  end;
+
+  result:= ArrayString;
+end;
+
+
+function TreeLabelToID(TreeLabelStr,TreeName:String;var FirstBit:String):String;
 //e.g. "EditBox(MySimpleID)"  =>  "MySimpleID"
 // or  "EditBox(MySimpleID) Click"  =>  "MySimpleID"
 var i,ln:integer;
@@ -340,6 +418,7 @@ begin
   TreeLabel2:=TreeLabelStr;
   StartOfIdFound:=false;
   newstring:='';
+  FirstBit:='';
   ln:=length(TreeLabel2);
   i:=1;
   while i< ln+1 do
@@ -347,6 +426,8 @@ begin
     tempstr:=TreeLabel2[i];
     if (StartOfIdFound=true) and  (tempstr<>')') then
       newstring:=newstring+tempstr;
+    if (StartOfIdFound=false) and (tempstr<>'(') then
+      FirstBit:=FirstBit+tempstr;
     if tempstr='(' then
       StartOfIdFound:=true;
     if tempstr=')' then
@@ -354,7 +435,9 @@ begin
     i:=i+1;
   end;
   if StartOfIdFound=false then // no brackets
+  begin
     newstring:=TreeLabelStr;
+  end;
   newstring:=myStringReplace( newstring,'Contents','',999,999);
   result :=  trim(newstring);
 end;
@@ -1548,35 +1631,40 @@ end;
 
 procedure  SelectCodeTreeNode(CurrentNode:TDataNode; refresh:boolean; TreeNodeText:String);
  var
-    mynodeText,tmp, NodeId:string;
+    tmp, NodeId:string;
  begin
      //!!!! Should to operate this by node id, not text  :: HOWEVER, in the code tree, node texts are all unique.
 
      //showmessage('SelectCodeTreeNode '+CurrentNode.Nodename+' >'+TreeNodeText+'<');
      //mynodeText := CurrentNode.NodeType+'('+CurrentNode.Nodename+')';
-     mynodeText := TreeNodeText;
-
      TreeInFocus := CodeRootNode;
 
      {$ifndef JScript}
-     TXTree(CodeTreeComponent.ScreenObject).SelectedNodeText:=mynodeText;  // this selects the node in the codetree component, if changed.
+     TXTree(CodeTreeComponent.ScreenObject).SelectedNodeText:=TreeNodeText;  // this selects the node in the codetree component, if changed.
      {$endif}
 
-     if (refresh)
-     or (ObjectInspectorSelectedCodeTreeNode=nil)
-     or (ObjectInspectorSelectedCodeTreeNode<>CurrentNode) then
+     if CurrentNode<>nil then
      begin
-
-       if DesignMode then
+       if (refresh)
+       or (ObjectInspectorSelectedCodeTreeNode=nil)
+       or (ObjectInspectorSelectedCodeTreeNode<>CurrentNode) then
        begin
-         ObjectInspectorSelectedCodeTreeNode:=CurrentNode;
-         {$ifdef JScript}
-         TXTree(CodeTreeComponent).SelectedNodeText:=myNodeText;  // this selects the node in the codetree component, if changed.
-         {$endif}
 
+         if DesignMode then
+         begin
+           ObjectInspectorSelectedCodeTreeNode:=CurrentNode;
+           {$ifdef JScript}
+           TXTree(CodeTreeComponent).SelectedNodeText:=TreeNodeText;  // this selects the node in the codetree component, if changed.
+           {$endif}
+
+         end;
        end;
+       ObjectInspectorSelectedCodeNodeText:=TreeNodeText;
+     end
+     else
+     begin
+       ObjectInspectorSelectedCodeTreeNode:=CurrentNode;
      end;
-     ObjectInspectorSelectedCodeNodeText:=TreeNodeText;
  end;
 
 procedure RebuildResourcesTree;
@@ -1674,7 +1762,7 @@ CodeRootNode
 
   // construct string for the 'Code' section of the main form
   //showmessage('ConstructSystemTreeString for code');
-  newtreestring:= ConstructSystemTreeString(CodeRootNode,0,true,false,nil,'');
+  newtreestring:= ConstructCodeTreeString(CodeRootNode,0);
 
   // For improved visibility, also add nodes to this tree for all event handlers
   // defined within the UIRootNode
@@ -1716,18 +1804,75 @@ begin
   end;
 end;
 
-procedure HandleCodeTreeClickEvent(TreeNodeId:String; TreeNodeText:String);
-var CurrentNode :TDataNode;
+function FindLineNumForProc(ProcName:String):integer;
+var
+  i,ln:integer;
 begin
-//ShowMessage('ntc event. node='+TreeNodeId);
+  ln:=1;
+  i:=0;
+  while i<length(XIDEProcsList) do
+  begin
+    if lowercase(XIDEProcsList[i].Name) = lowercase(ProcName) then
+    begin
+      ln:=XIDEProcsList[i].LineNum;
+    end;
+    i:=i+1;
+  end;
+  result:=ln;
+end;
+
+procedure HandleCodeTreeClickEvent(TreeNodeId,TreeNodeText,FirstBit:String);
+var
+  CurrentNode :TDataNode;
+  ParentText, ParentId, p1:String;
+  {$ifndef JScript}
+  myTreeNode:TTreeNode;
+  {$else}
+  selectedNodeId:String;
+  {$endif}
+begin
+//ShowMessage('HandleCodeTreeClickEvent. node='+TreeNodeId+' text='+TreeNodeText);
+  OISelectedCodeProcName:='';
   if (TreeNodeText<>CodeRootName)
   and (TreeNodeText<>'Root')
   and (TreeNodeText<>'Root(Events)')
   and (TreeNodeText<>'Root(GPUCode)') then
   begin
-    CurrentNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',true);
+    CurrentNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',false);
     if CurrentNode<>nil then
+    begin
       SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
+    end
+    else
+    begin
+      // TreeNodeId might be the name of a function within a pascal unit (if compiler has been run),
+      // in which case the relevant data node is the parent pasunit.
+      {$ifndef JScript}
+      myTreeNode:=TMyTreeView(TXTree(CodeTreeComponent.ScreenObject).myControl).Selected;
+      ParentText:=myTreeNode.Parent.Text;
+      {$else}
+      selectedNodeId:=TXTree(CodeTreeComponent).SelectedNodeId;
+      ParentText:=TXTree(CodeTreeComponent).getParentOfNode(selectedNodeId);
+      //showmessage('ParentText1='+ParentText);
+      ParentText:=TXTree(CodeTreeComponent).TextOfNode(ParentText);
+      //showmessage('ParentText2='+ParentText);
+      {$endif}
+      ParentId:=TreeLabelToID(ParentText,'CodeTree',p1);
+      CurrentNode:=FindDataNodeById(SystemNodeTree,ParentId,'',true);
+      if (CurrentNode<>nil)
+      and (CurrentNode.NodeType='PasUnit') then
+      begin
+         SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
+         OISelectedCodeProcName:=TreeNodeId;
+         //OISelectedCodeLineNum:=strtoint(FirstBit);
+         OISelectedCodeLineNum:=FindLineNumForProc(OISelectedCodeProcName);
+      end
+      else
+      begin
+        showmessage('Cannot find system node '+TreeNodeId);
+        ObjectInspectorSelectedCodeTreeNode:=nil;
+      end;
+    end;
   end
   else
     ObjectInspectorSelectedCodeTreeNode:=nil;
@@ -1805,6 +1950,7 @@ begin
      begin
        ObjectInspectorSelectedCodeTreeNode:=ParentNode;
        ObjectInspectorSelectedCodeNodeText:='';  //!!!! ??
+       OISelectedCodeProcName:='';
      end;
 
 end;
@@ -2432,14 +2578,15 @@ begin
   begin
     TXTree(NavTreeComponent.ScreenObject).DeSelectNode;
     DeHighlightObject(ObjectInspectorSelectedNavTreeNode);
+    PopulateObjectInspector(nil);
+    ClearResourceInspector;
     ObjectInspectorSelectedNavTreeNode:=nil;
 
     TXTree(CodeTreeComponent.ScreenObject).DeSelectNode;
     ObjectInspectorSelectedCodeTreeNode:=nil;
     ObjectInspectorSelectedCodeNodeText:='';
+    OISelectedCodeProcName:='';
 
-    PopulateObjectInspector(nil);
-    ClearResourceInspector;
     if CodeEditform<>nil then
     begin
       thisnode:=CodeEditForm.myNode;
@@ -2571,7 +2718,8 @@ begin
   end;
   for i:=0 to length(StartNode.ChildNodes)-1 do
   begin
-    if (StartNode.ChildNodes[i].NodeType='RawUnit')
+    if (StartNode.ChildNodes[i].NodeType='PasUnit')
+    or (StartNode.ChildNodes[i].NodeType='PythonScript')
     and (StartNode.ChildNodes[i].IsDynamic) then
     begin
       systemstring:=systemstring+NodeTreeToXML(StartNode.ChildNodes[i],CodeRootNode,true,false);
@@ -2769,7 +2917,7 @@ end;
 
 procedure OINavTreeNodeChange(e:TEventStatus;nodeId,NameSpace:string;myValue:string);
 var
-  NodeText,TreeNodeId:String;
+  NodeText,TreeNodeId,p1:String;
   //myNode:TdataNode;
   myTree:TXTree;
 begin
@@ -2782,7 +2930,7 @@ begin
   NodeText:=myTree.SelectedNodeText;
 //showmessage('OINavTreeNodeChange. NodeText='+NodeText);
   {$endif}
-  TreeNodeId:=TreeLabelToID(NodeText);
+  TreeNodeId:=TreeLabelToID(NodeText,'NavTree',p1);
 
   //NodeID is the Navigator Ttree object clicked on    eg. NavigationTreeContents   or in html, the name of the node...
   //myValue is  the label text of the clicked node (desktop) OR the treenode id (Browser)
@@ -2796,7 +2944,7 @@ end;
 
 procedure OIResourceTreeNodeChange(nodeId:string;myValue:string);
 var
-  NodeText,TreeNodeId:String;
+  NodeText,TreeNodeId,p1:String;
   //myNode:TdataNode;
   myTree:TXTree;
 begin
@@ -2809,7 +2957,7 @@ begin
   myTree:=TXTree(ResourceTreeComponent);
   NodeText:=myTree.SelectedNodeText;
   {$endif}
-  TreeNodeId:=TreeLabelToID(NodeText);
+  TreeNodeId:=TreeLabelToID(NodeText,'ResourceTree',p1);
 
   //NodeID is the Navigator Ttree object clicked on    eg. NavigationTreeContents   or in html, the name of the node...
   //myValue is  the label text of the clicked node (desktop) OR the treenode id (Browser)
@@ -2823,7 +2971,7 @@ end;
 
 procedure OICodeTreeNodeChange(nodeId:string;myValue:string);
 var
-  NodeText,TreeNodeId:String;
+  NodeText,TreeNodeId,FirstBit:String;
   myTree:TXTree;
 begin
   {$ifndef JScript}
@@ -2833,12 +2981,12 @@ begin
   myTree:=TXTree(CodeTreeComponent);
   NodeText:=myTree.SelectedNodeText;
   {$endif}
-  TreeNodeId:=TreeLabelToID(NodeText);
+  TreeNodeId:=TreeLabelToID(NodeText,'CodeTree',FirstBit);
 
   if TreeNodeId<>'' then
   begin
     //showmessage('OICodeTreeNodeChange. nodeId='+nodeId+' TreeNodeId='+TreeNodeId);
-     HandleCodeTreeClickEvent(TreeNodeId,NodeText);
+     HandleCodeTreeClickEvent(TreeNodeId,NodeText,FirstBit);
   end;
 end;
 
@@ -2856,7 +3004,7 @@ end;
 function OIPasteItem(nodeId:string;myValue:string):boolean;
 // if called via drag/drop, myvalue is the text of the destination node
 // otherwise, from Paste button, destination node is ObjectInspectorSelectedNavTreeNode.
-var dst:string;
+var dst,p1:string;
   DestNode:TDataNode;
   ok:boolean;
 begin
@@ -2868,7 +3016,7 @@ begin
         DestNode:=ObjectInspectorSelectedNavTreeNode
     else
     begin
-        dst:=TreeLabelToID( myValue);  // destination node
+        dst:=TreeLabelToID( myValue, TreeInFocus.NodeName,p1);  // destination node
         DestNode:=FindDataNodeById(SystemNodeTree,dst,'',true);      //!!namespace - assuming top design level only
     end;
 //showmessage('dest node '+DestNode.NodeName);
@@ -2887,7 +3035,7 @@ end;
 
 procedure OIDropItem(e:TEventStatus;nodeId:string;myValue:string);
 var
-  TreeNodeId:string;
+  TreeNodeId,p1:string;
   OriginalSource, OriginalParent:TDataNode;
   values:TNodeEventValue;
   OriginalPos:integer;
@@ -2901,7 +3049,7 @@ begin
 //    if values<>nil then showmessage('values.SourceName='+values.SourceName+' DstText='+values.DstText);
 //  end;
 
-  TreeNodeId:=TreeLabelToID( myValue);  // destination node
+  TreeNodeId:=TreeLabelToID( myValue, 'NavTree',p1);  // destination node
 
   TreeInFocus:=UIRootNode;
   ObjectInspectorSelectedNavTreeNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',true);
@@ -3164,11 +3312,11 @@ end;
 
 procedure OIDragItem(e:TEventStatus;nodeId:string;myValue:string);
 var
-  TreeNodeId:string;
+  TreeNodeId,p1:string;
 begin
   // Nav Tree, and Resource Tree.
 
-  TreeNodeId:=TreeLabelToID( myValue);
+  TreeNodeId:=TreeLabelToID( myValue, nodeId,p1);
   //ShowMessage('OIDragItem nodeid '+nodeId+' node='+myNode.NodeName+' treenodeid='+TreeNodeId);
   if nodeId = 'ResourceTree' then
   begin
@@ -3419,7 +3567,7 @@ procedure OIDeploySystem;
 // Save a web-ready copy of the whole system (including XIDE framework) to the clipboard
 var
   wholesystem,jsText,sysname,deployname:String;
-  lines:TStringList;
+  lines,ExtraLines,ExtraDirectives:TStringList;
   ok:boolean;
   dm:String;
 begin
@@ -3428,6 +3576,8 @@ begin
 
   sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
   deployname:=XIDEPrompt('Name of Deployed System',sysname);
+
+  ExtraDirectives:=TStringList.Create;
 
   {$ifndef JScript}
   lines:=TStringList.Create;
@@ -3445,11 +3595,16 @@ begin
      // additional inc file for composite resources
      SaveCompositesToIncFile;
 
+     {$ifdef Python}
+     ExtraDirectives.Add('-dPython');
+     {$endif}
      // now cross compile from a saved copy of this source with the conditional define
      // switch (JScript) set to compile the JS version instead of the Lazarus version
-     TranspileMyProgram('XIDEMain',ProjectDirectory,'resources/project/',CodeEditForm.CodeEdit,false);
+     TranspileMyProgram('XIDEMain',ProjectDirectory,'resources/project/',CodeEditForm.CodeEdit,false,ExtraDirectives);
+
      if FileExists('XIDEMain.js') then
        lines.LoadFromFile('XIDEMain.js');
+
      Screen.Cursor := crDefault;
 
   end
@@ -3458,7 +3613,26 @@ begin
     DisplayDllCompileErrors;
   end;
 
+  {$ifdef Python}
+  ExtraLines:=PyodideScript;
+//  lines.insert(0,'    <script type="application/javascript" src="./resources/pyodide_local/pyodide.js">');
+//  lines.insert(1,'   </script>  ');
+//  lines.insert(2,'    <script type="application/javascript" >');
+//  lines.add('languagePluginLoader.then(() => {');
+//  lines.add('  // pyodide is now ready to use...');
+//  lines.add('  console.log(pyodide.runPython(''import sys\nsys.version''));');
+//  lines.add('  pyodide.loadPackage(''./resources/pyodide_local/numpy'');');
+//  lines.add('  pas.XIDEMain.StartupPython();');
+//  lines.add('});');
+  ExtraLines.AddStrings(lines);
+  lines.Text:=ExtraLines.Text;
+  {$else}
+  lines.insert(0,'    <script type="application/javascript" >');
+  {$endif}
+  lines.add('   </script>  ');
+
   jsText:=lines.text;
+
   dm:=UIRootNode.GetAttribute('DeploymentMode',false).AttribValue ;
   wholesystem := CreateHTMLWrapper('XIDEMain',dm,true,jsText);
   lines.Free;
@@ -3473,6 +3647,7 @@ begin
 
   {$endif}
 
+  ExtraDirectives.Free;
 end;
 
 procedure OIComponentCopy(nodeId:string;myValue:string);
@@ -3646,6 +3821,7 @@ begin
     MenuItem.Caption:='Design Mode';
     // Hide Object Inspector
     ShowHideObjectInspector(false);
+
     {$ifndef JScript}
     //Unload the events dll, if previously loaded
     if MyLibC <>  DynLibs.NilHandle then
@@ -3662,11 +3838,22 @@ begin
     PushAllSourcesToAttributes;
 
     HandleEventLater(nil,'OnEnterRunMode','UIRootNode','','');
+    {$ifdef Python}
+    //Clear the python engine and re-initialise
+    DoPy_InitEngine;
+    RunInitialScript;
+    //do later .... exec all defined python scripts
+    GatherAndRunPythonScriptsLater;
+    {$endif}
     {$else}
     GatherSourcedAttributes(SystemNodeTree);
     PushAllSourcesToAttributes;
 
     HandleEvent(nil,'OnEnterRunMode','UIRootNode','','');
+    {$ifdef Python}
+    //exec all defined python scripts
+    PyProcs.GatherAndRunPythonScripts(0);
+    {$endif}
     {$endif}
   end
   else
@@ -3997,13 +4184,14 @@ begin
 
     end
     else if (CodeEditForm.Mode='UnitCode')
-      or (CodeEditForm.Mode='RawUnitCode')
+      or (CodeEditForm.Mode='PasUnitCode')
+      or (CodeEditForm.Mode='PythonScriptCode')
       or (CodeEditForm.Mode='FunctionCode') then
     begin
       tmp:=CodeEditForm.TargetNodeName;
       // name of unit is in TargetNodeName
       CodeNode:=FindDataNodeById(CodeRootNode,CodeEditForm.TargetNodeName,'',true);
-      if (CodeNode.NodeType='RawUnit')
+      if (CodeNode.NodeType='PasUnit')
       and (CodeEditForm.Mode='FunctionCode') then
       begin
         // we are displaying compiler errors in the unit...
@@ -4203,10 +4391,10 @@ end;
 
 function OITreeNodeHint(TreeLabelStr:String):String;
 var
-   SystemNodeName:string;
+   SystemNodeName,p1:string;
 begin
   //showmessage('OINodeTreeHint '+TreeLabelStr);
-  SystemNodeName:=TreeLabelToID( TreeLabelStr);
+  SystemNodeName:=TreeLabelToID( TreeLabelStr,'NavTree',p1);
   result := GetNavigatorHint(SystemNodeTree,SystemNodeName);
 end;
 
@@ -4418,7 +4606,7 @@ var AttributePrefix:string;
   tabIndex:String;
   dfltAttrib:TDefaultAttribute;
 begin
-  if CurrentNode=nil then EXIT;
+  //if CurrentNode=nil then EXIT;
   s:=SuppressEvents;
   SuppressEvents:=true;
 
@@ -4625,6 +4813,7 @@ begin
     NewNode.SetAttributeValue('Code',UnitCode,'String');
 
     ObjectInspectorSelectedCodeTreeNode:=InsertSystemNode(CodeRootNode,NewNode,-1);
+    OISelectedCodeProcName:='';
     ObjectInspectorSelectedCodeNodeText:='';
 
     // rebuild the code tree
@@ -4658,6 +4847,7 @@ begin
 
       ObjectInspectorSelectedCodeTreeNode:=InsertSystemNode(ObjectInspectorSelectedCodeTreeNode,NewNode,-1);
       ObjectInspectorSelectedCodeNodeText:='';
+      OISelectedCodeProcName:='';
       // rebuild the code tree
       RebuildCodeTree;
 
@@ -4679,7 +4869,8 @@ var
 begin
   if ObjectInspectorSelectedCodeTreeNode<>nil then
   begin
-    if (ObjectInspectorSelectedCodeTreeNode.NodeType='RawUnit')
+    if (ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit')
+    or (ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript')
     or (ObjectInspectorSelectedCodeTreeNode.NodeType='Function') then
     begin
       NodeNameToEdit:=ObjectInspectorSelectedCodeTreeNode.NodeName;
@@ -4690,32 +4881,40 @@ begin
       if UnitCode='' then
       begin
         // provide a template unit or function
-        if ObjectInspectorSelectedCodeTreeNode.NodeType='RawUnit' then
-          UnitCode:= DfltUnitCode(NodeNameToEdit,'RawUnit')
-        else
-          UnitCode:= DfltFunctionCode(NodeNameToEdit);
+        if ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit' then
+          UnitCode:= DfltUnitCode(NodeNameToEdit,'PasUnit')
+        else if ObjectInspectorSelectedCodeTreeNode.NodeType='Function' then
+          UnitCode:= DfltFunctionCode(NodeNameToEdit)
+        else if ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript' then
+          UnitCode:= DfltPythonCode;
       end;
       CodeEditForm.CodeEdit.ItemValue := UnitCode;
       CodeEditForm.CodeEdit.MessageLines:='';
 
-      if ObjectInspectorSelectedCodeTreeNode.NodeType<>'RawUnit' then
-      begin
-        Inputs:=ObjectInspectorSelectedCodeTreeNode.GetAttribute('Inputs',true).AttribValue;
-        FuncInputs:=StringToCodeInputs(Inputs);
-        for i:=0 to length(FuncInputs)-1 do
-        begin
-          CodeEditForm.AddInputBox(FuncInputs[i]);
-        end;
-      end;
+//      if ObjectInspectorSelectedCodeTreeNode.NodeType<>'PasUnit' then
+//      begin
+//        Inputs:=ObjectInspectorSelectedCodeTreeNode.GetAttribute('Inputs',true).AttribValue;
+//        FuncInputs:=StringToCodeInputs(Inputs);
+//        for i:=0 to length(FuncInputs)-1 do
+//        begin
+//          CodeEditForm.AddInputBox(FuncInputs[i]);
+//        end;
+//      end;
 
       CodeEditForm.Mode:=ObjectInspectorSelectedCodeTreeNode.NodeType+'Code';
       CodeEditForm.InitialiseOnShow(ObjectInspectorSelectedCodeTreeNode.NodeType,NodeNameToEdit,'');
+      {$ifdef JScript}
       ShowXForm('CodeEditForm',true);
-
-      {$ifndef JScript}
-      // on return....
-      //CodeEditorClosed(nil);
       {$endif}
+      if ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit' then
+      begin
+        //showmessage('OIEditCodeUnit '+ObjectInspectorSelectedCodeTreeNode.NodeType+' '+ObjectInspectorSelectedCodeTreeNode.NodeName+' '+inttostr(OISelectedCodeLineNum));
+        CodeEditForm.SetCursorPosition(OISelectedCodeLineNum,1);
+      end;
+      {$ifndef JScript}
+      ShowXForm('CodeEditForm',true);
+      {$endif}
+
     end
     else
     if (ObjectInspectorSelectedCodeTreeNode.NodeClass='UI')
@@ -4762,27 +4961,33 @@ end;
 
 procedure OICodeSearch;
 begin
+  // pop up the syntax editor.
+  CodeEditForm.CodeEdit.ItemValue := '';
+  CodeEditForm.CodeEdit.MessageLines:='';
 
-      // pop up the syntax editor.
-      CodeEditForm.CodeEdit.ItemValue := '';
-      CodeEditForm.CodeEdit.MessageLines:='';
-
-      CodeEditForm.Mode:='SearchCode';
-      CodeEditForm.InitialiseOnShow('Search Results','','');
-      ShowXForm('CodeEditForm',true);
-      {$ifdef JScript}
-      CodeEditForm.CodeEditFindTxt.HasFocus:=true;
-      {$endif}
+  CodeEditForm.Mode:='SearchCode';
+  if (ObjectInspectorSelectedCodeTreeNode<>nil)
+  and (ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit') then
+  begin
+    CodeEditForm.CodeEditFindTxt.ItemValue:=OISelectedCodeProcName;
+  end;
+  CodeEditForm.InitialiseOnShow('Search Results','','');
+  ShowXForm('CodeEditForm',true);
+  {$ifdef JScript}
+  CodeEditForm.CodeEditFindTxt.HasFocus:=true;
+  {$endif}
 end;
 
 procedure OIDeleteCodeUnit;
 begin
   if ObjectInspectorSelectedCodeTreeNode<>nil then
   begin
-    if  (ObjectInspectorSelectedCodeTreeNode.NodeType='RawUnit')
+    if  (ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit')
+    or  (ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript')
     or  (ObjectInspectorSelectedCodeTreeNode.NodeType='Function') then
     begin
-      DeleteItem(CodeRootNode,ObjectInspectorSelectedCodeTreeNode)
+      DeleteItem(CodeRootNode,ObjectInspectorSelectedCodeTreeNode);
+      OISelectedCodeProcName:='';
     end
     else
       if  (ObjectInspectorSelectedCodeTreeNode.NodeType='Root') then
@@ -4938,6 +5143,8 @@ begin
   OIEventWrapper := TOIEventWrapper.Create;
   ObjectInspectorSelectedNavTreeNode:=nil;
   ObjectInspectorSelectedCodeTreeNode:=nil;
+  OISelectedCodeProcName:='';
+  OISelectedCodeLineNum:=1;
   AvailableResourcesSelectedNode:=nil;
   ObjectInspectorSelectedCodeNodeText:='';
   {$ifndef JScript}

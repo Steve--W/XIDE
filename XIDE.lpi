@@ -47,7 +47,7 @@
         <PackageName Value="FCL"/>
       </Item6>
     </RequiredPackages>
-    <Units Count="18">
+    <Units Count="19">
       <Unit0>
         <Filename Value="XIDE.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -166,6 +166,11 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="MacroComment"/>
       </Unit17>
+      <Unit18>
+        <Filename Value="pyxutils.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="PyXUtils"/>
+      </Unit18>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -176,6 +181,7 @@
     </SearchPaths>
     <Conditionals Value="UnitPath += &apos;;$PkgOutDir(CEF4Delphi_Lazarus)&apos;;
 UnitPath += &apos;;XIDEComponents&apos;;
+UnitPath += &apos;;$PkgOutDir(Python4Lazarus_Package)&apos;;
 IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
     <CodeGeneration>
       <RelocatableUnit Value="True"/>
@@ -196,7 +202,8 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
       <Verbosity>
         <ShowDebugInfo Value="True"/>
       </Verbosity>
-      <CustomOptions Value="-dChromium"/>
+      <CustomOptions Value="-dChromium
+-dPython"/>
     </Other>
   </CompilerOptions>
   <Debugging>

@@ -15,7 +15,6 @@ unit XIDEMain;
 {$INTERFACES CORBA}
 {$endif}
 
-
 interface
 
 uses
@@ -29,7 +28,7 @@ uses
   HTMLUtils,
 {$endif}
   // XComponents units...
-  StringUtils, NodeUtils, PasteDialogUnit,
+  PyXUtils, StringUtils, NodeUtils, PasteDialogUnit,
   UtilsJSCompile, XIFrame, XSVGContainer, XMenu, XScrollBox, XVBox, XHBox, XTree, XMemo,
   XTabControl, XButton, XLabel, XEditBox, XCheckBox, XHyperLink, XRadioBtns,
   XForm, XTable, XProgressBar, XNumericSlider, XNumberSpinner,
@@ -46,7 +45,9 @@ uses
 
 {$ifdef JScript}
 procedure InitialisePage(dummy:string);
+procedure StartupPython;
 {$endif}
+
 
 
 { TXIDEForm }
@@ -64,7 +65,7 @@ TXIDEForm = class(TXForm)
 
 
   ToggleDesignRunMode: TXMenuItem;
-  CodeTreeRawUnitBtn: TXButton;
+  CodeTreePascalUnitBtn: TXButton;
   NavTreeUpBtn: TXButton;
   NavTreeUpDownHBox: TXHBox;
   NavTreeDownBtn: TXButton;
@@ -81,6 +82,7 @@ TXIDEForm = class(TXForm)
   QualifierEditBox: TXEditBox;
   WatchBox: TXEditBox;
   CodeTreeSearchBtn: TXButton;
+  CodeTreePythonBtn: TXButton;
   XIDEMainMenu: TXMainMenu;
 
   MyRootDiv: TXScrollBox;
@@ -147,6 +149,8 @@ TXIDEForm = class(TXForm)
   EventsMacroResumeRecording: TXMenuItem;
   XMemo1: TXMemo;
 
+  procedure CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
+    nodeID: AnsiString; myValue: AnsiString);
   procedure DummyPositionMarker;   // DO not delete this line.
 
   {$ifndef JScript}
@@ -236,7 +240,7 @@ TXIDEForm = class(TXForm)
   procedure XIDETrapEvents1HandleAny(e: TEventStatus; nodeID: AnsiString;  myValue: AnsiString);
   procedure CodeTreeDelBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure CodeTreeEditBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;myValue: AnsiString);
-  procedure CodeTreeRawUnitBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+  procedure CodeTreePascalUnitBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure CodeTreeSearchBtnHandleButtonClick(e: TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure DebugTreeHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
     myValue: AnsiString);
@@ -268,7 +272,6 @@ public
  end;
 
 
-
 var
 XIDEForm: TXIDEForm;
 
@@ -276,6 +279,14 @@ implementation
 
 {$R *.lfm}
 
+{$ifdef Python}
+procedure StartupPython;
+begin
+  XIDEForm.CodeTreePythonBtn.IsVisible:=true;
+  PyMemoComponent:=XIDEForm.XMemo1;
+  RunInitialScript;
+end;
+{$endif}
 
 function TXIDEForm.HandleGenericEvent(MyEventType,myValue:string;EventNode:TDataNode):Boolean;
 var
@@ -339,6 +350,12 @@ procedure TXIDEForm.DummyPositionMarker;     // do not delete this procedure
 begin
 end;
 
+procedure TXIDEForm.CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  OIAddCodeUnitNode('PythonScript');
+end;
+
 procedure TXIDEForm.NavTreeHandleTreeNodeClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 begin
   OINavTreeNodeChange(e,nodeId,'',myValue);
@@ -358,7 +375,7 @@ procedure TXIDEForm.NavTreeHandleDropAccepted(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 var
   SourceIsNavigator,SourceIsResourceTree:Boolean;
-  DstNodeName:String;
+  DstNodeName,Part1:String;
   DstNode:TDataNode;
   ok:Boolean;
   values:TNodeEventValue;
@@ -386,7 +403,7 @@ begin
     // additional node-level checks...
     if (values.dstText<>'') then
     begin
-      DstNodename:=TreeLabelToId(values.DstText);
+      DstNodename:=TreeLabelToId(values.DstText,'NavTree',Part1);
       DstNode:=FindDataNodeById(SystemNodeTree,DstNodeName,'',true);     //!!!!namespace - assuming top design level only
       if (DstNode<>nil) then
       begin
@@ -711,10 +728,10 @@ procedure TXIDEForm.CodeTreeFuncBtnHandleButtonClick(e:TEventStatus;nodeID: Ansi
 begin
   OIAddCodeFuncNode;
 end;
-procedure TXIDEForm.CodeTreeRawUnitBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;
+procedure TXIDEForm.CodeTreePascalUnitBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;
   myValue: AnsiString);
 begin
-  OIAddCodeUnitNode('RawUnit');
+  OIAddCodeUnitNode('PasUnit');
 end;
 
 procedure TXIDEForm.CodeTreeEditBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -808,7 +825,6 @@ begin
   StartReplay;
 end;
 
-
 procedure TXIDEForm.EventsMacroStopRecordingHandleClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
@@ -875,6 +891,24 @@ begin
   AddRequiredFile('xcompositeintf','resources/project/xcompositeintf.pas');
   AddRequiredFile('gpu','resources/project/gpu.js');
 
+  {$ifdef Python}
+  AddRequiredFile('pyodide','resources/pyodide_local/pyodide.js');
+  AddRequiredFile('numpy','resources/pyodide_local/numpy.js');
+  AddRequiredFile('scipy','resources/pyodide_local/scipy.js');
+  AddRequiredFile('xlrd','resources/pyodide_local/xlrd.js');
+  AddRequiredFile('sympy','resources/pyodide_local/sympy.js');
+  AddRequiredFile('decorator','resources/pyodide_local/decorator.js');
+  AddRequiredFile('mpmath','resources/pyodide_local/mpmath.js');
+  AddRequiredFile('more-itertools','resources/pyodide_local/more-itertools.js');
+  AddRequiredFile('regex','resources/pyodide_local/regex.js');
+  AddRequiredFile('networkx','resources/pyodide_local/networkx.js');
+  AddRequiredFile('matplotlib','resources/pyodide_local/matplotlib.js');
+  AddRequiredFile('uncertainties','resources/pyodide_local/uncertainties.js');
+  AddRequiredFile('statsmodels','resources/pyodide_local/statsmodels.js');
+  AddRequiredFile('pandas','resources/pyodide_local/pandas.js');
+  AddRequiredFile('biopython','resources/pyodide_local/biopython.js');
+  {$endif}
+
   AddRequiredFile('xidemain','resources/project/XIDEMain.pas');
   AddRequiredFile('xobjectinsp','resources/project/xobjectinsp.pas');
   AddRequiredFile('codeeditor','resources/project/codeeditor.pas');
@@ -891,6 +925,8 @@ begin
   AddRequiredFile('eventlogging','resources/project/eventlogging.pas');
   AddRequiredFile('replayuserdialog','resources/project/replayuserdialog.pas');
   AddRequiredFile('macrocomment','resources/project/macrocomment.pas');
+  AddRequiredFile('pyxutils','resources/project/pyxutils.pas');
+
 
   // files needed for web-pas2jscompiler to be compilable by pas2js, and built into the project JS file...
   AddRequiredFile('fppas2js','resources/pas2jstranspiler/fppas2js.pp');
@@ -933,7 +969,7 @@ end;
 { TXIDEForm }
 procedure TXIDEForm.FormCreate(Sender: TObject);
 var
-  tmp,SystemDescription:String;
+  SystemDescription:String;
   RunSettingsNode:TDataNode;
   tmpl:TStringList;
 begin
@@ -977,44 +1013,79 @@ begin
   end
   else
     SelectNavTreeNode(MainFormProjectRoot,true);
-  tmp:='';
-end;
 
+  {$ifdef Python}
+  StartupPython;
+  {$endif}
+end;
 
 procedure TXIDEForm.FormActivate(Sender: TObject);
 begin
 end;
 
+
 procedure TXIDEForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   inherited FormClose(Sender, CloseAction);
   SaveSystemData;
+  {$ifdef Python}
+  if Assigned(PythonEngine1) then
+  begin
+    PythonEngine1.Finalize;  //!! to prevent crash when main form is closed  !!!! not working.
+    PythonEngine1.UnloadDll;
+    PythonEngine1.Destroy;
+  end;
+  {$endif}
 end;
 
 procedure TXIDEForm.CompileToJSClick(Sender: TObject);
 var
-  PropertiesNode:TDataNode;
   ok:Boolean;
+  i:integer;
+  ExtraDirectives,ExtraHTML:TStringList;
 begin
 
   // Start in Design Mode
   if not DesignMode then
     DoToggleDesignRunMode(ToggleDesignRunMode);
-  // First delete object inspector dynamic property editor fields
+
+  // Close any open popups
+  for i:=length(OpenXForms)-1 downto 0 do
+  begin
+    CloseXForm(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
+  end;
+
+  // Delete object inspector dynamic property editor fields
   ClearInspectors;
 
   SaveSystemData;
 
+  ExtraDirectives:=TStringList.Create;
   // Compile the user-created event code into a unit, to check for pas2js compile errors.
   ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS');
 
+
+  ExtraHTML:=TStringList.Create;
   if ok then
   begin
-
     // additional inc file for composite resources
     SaveCompositesToIncFile;
 
-    CompileJSandExecute('resources/project/');
+    {$ifdef Python}
+    ExtraDirectives.add('-dPython');
+    ExtraHTML:=PyodideScript;
+//    ExtraHTML.add('<script type="application/javascript" src="./resources/pyodide_local/pyodide.js">');
+//    ExtraHTML.add('</script>  ');
+//    ExtraHTML.add('<script type="application/javascript" >');
+//    ExtraHTML.add('languagePluginLoader.then(() => {');
+//    ExtraHTML.add('  // pyodide is now ready to use...');
+//    ExtraHTML.add('  console.log(''python: ''+pyodide.runPython(''import sys\nsys.version''));');
+//    ExtraHTML.add('  pyodide.loadPackage([''numpy'',''scipy'']);');
+//    ExtraHTML.add('  pas.XIDEMain.StartupPython();');
+//    ExtraHTML.add('});');
+//    ExtraHTML.add('</script>  ');
+    {$endif}
+    CompileJSandExecute('resources/project/',ExtraDirectives,ExtraHTML);
     if not FileExists('XIDEMain.js') then
       ShowCompilerLog;
   end
@@ -1022,6 +1093,8 @@ begin
   begin
     DisplayDllCompileErrors;
   end;
+  ExtraDirectives.free;
+  ExtraHTML.Free;
 end;
 
 procedure TXIDEForm.CompilerShowLogClick(Sender: TObject);
@@ -1062,7 +1135,6 @@ begin
   end;
   InitAutomatedCursor;
 end;
-
 
 procedure InitialisePage(dummy:string);
 var
@@ -1142,6 +1214,7 @@ begin
   {$I typespas.inc}
   {$I typinfopas.inc}
   //  {$I rttipas.inc}
+
   {$I gpujs.inc}
 
   SetupAnimatedPointer;
@@ -1199,6 +1272,10 @@ begin
     end;
   end;
 
+//  {$ifdef Python}
+//  StartupPython;
+//  {$endif}
+
   StartingUp:=false;// suppress event handlers while starting up
 
   SelectNavTreeNode(MainFormProjectRoot,true);
@@ -1232,17 +1309,22 @@ begin
 //    mmm;
 
     MainUnitName:='XIDEMain';
+
     {$ifndef JScript}
     Application.ShowHint:=true;
     {$I rtl.lrs}
     {$I xide.lrs}
+    {$ifdef Python}
+    {$I xidepyodide.lrs}
+    {$endif}
+
     {$Else}
        asm
        try{
           // now do any Javascript specific start up code
           pas.HTMLUtils.addHandVBoxStyles();
           pas.HTMLUtils.addWidgetInnerStyles();
-          }catch(err) { alert(err.message+' in StartupCode');}
+          }catch(err) { alert(err.message+' in XIDEMain');}
        end;
     {$endif}
 

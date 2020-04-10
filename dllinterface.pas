@@ -51,7 +51,8 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
     procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
 //    procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
-    procedure mmiShowBusy;    stdcall;
+    procedure mmiStartMain(e:TEventStatus);    stdcall;
+    procedure mmiShowBusy(e:TEventStatus);    stdcall;
     procedure mmiHideBusy;   stdcall;
     procedure mmiProcessMessages;   stdcall;
     procedure mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String); stdcall;
@@ -64,6 +65,8 @@ IMyMethodInterface = interface(IInterface)
     function mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
     function mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
     function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
+    procedure mmiDebugStart; stdcall;
+    procedure mmiRunPython(str:String); stdcall;
 end;
 
 type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
@@ -93,7 +96,8 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
       procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
 //      procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
-      procedure mmiShowBusy; stdcall;
+      procedure mmiStartMain(e:TEventStatus); stdcall;
+      procedure mmiShowBusy(e:TEventStatus); stdcall;
       procedure mmiHideBusy; stdcall;
       procedure mmiProcessMessages; stdcall;
       procedure mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String); stdcall;
@@ -106,6 +110,8 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       function mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
       function mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
       function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
+      procedure mmiDebugStart; stdcall;
+      procedure mmiRunPython(str:String); stdcall;
   end;
 
 type TEventTimerTag = class
@@ -122,6 +128,7 @@ type
   TimerEventWrapper:TTimerEventWrapper;
 
 implementation
+uses PyXUtils;
 
 var
 EventsNameSpace:String;
@@ -276,6 +283,9 @@ end;
      if  not EventLogging.MacroEventList.Replaying then
      begin
        //showmessage('CopyFromClip');
+       if (e.InitRunning=false) then
+         showmessage('Warning: CopyFromClip must be called from the ''Init'' section of an event handler');
+
        e.AsyncProcsRunning.add('CopyFromClip');
        s :=  Clipboard.AsText;
        e.ReturnString:=s;
@@ -438,20 +448,23 @@ end;
      end;
    end;
 
-//   function TMyMethodObject.mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
-//   var
-//     myNode:TDataNode;
-//   begin
-//     result:=nil;
-//    //showmessage('mmiSetGPUParamImgValue GPUName='+GPUName);
-//     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
-//     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
-//     begin
-//       result:=TXGPUCanvas(myNode.ScreenObject).GetParamImgValue(pName);
-//     end;
-//   end;
-   procedure TMyMethodObject.mmiShowBusy; stdcall;
+   procedure TMyMethodObject.mmiStartMain(e:TEventStatus); stdcall;
+   //var
+   //  myTag:TEventTimerTag;
    begin
+     HandleEvent(e,e.EventType,e.NodeId,e.NameSpace,'');
+     //myTag:=TEventTimerTag.Create;
+     //myTag.ProcName:='CopyFromClip';
+     //myTag.e:=e;
+     //DllEventTimer.Tag:=WinSizeDependentInt(myTag);
+     //DllEventTimer.Enabled:=true;
+   end;
+
+   procedure TMyMethodObject.mmiShowBusy(e:TEventStatus); stdcall;
+   begin
+     if (e.InitRunning=false) then
+       showmessage('Warning: ShowBusy should be called from the ''Init'' section of an event handler');
+
      Screen.Cursor := crHourglass;
    end;
    procedure TMyMethodObject.mmiHideBusy; stdcall;
@@ -576,6 +589,16 @@ end;
        {$endif}
      end;
    end;
+   procedure TMyMethodObject.mmiDebugStart;                             stdcall;
+   begin
+   end;
+   procedure TMyMethodObject.mmiRunPython(str:String);                  stdcall;
+   begin
+     {$ifdef Python}
+     PyExeString(str);
+     {$endif}
+   end;
+
 begin
     EventsNameSpace:='';
     mmo := TMyMethodObject.Create();

@@ -36,11 +36,28 @@ uses
   //CompilerLogUnit,
   LazsUtils, Controls, URIParser,
   PropEdits,TypInfo, Dialogs, Dynlibs,Process,
-  XCode, Forms, Events;
+  XCode, Forms, Events, xpparser;
 {$else}
   HTMLUtils,XCode,XIFrame,Events,
-  webfilecache, pas2jswebcompiler,
+  webfilecache, pas2jswebcompiler, pparser,
   InterfaceTypes;
+{$endif}
+
+{$ifdef Python}
+{$ifndef JScript}
+type
+  // record type for queued async functions
+  TPyXQueueRec = record
+    QDummy: string;
+  end;
+  PPyXQueueRec = ^TPyXQueueRec;
+{$endif}
+type
+  TPyProcs = class(TObject)
+    procedure GatherAndRunPythonScripts(dummy:PtrInt);
+  end;
+var
+    PyProcs:TPyProcs;
 {$endif}
 
 function CompileEventCode(MyCodeEditor:TXCode;RunMode:String):Boolean;
@@ -49,7 +66,13 @@ function   DfltFunctionCode(FnName:String):string;
 function   DfltEventCode:string;
 function   DfltThreadEventCode(NodeName:String):string;
 function   DfltTreeNodeEventCode:string;
+function   DfltPythonCode:string;
 procedure GatherSourcedAttributes(StartNode:TDataNode);
+{$ifdef Python}
+{$ifndef JScript}
+procedure GatherAndRunPythonScriptsLater;
+{$endif}
+{$endif}
 
 var
     ConfigfpcPath:String;
@@ -93,7 +116,7 @@ var
 
 
 implementation
-uses  XObjectInsp;
+uses  XObjectInsp, PyXUtils;
 
 {$ifndef JScript}
 type
@@ -535,7 +558,13 @@ begin
            // event status.  Do not continue with the main event code unless all of the async functions
            // have recorded completion.
            UnitCode.Add('  if e.EventHasWaitingAsyncProcs = true then');
+           UnitCode.Add('  begin');
+           UnitCode.Add('    if e.ClearAsync(''ShowBusy'') then');
+           UnitCode.Add('      AppMethods.mmiStartMain(e);');
            UnitCode.Add('    EXIT;');
+           UnitCode.Add('  end');
+           UnitCode.Add('  else');
+           UnitCode.Add('    e.InitRunning:=false;');
 
            // run the main event code
            UnitCode.Add('  '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Main(e,nodeID,myValue);');
@@ -717,9 +746,13 @@ begin
   UnitCode:=TStringList.Create;
   Lines:=TStringList.Create;
 
+  {$ifdef JScript}
+  XIDEUserUnits.clear;
+  {$endif}
+
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
   begin
-        if CodeRootNode.ChildNodes[i].NodeType='RawUnit' then
+        if CodeRootNode.ChildNodes[i].NodeType='PasUnit' then
         begin
            UnitNode:=CodeRootNode.ChildNodes[i];
            if i=0 then FirstUnitName:=UnitNode.NodeName;
@@ -739,6 +772,7 @@ begin
            UnitCode.SaveToFile('tempinc/'+UnitNode.NodeName+'.pas');
            {$else}
            TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(UnitNode.NodeName+'.pas',UnitCode.Text);
+           XIDEUserUnits.add(UnitNode.NodeName+'.pas');
            {$endif}
 
            // add this unit to the uses list in the main module
@@ -934,6 +968,68 @@ begin
 
 end;
 
+{$ifdef Python}
+procedure TPyProcs.GatherAndRunPythonScripts(dummy:PtrInt);
+var
+    i,j:integer;
+    tmp,nm:string;
+    lines:TStringList;
+    UnitNode:TdataNode;
+    PyCode:TStringList;
+    procedure AddUnitCodeLine(str:String);
+    begin
+      PyCode.add(str);
+    end;
+
+begin
+
+  // user-created scripts are held as data nodes (class 'Code', type 'PythonScript')
+  // create a pas file on disk for each unit, and insert the unit name for the dll 'uses' clause
+  Lines:=TStringList.Create;
+  PyCode:=TStringList.Create;
+  PyCode.Clear;
+
+  for i:=0 to length(CodeRootNode.ChildNodes)-1 do
+  begin
+        if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
+        begin
+           UnitNode:=CodeRootNode.ChildNodes[i];
+           // code is all in attribute : Code
+           nm:=UnitNode.NodeName;
+
+           // add user-written unit code block
+           tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
+           Lines:=StringSplit(tmp,LineEnding);
+           for j:=0 to Lines.Count-1 do
+             AddUnitCodeLine(Lines[j]);
+
+        end;
+  end;
+  if PyCode.Count>0 then
+    {$ifndef JScript}
+    PythonEngine1.ExecStrings( PyCode );
+    {$else}
+    tmp:=PyCode.Text;
+    asm
+    pyodide.runPython(tmp)
+    end;
+    {$endif}
+
+  FreeAndNil(PyCode);
+  FreeAndNil(Lines);
+
+end;
+{$ifndef JScript}
+procedure GatherAndRunPythonScriptsLater;
+var
+  QueueRecToSend: PPyXQueueRec;
+begin
+  New(QueueRecToSend);
+  Application.QueueAsyncCall(@PyProcs.GatherAndRunPythonScripts,PtrInt(QueueRecToSend)); // put msg into queue that will be processed from the main thread after all other messages
+end;
+{$endif}
+{$endif}
+
 {$ifndef JScript}
 
 procedure WriteProjectIncFiles;
@@ -959,6 +1055,7 @@ begin
  PascalCode.Clear;
  ExportsList.Clear;
  n:=0;
+ setlength(XIDEProcsList,0);
 
  if (RunMode = 'LazJS') or (RunMode = 'JSJS') then
  begin
@@ -1115,7 +1212,7 @@ end;
 function CompileEventCode(MyCodeEditor:TXCode; RunMode:String):Boolean;
 var
    TheStream : TFileStream;
-   Lines:TStringList;
+   Lines, ExtraDirectives:TStringList;
    PASFileName:string;
    DLLFileName:string;
    ProgPath:String;
@@ -1124,7 +1221,11 @@ var
 begin
   Screen.Cursor := crHourglass;
 
+  ExtraDirectives:=TStringList.Create;
+
   ProgPath:=ExtractFilePath(Application.ExeName);
+  XIDEProjectDir:=ProgPath;
+
   Lines:=TStringList.Create;
   DllName:=MainUnitName+'Events';
 
@@ -1143,7 +1244,12 @@ begin
   if RunMode = 'LazJS' then
   begin
     // run the pas2js compiler just for the events unit to check for errors
-    TranspileMyProgram(DllName,ProgPath,'resources/project/',MyCodeEditor,false);
+    {$ifdef Python}
+    ExtraDirectives.add('-dPython');
+    {$endif}
+    TranspileMyProgram(DllName,ProgPath,'resources/project/',MyCodeEditor,false,ExtraDirectives);
+    // retrieve the list of functions to be shown under the code tree
+    RebuildCodeTree;  //xpparser.XIDEProcsList;
   end
 
   else if RunMode = 'LazDll' then
@@ -1249,6 +1355,7 @@ begin
     FoundError:=true;
 
   Lines.Free;
+  ExtraDirectives.Free;
   Screen.Cursor := crDefault;
 
   if (FoundError) or (FoundFatal) then
@@ -1410,7 +1517,7 @@ begin
         // and any user units ....
         var codeRoot=pas.NodeUtils.CodeRootNode;
         for (var i=0; i<codeRoot.ChildNodes.length; i++) {
-             if (codeRoot.ChildNodes[i].NodeType=='RawUnit')
+             if (codeRoot.ChildNodes[i].NodeType=='PasUnit')
                 {
                  //alert('removing unit '+codeRoot.ChildNodes[i].NodeName);
                  pas[codeRoot.ChildNodes[i].NodeName]=null;
@@ -1521,6 +1628,9 @@ begin
     end;
   end;
 
+  // retrieve the list of functions to be shown under the code tree
+  RebuildCodeTree;  //pparser.XIDEProcsList;
+
   //....decide if there are errors or not .......
   if ok=false then showmessage('Compilation failed')
   else showmessage('Compilation successful');
@@ -1532,7 +1642,7 @@ end;
 
 function   DfltUnitCode(UnitName,UnitType:String):string;
 begin
-  if UnitType='RawUnit' then
+  if UnitType='PasUnit' then
     result:='unit '+UnitName+';' + LineEnding
           +'{$ifdef Dll}'+ LineEnding
           +'{$mode objfpc}{$H+}{$R+}'+ LineEnding
@@ -1549,7 +1659,9 @@ begin
           + '//(eg. SetPropertyValue etc in unit InterfaceTypesDll) ' + LineEnding
           + '// inside the unit initialization section.....errors will occur.' + LineEnding
           + 'end. '
-  else
+  else  if UnitType='PythonScript' then
+    result:='#Python script'
+  else  if UnitType='Function' then
     result:='// Declare variables and functions local to this unit...(within implementation section)';
 end;
 
@@ -1587,10 +1699,17 @@ begin
           '  e.ReturnString:=''True'';' + LineEnding +
           'end;' + LineEnding;
 end;
+function   DfltPythonCode:string;
+begin
+  result:= '# Python script' + LineEnding;
+end;
 
 begin
   PascalCode:=TStringList.Create;
   ExportsList:=TStringList.Create;
+  {$ifdef Python}
+  PyProcs:=TPyProcs.Create;
+  {$endif}
   {$ifndef JScript}
   MyLibC := dynlibs.NilHandle;
   ConfigFPCPath:=DefaultFPCConfig;

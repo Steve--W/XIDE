@@ -13,7 +13,7 @@ object AboutXIDEForm: TAboutXIDEForm
   LCLVersion = '2.1.0.0'
   object AboutFormXVBox1: TXVBox
     Name = 'AboutFormXVBox1'
-    Tag = 402196832
+    Tag = 407695296
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -40,7 +40,7 @@ object AboutXIDEForm: TAboutXIDEForm
       Width = 720
       Align = alTop
       AutoSize = True
-      myControl.Tag = 402196896
+      myControl.Tag = 407695360
       myControl.AnchorSideLeft.Control = AboutFormXMemo1
       myControl.AnchorSideLeft.Side = asrCenter
       myControl.AnchorSideTop.Side = asrBottom
