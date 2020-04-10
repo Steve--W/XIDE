@@ -354,6 +354,8 @@ begin
 end;
 
 procedure DoPy_InitEngine;
+var
+  pth:string;
 begin
   if Assigned(PyInterfaceVar) then
     PyInterfaceVar.Destroy;
@@ -376,7 +378,10 @@ begin
 //  S:=
 //    {$ifdef windows} cPyLibraryWindows {$endif}
 //    {$ifdef linux} cPyLibraryLinux {$endif}
-  PythonEngine1.DllPath:= ExtractFileDir(PythonLibDir)+'\';
+  pth:=ExtractFileDir(PythonLibDir);
+  if pth<>'' then
+    pth:=pth+'\';
+  PythonEngine1.DllPath:= pth;
   PythonEngine1.DllName:= ExtractFileName(PythonLibDir);
   PythonEngine1.LoadDll;
 
