@@ -23,7 +23,7 @@ uses
   LazsUtils, Menus, DynLibs,
   Controls, ComCtrls, PropEdits, ExtCtrls, Dialogs,Forms,CompilerLogUnit, xpparser,
 {$else}
-  pparser,HTMLUtils,
+  AboutUnit,pparser,HTMLUtils,
 {$endif}
   UtilsJSCompile,XIFrame, XSVGContainer,
   WrapperPanel,  CompileUserCode,
@@ -655,6 +655,7 @@ begin
   RebuildCodeTree;
 
   {$ifdef JScript}
+  AboutXIDEForm.BuildText;
   PasteDialogUnit.SetupPasteDialogForm;
   PasteDialogUnit.PasteTarget.myNode.registerEvent('MemoPaste',@OIEventWrapper.OIPasteTarget);
   XGPUEditor.CreateGPUEditForm;
@@ -3615,15 +3616,6 @@ begin
 
   {$ifdef Python}
   ExtraLines:=PyodideScript;
-//  lines.insert(0,'    <script type="application/javascript" src="./resources/pyodide_local/pyodide.js">');
-//  lines.insert(1,'   </script>  ');
-//  lines.insert(2,'    <script type="application/javascript" >');
-//  lines.add('languagePluginLoader.then(() => {');
-//  lines.add('  // pyodide is now ready to use...');
-//  lines.add('  console.log(pyodide.runPython(''import sys\nsys.version''));');
-//  lines.add('  pyodide.loadPackage(''./resources/pyodide_local/numpy'');');
-//  lines.add('  pas.XIDEMain.StartupPython();');
-//  lines.add('});');
   ExtraLines.AddStrings(lines);
   lines.Text:=ExtraLines.Text;
   {$else}

@@ -69,6 +69,21 @@ Code Designer
 This provides a tree view of all of the event code that has been added by the user in the current system.  
 It also allows complete pascal code units to be added, to provide any common functions that my be required.
 
+Python
+------
+
+If the compiler directive -dPython is set, there is also an option to create Python language scripts here.  Python
+code is executed on entry to run mode.
+
+Python code can also be called directly from a Pascal event handler, using the function RunPython('..txt..');
+
+Desktop - uses the embedded python engine - users must first download and install the Python4Lazarus_package 
+(https://github.com/Alexey-T/Python-for-Lazarus), and necessary embedded runtime files (eg https://www.python.org/downloads/windows/).  
+The path to these files must be set in XIDE.lpr (PythonLibDir and PythonVersion).
+
+Browser - Pyodide is included in XIDE to provide the Python interface.  The required Pyodide files are provided in the project 
+resource file xidepyodide.lrs.
+
 Style Designer
 --------------
 

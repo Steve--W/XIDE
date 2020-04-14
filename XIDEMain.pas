@@ -9,6 +9,7 @@
 
  **********************************************************************
  *)
+
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -19,7 +20,7 @@ interface
 
 uses
   Classes, SysUtils,
-  {$ifndef JScript}
+{$ifndef JScript}
   FileUtil, Forms, Controls, Graphics, Dialogs, LCLIntf,
   ExtCtrls, Menus, ComCtrls, StdCtrls, TypInfo, LazIDEIntf, LResources,
   Types, IpHtml, Ipfilebroker,
@@ -891,24 +892,6 @@ begin
   AddRequiredFile('xcompositeintf','resources/project/xcompositeintf.pas');
   AddRequiredFile('gpu','resources/project/gpu.js');
 
-  {$ifdef Python}
-  AddRequiredFile('pyodide','resources/pyodide_local/pyodide.js');
-  AddRequiredFile('numpy','resources/pyodide_local/numpy.js');
-  AddRequiredFile('scipy','resources/pyodide_local/scipy.js');
-  AddRequiredFile('xlrd','resources/pyodide_local/xlrd.js');
-  AddRequiredFile('sympy','resources/pyodide_local/sympy.js');
-  AddRequiredFile('decorator','resources/pyodide_local/decorator.js');
-  AddRequiredFile('mpmath','resources/pyodide_local/mpmath.js');
-  AddRequiredFile('more-itertools','resources/pyodide_local/more-itertools.js');
-  AddRequiredFile('regex','resources/pyodide_local/regex.js');
-  AddRequiredFile('networkx','resources/pyodide_local/networkx.js');
-  AddRequiredFile('matplotlib','resources/pyodide_local/matplotlib.js');
-  AddRequiredFile('uncertainties','resources/pyodide_local/uncertainties.js');
-  AddRequiredFile('statsmodels','resources/pyodide_local/statsmodels.js');
-  AddRequiredFile('pandas','resources/pyodide_local/pandas.js');
-  AddRequiredFile('biopython','resources/pyodide_local/biopython.js');
-  {$endif}
-
   AddRequiredFile('xidemain','resources/project/XIDEMain.pas');
   AddRequiredFile('xobjectinsp','resources/project/xobjectinsp.pas');
   AddRequiredFile('codeeditor','resources/project/codeeditor.pas');
@@ -1074,16 +1057,6 @@ begin
     {$ifdef Python}
     ExtraDirectives.add('-dPython');
     ExtraHTML:=PyodideScript;
-//    ExtraHTML.add('<script type="application/javascript" src="./resources/pyodide_local/pyodide.js">');
-//    ExtraHTML.add('</script>  ');
-//    ExtraHTML.add('<script type="application/javascript" >');
-//    ExtraHTML.add('languagePluginLoader.then(() => {');
-//    ExtraHTML.add('  // pyodide is now ready to use...');
-//    ExtraHTML.add('  console.log(''python: ''+pyodide.runPython(''import sys\nsys.version''));');
-//    ExtraHTML.add('  pyodide.loadPackage([''numpy'',''scipy'']);');
-//    ExtraHTML.add('  pas.XIDEMain.StartupPython();');
-//    ExtraHTML.add('});');
-//    ExtraHTML.add('</script>  ');
     {$endif}
     CompileJSandExecute('resources/project/',ExtraDirectives,ExtraHTML);
     if not FileExists('XIDEMain.js') then
@@ -1175,6 +1148,7 @@ begin
   XMLToNodeTree(LoadedSystemString,UIRootNode);   //! has been saved by the 'Run in Browser' menu button
 //  showmessage('after XMLToNodeTree. Node '+SystemRootName+' has '+inttostr(length(systemnodetree.childnodes))+' children');
   InitialiseXIDE;
+
 
   PopupMemoForm.InitialiseMemo;
   CodeEditForm.Initialise;
@@ -1272,10 +1246,6 @@ begin
     end;
   end;
 
-//  {$ifdef Python}
-//  StartupPython;
-//  {$endif}
-
   StartingUp:=false;// suppress event handlers while starting up
 
   SelectNavTreeNode(MainFormProjectRoot,true);
@@ -1303,30 +1273,27 @@ end;
 
 {$endif}
 
+
 begin
 //    {$macro on}
 //    {$define mmm :=showmessage('hello')  }
 //    mmm;
 
-    MainUnitName:='XIDEMain';
+  MainUnitName:='XIDEMain';
 
-    {$ifndef JScript}
+  {$ifndef JScript}
     Application.ShowHint:=true;
     {$I rtl.lrs}
     {$I xide.lrs}
-    {$ifdef Python}
-    {$I xidepyodide.lrs}
-    {$endif}
-
-    {$Else}
-       asm
-       try{
-          // now do any Javascript specific start up code
-          pas.HTMLUtils.addHandVBoxStyles();
-          pas.HTMLUtils.addWidgetInnerStyles();
-          }catch(err) { alert(err.message+' in XIDEMain');}
-       end;
-    {$endif}
+  {$Else}
+     asm
+     try{
+        // now do any Javascript specific start up code
+        pas.HTMLUtils.addHandVBoxStyles();
+        pas.HTMLUtils.addWidgetInnerStyles();
+        }catch(err) { alert(err.message+' in XIDEMain');}
+     end;
+  {$endif}
 
 end.
 

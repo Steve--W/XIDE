@@ -7,8 +7,8 @@ interface
 uses
   Classes, SysUtils, StringUtils,
   {$ifndef JScript}
-  Dialogs, Forms, StdCtrls, variants,
-  PythonEngine, VarPyth, PythonGUIInputOutput, DllInterface,
+  Math, Dialogs, Forms, StdCtrls, variants,
+  PythonEngine, PythonGUIInputOutput, DllInterface,
   {$endif}
   XMemo, EventsInterface;
 
@@ -337,19 +337,16 @@ var
   oldval:string;
 begin
   oldval:=PyMemoComponent.myNode.GetAttribute('ItemValue',false).AttribValue;
-//  PyMemoComponent.myNode.SetAttributeValue('ItemValue',oldval+Data);
   PyMemoComponent.ItemValue:=oldval+LineEnding+Data;
 end;
 
 procedure TMyPyEvents.PyIOSent(Sender: TObject; const Data:AnsiString);
 begin
-//  showmessage('sent '+Data);
   UpdateMemo(Data);
 end;
 
 procedure TMyPyEvents.PyIOSentUni(Sender: TObject;  const Data: UnicodeString);
 begin
-//  showmessage('senduni '+data);
   UpdateMemo(UTF8Decode(Data));
 end;
 
@@ -373,14 +370,13 @@ begin
   PythonEngine1.PyFlags:=[pfUseClassExceptionsFlag];
   PythonEngine1.RegVersion:=PythonVersion;
   PythonEngine1.UseLastKnownVersion:=false;
-  PythonEngine1.RedirectIO:=true;      //!! trying to get the send/receive events to work
+  PythonEngine1.RedirectIO:=true;
   PythonEngine1.IO:=PythonIO;
-//  S:=
-//    {$ifdef windows} cPyLibraryWindows {$endif}
-//    {$ifdef linux} cPyLibraryLinux {$endif}
+
   pth:=ExtractFileDir(PythonLibDir);
   if pth<>'' then
-    pth:=pth+'\';
+    if pth[length(pth)]<>'\' then
+      pth:=pth+'\';
   PythonEngine1.DllPath:= pth;
   PythonEngine1.DllName:= ExtractFileName(PythonLibDir);
   PythonEngine1.LoadDll;
@@ -426,13 +422,18 @@ var
   script:TStringList;
 begin
   script:=TStringList.Create;
-  script.add('<script type="application/javascript" src="./resources/pyodide_local/pyodide.js">');
+  script.add('<script type="application/javascript" src="pyodide_local/loadlocal.js">');
+  script.add('</script> ');
+  script.add('<script>');
+  script.add('window.languagePluginUrl = "./pyodide_local/";');
+  script.add('</script>');
+  script.add('<script type="application/javascript" src="pyodide_local/pyodide.js">');
   script.add('</script>  ');
+
   script.add('<script type="application/javascript" >');
   script.add('languagePluginLoader.then(() => {');
   script.add('  // pyodide is now ready to use...');
   script.add('  console.log(''python: ''+pyodide.runPython(''import sys\nsys.version''));');
-  //script.add('  pyodide.loadPackage([''numpy'',''scipy'']);');
   script.add('  pyodide.loadPackage(''numpy'');');
   script.add('  pyodide.loadPackage(''scipy'');');
   script.add('  pas.XIDEMain.StartupPython();');
@@ -446,10 +447,13 @@ var
   InitScript:TStringList;
   txt:String;
 begin
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
   InitScript:=TStringList.Create;
   // load the initialisation py script
   // Sets up an internal library of XIDE Interface functions, available to the user.
   InitScript.Clear;
+  InitScript.add('import sys');
+  InitScript.add('print(sys.version)');
   InitScript.add('class MyMessage:');
   InitScript.add('  fname = ''xxx''');
   InitScript.add('  args = (''1'',''2'',''3'')');
