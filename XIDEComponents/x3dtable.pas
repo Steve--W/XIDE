@@ -381,12 +381,23 @@ begin
   if z>length(arr)-1 then
   begin
     z:=length(arr)-1;
-    self.ZSelector.ItemValue:=z;
+    self.ZSelector.ItemValue:=z;        // !!!!fires ZSelectorChange...comes back here
   end;
   if z<0 then z:=0;
   self.ZDimEdit.ItemValue:=inttostr(length(arr));
-  self.YDimEdit.ItemValue:=inttostr(length(arr[0]));
-  self.XDimEdit.ItemValue:=inttostr(length(arr[0,0]));
+  if length(arr)>0 then
+  begin
+    self.YDimEdit.ItemValue:=inttostr(length(arr[0]));
+    if length(arr[0])>0 then
+      self.XDimEdit.ItemValue:=inttostr(length(arr[0,0]))
+    else
+      self.XDimEdit.ItemValue:='';
+  end
+  else
+  begin
+    self.YDimEdit.ItemValue:='';
+    self.XDimEdit.ItemValue:='';
+  end;
 (*  {$ifdef JScript}
   asm
   console.log('ZDIM='+arr.length);
@@ -412,8 +423,11 @@ begin
   {$endif}
   *)
 
-  zData:=myTableView.ConstructTableStringFromArray(arr[z]);
-  self.myTableView.TableData:=zData;
+  if length(arr)>0 then
+  begin
+    zData:=myTableView.ConstructTableStringFromArray(arr[z]);
+    self.myTableView.TableData:=zData;
+  end;
 end;
 
 procedure TX3DTable.ReBuild3DTableData;

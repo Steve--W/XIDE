@@ -129,6 +129,8 @@ begin
      +'            CEF4Delphi  (https://github.com/salvadordf/CEF4Delphi)    - Lesser GNU General Public License' + LineEnding
      +'            Python4Delphi (https://github.com/pyscripter/python4delphi) - MIT Licence' + LineEnding
      +'            pyodide (https://github.com/iodide-project/pyodide)  - Mozilla Public License 2.0' + LineEnding
+     +'              + support for running pyodide from local files :(https://github.com/iodide-project/pyodide/pull/606)  ' + LineEnding
+
      +'' + LineEnding
      +'This program is free software: you can redistribute it and/or modify' + LineEnding
      +'    it under the terms of the GNU General Public License as published by' + LineEnding
@@ -169,7 +171,7 @@ begin
   {$endif}
   {$ifdef Python}
   str:=myStringReplace(str,'<<<Python>>>',PyXUtils.PythonVersion,1,-1);
-  str:=myStringReplace(str,'<<<Pyodide>>>','v??',1,-1);
+  str:=myStringReplace(str,'<<<Pyodide>>>','(basvandertol:runlocal)',1,-1);
   //!!!! (version of pyodide???)
   {$endif}
 

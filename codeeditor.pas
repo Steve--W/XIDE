@@ -1045,10 +1045,7 @@ begin
   begin
     CodeEditStatus:='ok';
     TXForm(self).Showing:='No';
-//      {$ifndef JScript}
-//       {$else}
        CodeEditorClosed(OIEditBox);
-//      {$endif}
   end;
 end;
 

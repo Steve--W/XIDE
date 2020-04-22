@@ -13,7 +13,7 @@ object XIDEHelpForm: TXIDEHelpForm
   LCLVersion = '2.1.0.0'
   object HelpFormVBox1: TXVBox
     Name = 'HelpFormVBox1'
-    Tag = 419409968
+    Tag = 418402512
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -34,7 +34,7 @@ object XIDEHelpForm: TXIDEHelpForm
     InheritColor = False
     object XIDEHelpScrollBox: TXScrollBox
       Name = 'XIDEHelpScrollBox'
-      Tag = 419393696
+      Tag = 418402592
       Left = 2
       Height = 686
       Top = 2
@@ -71,18 +71,18 @@ object XIDEHelpForm: TXIDEHelpForm
         Width = 969
         Align = alTop
         AutoSize = True
-        myControl.Tag = 419391936
+        myControl.Tag = 418401040
         myControl.AnchorSideLeft.Control = HelpHTMLText
         myControl.AnchorSideLeft.Side = asrCenter
         myControl.AnchorSideTop.Side = asrCenter
         myControl.Left = 1
-        myControl.Height = 4112
+        myControl.Height = 6856
         myControl.Top = -2053
         myControl.Width = 967
         myControl.Anchors = []
-        myControl.Constraints.MaxHeight = 4112
+        myControl.Constraints.MaxHeight = 6856
         myControl.Constraints.MaxWidth = 967
-        myControl.Constraints.MinHeight = 4112
+        myControl.Constraints.MinHeight = 6856
         myControl.Constraints.MinWidth = 967
         myControl.FixedTypeface = 'Courier New'
         myControl.DefaultTypeFace = 'default'
@@ -107,7 +107,7 @@ object XIDEHelpForm: TXIDEHelpForm
         Border = True
         IsEditable = True
         SourceText = '...text...'
-        FrameHeight = '600%'
+        FrameHeight = '1000%'
         FrameWidth = '100%'
         HTMLSource = '<html>'#13#10'<head>'#13#10#13#10'<title>TXHTMLText </title>'#13#10'</head>'#13#10'<body>'#13#10#13#10'<div id="FrameContent" class="content" style="background-color:powderblue; ">'#13#10#13#10'      <div id="thetext" class="wysiwyg" style="height: 100%; width: 100%; background-color:white; border-style: solid;border-width:thin;">'#13#10'<div contenteditable="false" class="wysiwyg-content">'#13#10'...text...'#13#10'</div>'#13#10'      </div>'#13#10#13#10'    </div>'#13#10'</body>'#13#10'</html>'#13#10
       end

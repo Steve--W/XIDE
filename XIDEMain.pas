@@ -18,6 +18,7 @@ unit XIDEMain;
 
 interface
 
+
 uses
   Classes, SysUtils,
 {$ifndef JScript}
@@ -46,10 +47,10 @@ uses
 
 {$ifdef JScript}
 procedure InitialisePage(dummy:string);
+{$ifdef Python}
 procedure StartupPython;
 {$endif}
-
-
+{$endif}
 
 { TXIDEForm }
 
@@ -972,7 +973,6 @@ begin
   UIRootitem:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
   XIDESetupUIRootNode;
 
-
   // special case - don't want the menu item 'RunSettings' to be included in system saves & will not go to browser
   RunSettingsNode:=FindDataNodeById(SystemNodeTree,'RunSettings','',true);
   RunSettingsNode.NodeClass:='xxx';
@@ -981,6 +981,8 @@ begin
   InitialiseXIDE;
   InitialiseXComponentsProject;
   XGPUEditor.CreateGPUEditForm;
+  GPUEditorDoneBtn.myNode.registerEvent('ButtonClick',@OIEventWrapper.CloseGPUEditor);
+
   InitialiseStyleDesigner;
 
   StyleResourcesPage.IsVisible:=false;      // this is browser/HTML only

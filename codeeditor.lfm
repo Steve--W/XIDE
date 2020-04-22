@@ -13,7 +13,7 @@ object CodeEditForm: TCodeEditForm
   LCLVersion = '2.1.0.0'
   object CodeEditFormXVBox1: TXVBox
     Name = 'CodeEditFormXVBox1'
-    Tag = 410004256
+    Tag = 422580664
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 1
@@ -60,7 +60,7 @@ object CodeEditForm: TCodeEditForm
     end
     object CodeEditMainTabs: TXTabControl
       Name = 'CodeEditMainTabs'
-      Tag = 410002832
+      Tag = 422579240
       Left = 2
       Height = 536
       Top = 17
@@ -91,7 +91,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEditInputsVBox: TXVBox
           Name = 'CodeEditInputsVBox'
-          Tag = 410004208
+          Tag = 422580616
           Left = 0
           Height = 148
           Top = 0
@@ -110,7 +110,7 @@ object CodeEditForm: TCodeEditForm
           InheritColor = False
           object CodeEditInputsVBox1: TXVBox
             Name = 'CodeEditInputsVBox1'
-            Tag = 410004192
+            Tag = 422580600
             Left = 0
             Height = 152
             Top = 0
@@ -252,7 +252,7 @@ object CodeEditForm: TCodeEditForm
             end
             object CodeEditParamListScrollBox: TXScrollBox
               Name = 'CodeEditParamListScrollBox'
-              Tag = 410003040
+              Tag = 422579448
               Left = 2
               Height = 72
               Top = 42
@@ -279,7 +279,7 @@ object CodeEditForm: TCodeEditForm
             end
             object CodeEditFormXHBox2: TXHBox
               Name = 'CodeEditFormXHBox2'
-              Tag = 410002736
+              Tag = 422579144
               Left = 2
               Height = 41
               Top = 114
@@ -401,7 +401,7 @@ object CodeEditForm: TCodeEditForm
         end
         object CodeEdit: TXCode
           Name = 'CodeEdit'
-          Tag = 410004224
+          Tag = 422580632
           Left = 0
           Height = 300
           Top = 148
@@ -451,7 +451,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEditInit: TXCode
           Name = 'CodeEditInit'
-          Tag = 410004240
+          Tag = 422580648
           Left = 0
           Height = 515
           Top = 0

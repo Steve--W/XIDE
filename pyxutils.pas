@@ -4,18 +4,19 @@ unit PyXUtils;
 
 interface
 
-uses
-  Classes, SysUtils, StringUtils,
-  {$ifndef JScript}
-  Math, Dialogs, Forms, StdCtrls, variants,
-  PythonEngine, PythonGUIInputOutput, DllInterface,
-  {$endif}
-  XMemo, EventsInterface;
-
 {$ifndef Python}
 implementation
 end.
 {$else}
+uses
+  Classes, SysUtils, StringUtils,
+  {$ifndef JScript}
+  Math, Dialogs, Forms, StdCtrls, variants,
+  PythonEngine, PythonGUIInputOutput,
+  DllInterface,
+  {$endif}
+  XMemo, EventsInterface;
+
 var
   PythonLibDir,PythonVersion:String;
 
@@ -59,9 +60,8 @@ implementation
 {$ifndef JScript}
 var
   glbPyObj,glbPyObjE:PPyObject;
-{$endif}
 
-{$ifndef JScript}
+
 function Arr2dstoVarArray(arr2ds:T2DStringArray):Variant;
 var
   varr:Variant;
@@ -240,9 +240,7 @@ begin
 
   result:=v;
 end;
-{$endif}
 
-{$ifndef JScript}
 procedure TMyPyEvents.PyVarExtGetData(Sender: TObject; var Data: PPyObject);
 begin
 with PythonEngine1 do
@@ -471,12 +469,8 @@ begin
   InitScript.add('  Xmsg.fname = fname');
   InitScript.add('  Xmsg.args = args'); // args is Tuple type
   InitScript.add('  Xmsg.rslt = ''xxx''');
-//  {$ifndef JScript}
   InitScript.add('  PyInterfaceVar.Value = Xmsg');
   InitScript.add('  return Xmsg.rslt');
-//  {$else}
-//  InitScript.add('  PyInterfaceVar.Value = Xmsg');
-//  {$endif}
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
   InitScript.add('  return RunXIDEFunc(''GetPropertyValue'',(NodeName,PropName))');
 //  InitScript.add('  print(msg.args[0]+'' ''+msg.args[1]+'' = ''+msg.rslt)');

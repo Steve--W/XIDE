@@ -34,8 +34,8 @@ uses
 
 type TAnimCodeRec = record
   CodeBlock:TStringList;
-  KDimensions:Array of integer;
-  KDimensionsStr:String;
+//  KDimensions:Array of integer;
+//  KDimensionsStr:String;
 end;
 type TAnimCodeArray = Array of TAnimCodeRec;
 type TDimsArray = Array of array of integer;
@@ -44,7 +44,7 @@ type  TGPUEventClass = class
     procedure GPUCodeEditHandleClickMessage(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure LaunchGPUHTML(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure GPUComboBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-    procedure GPUEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+//    procedure GPUEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure TabChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     {$ifndef JScript}
     procedure EditorResize(Sender: TObject);
@@ -65,6 +65,7 @@ var
     {$endif}
   GPUEditorMode:String;
   GPUEvents:TGPUEventClass;
+  GPUEditorDoneBtn:TXButton;
 
 procedure CreateGPUEditForm;
 procedure ShowGPUEditor(GPUNode:TDataNode;TabPage:integer);
@@ -72,14 +73,14 @@ procedure ShowGPUKernel(GPUNode:TDataNode;filename:string;targetLine:integer;Cha
 
 
 implementation
-uses XObjectInsp,XGPUCanvas;
+uses XGPUCanvas;
 
 procedure CreateGPUEditForm;
 var
   FormNode,MainVBNode,TabControlNode,EditorNode,VBNode,BtnNode,TableNode:TDataNode;
   MemoNode,VBNode2,BtnNode2,ComboNode,HBTopNode,EditNode:TDataNode;
   TabPageNode1,TabPageNode2,TabPageNode3:TdataNode;
-  DoneBtn,LaunchBtn:TXButton;
+  LaunchBtn:TXButton;
   MainVB,VB,vb2:TXVBox;
   HB:TXHBox;
   tmp, Olist:String;
@@ -161,9 +162,11 @@ begin
     EditNode:=AddDynamicWidget('TXEditBox',GPUEditorForm,HBTopNode,'XGPUEditBox','','Top',-1);
     GPUEditBox:=TXEditBox(EditNode.ScreenObject);
     GPUEditBox.LabelPos:='Left';
-    GPUEditBox.LabelText:='Set Output Dimensions';
+    GPUEditBox.LabelText:='Output Dimensions for this Kernel';
+    GPUEditBox.ReadOnly:=true;
+    GPUEditBox.Hint:='X, Y, Z dimensions - from latest settings of KernelXDims, KernelYDims, KernelZDims';
     EditNode.IsDynamic:=false;
-    GPUEditBox.myNode.registerEvent('Change',@GPUEvents.GPUEditBoxChange);
+//    GPUEditBox.myNode.registerEvent('Change',@GPUEvents.GPUEditBoxChange);
 
     EditorNode:=AddDynamicWidget('TXCode',GPUEditorForm,VBNode,'XGPUCodeEditor','','Left',-1);
     GPUCodeEditor:=TXCode(EditorNode.ScreenObject);
@@ -175,9 +178,9 @@ begin
     EditorNode.IsDynamic:=false;
 
     BtnNode:=AddDynamicWidget('TXButton',GPUEditorForm,MainVBNode,'XGPUDoneBtn','','Left',-1);
-    DoneBtn:=TXButton(BtnNode.ScreenObject);
-    DoneBtn.Caption:='Done';
-    DoneBtn.myNode.registerEvent('ButtonClick',@GPUEvents.CloseCodeEditor);
+    GPUEditorDoneBtn:=TXButton(BtnNode.ScreenObject);
+    GPUEditorDoneBtn.Caption:='Done';
+    GPUEditorDoneBtn.myNode.registerEvent('ButtonClick',@GPUEvents.CloseCodeEditor);
     BtnNode.IsDynamic:=false;
 
     VBNode2:=AddDynamicWidget('TXVBox',GPUEditorForm,TabPageNode2,'XGPUVBox2','','Left',-1);
@@ -243,22 +246,22 @@ begin
     begin
       AllCode:=AllCode+GPUCodeEditor.ItemValue;
     end;
-    // add the dimensions spec...
-    AllCode:=AllCode+EventAttributeDelimiter;
-    if i<>idx then
-    begin
-      AllCode:=AllCode+AllKernels[i].KDimensionsStr;
+//    // add the dimensions spec...
+//    AllCode:=AllCode+EventAttributeDelimiter;
+//    if i<>idx then
+//    begin
+//      AllCode:=AllCode+AllKernels[i].KDimensionsStr;
 //      for d:=0 to length(AllKernels[i].KDimensions)-1 do
 //      begin
 //        if d>0 then AllCode:=AllCode+',';
 //        AllCode:=AllCode+intToStr(AllKernels[i].KDimensions[d]);
 //      end;
-    end
-    else
-    begin
-      // save the edited dimensions
-      AllCode:=AllCode+GPUEditBox.ItemValue;
-    end;
+//    end
+//    else
+//    begin
+//      // save the edited dimensions
+//      AllCode:=AllCode+GPUEditBox.ItemValue;
+//    end;
 
     if i<length(AllKernels)-1 then
       AllCode:=AllCode+eventListdelimiter;
@@ -286,8 +289,8 @@ begin
     EditingGPUNode.SetAttributeValue('InitStageData',GPUTableEditor.Table3DData);
   end;
 
-  if ObjectInspectorSelectedNavTreeNode<>nil then
-    RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
+//  if ObjectInspectorSelectedNavTreeNode<>nil then
+//    RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
 end;
 
 procedure TGPUEventClass.GPUCodeEditHandleClickMessage(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -367,26 +370,31 @@ begin
     // Fetch the required code block
     AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
     GPUCodeEditor.ItemValue:=AllKernels[GPUComboBox.ItemIndex].CodeBlock.Text;
-    GPUEditBox.ItemValue:=AllKernels[GPUComboBox.ItemIndex].KDimensionsStr;
-    if GPUComboBox.ItemIndex>0 then
-      GPUEditBox.ReadOnly:=false
+//    GPUEditBox.ItemValue:=AllKernels[GPUComboBox.ItemIndex].KDimensionsStr;
+//    if GPUComboBox.ItemIndex>0 then
+//      GPUEditBox.ReadOnly:=false
+//    else
+//      GPUEditBox.ReadOnly:=true;
+    if  GPUComboBox.ItemIndex>0 then
+      GPUEditBox.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).KernelDimsString(GPUComboBox.ItemIndex-1)
     else
-      GPUEditBox.ReadOnly:=true;
+      GPUEditBox.ItemValue:='* pixelmap size *';
   end;
 end;
 
-procedure TGPUEventClass.GPUEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-begin
-  if (EditingGPUNode<>nil) then
-  begin
-    // Save the current kernel dimensions.     !! happens when code block is saved
-    //SaveKernelDimensions(GPUEditBox.ItemValue);
-  end;
-end;
+//procedure TGPUEventClass.GPUEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+//begin
+//  if (EditingGPUNode<>nil) then
+//  begin
+//    // Save the current kernel dimensions.     !! happens when code block is saved
+//    //SaveKernelDimensions(GPUEditBox.ItemValue);
+//  end;
+//end;
 
 procedure ShowGPUEditor(GPUNode:TDataNode;TabPage:integer);
 var
   AllKernels:TAnimCodeArray;
+  tmp:string;
 begin
   // Edit the AnimationCode in a TXGPUCanvas component using the dedicated popup editor...
   // the animation code may consist of several kernel procedures.
@@ -397,8 +405,9 @@ begin
   GPUCodeEditor.ItemValue:=AllKernels[0].CodeBlock.Text;
   GPUCodeEditor.MessageLines:='';
   GPUCodeEditor.MessagesHeight:='1';
-  GPUEditBox.ItemValue:=AllKernels[0].KDimensionsStr;
-  GPUEditBox.ReadOnly:=true;
+//  GPUEditBox.ItemValue:=AllKernels[0].KDimensionsStr;
+//  GPUEditBox.ReadOnly:=true;
+  GPUEditBox.ItemValue:='* pixelmap size *';
   //   GPUMemo.ItemValue:=TXGPUCanvas(ObjectInspectorSelectedCodeTreeNode.ScreenObject).GeneratedHTML;
   //!! Lazarus bug?     Have to populate GPUMemo later (eg. on tab change), otherwise the popup form crashes.
   EditingGPUNode:=GPUNode;
@@ -410,6 +419,7 @@ begin
 
   GPUEditorTabControl.TabIndex:=TabPage;
 
+  tmp:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
   GPUTableEditor.Table3DData:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
   {$ifndef JScript}
   GPUTableEditor.ResequenceComponents;
@@ -448,11 +458,11 @@ begin
     GPUComboBox.ItemIndex:=targetKernel;
     GPUComboBox.PriorIndex:=targetKernel;
     GPUCodeEditor.ItemValue:=AllKernels[targetKernel].CodeBlock.Text;
-    GPUEditBox.ItemValue:=AllKernels[targetKernel].KDimensionsStr;
-    if targetKernel>0 then
-      GPUEditBox.ReadOnly:=false
-    else
-      GPUEditBox.ReadOnly:=true;
+//    GPUEditBox.ItemValue:=AllKernels[targetKernel].KDimensionsStr;
+//    if targetKernel>0 then
+//      GPUEditBox.ReadOnly:=false
+//    else
+//      GPUEditBox.ReadOnly:=true;
 
     GPUCodeEditor.ReadOnly:=false;
     GPUEditorMode:='Animation';

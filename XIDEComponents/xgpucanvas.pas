@@ -41,11 +41,6 @@ type TGPUNumParam = record
   ParamValue:TNumArray;
   end;
 type TGPUNumParams = Array of TGPUNumParam;
-//type TGPUImgParam = record
-//  ParamName:String;
-//  ParamValue:TImgArray;
-//  end;
-//type TGPUImgParams = Array of TGPUImgParam;
 type TGPUIntConst = record
   ConstName:String;
   ConstValue:integer;
@@ -57,7 +52,6 @@ type
   private
     { Private declarations }
     ParamNumArray:TGPUNumParams;
-//    ParamImgArray:TGPUImgParams;
     ConstIntArray:TGPUIntConsts;
 //    {$ifndef JScript}
 //    fHandleOnNewFrame:TEventHandler;
@@ -68,38 +62,38 @@ type
     function GetAnimated:Boolean;
     function GetParamNumList:string;
     function GetConstIntList:string;
-//    function GetParamImgList:string;
     function GetMaxIterations:integer;
     function GetStartIteration:integer;
     function GetNumFrames:integer;
     function GetMaxFramesPerSec:integer;
-//    function GetFetchFrameOutput:Boolean;
     function GetNumKernels:integer;
-    function GetDfltZDepth:integer;
     function GetInitStageData:string;
+    function GetKernelXDims:string;      //array of integer eg. [100,200,300]
+    function GetKernelYDims:string;
+    function GetKernelZDims:string;
 
     procedure SetAnimationCode(AValue:string);
     procedure SetActive(AValue:Boolean);
     procedure SetAnimated(AValue:Boolean);
     procedure SetParamNumList(AValue:string);
     procedure SetConstIntList(AValue:string);
-//    procedure SetParamImgList(AValue:string);
     procedure SetMaxIterations(AValue:integer);
     procedure SetStartIteration(AValue:integer);
     procedure SetNumFrames(AValue:integer);
     procedure SetMaxFramesPerSec(AValue:integer);
-//    procedure SetFetchFrameOutput(AValue:Boolean);
     procedure SetNumKernels(AValue:integer);
-    procedure SetDfltZDepth(AValue:integer);
     procedure SetInitStageData(AValue:string);
+    procedure SetKernelXDims(AValue:string);
+    procedure SetKernelYDims(AValue:string);
+    procedure SetKernelZDims(AValue:string);
 
     procedure SetMyEventTypes;  override;
     procedure SetPropertyDefaults;
     procedure StartMyGPU;
-    procedure StopMyGPU;
+    procedure StopMyGPU(isdestroying:Boolean);
     function BuildPascalAnimationUnit(Compiler:TObject):String;
     function CompileGPUToJS(var GPUJSOutput:String):Boolean;
-    function GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
+    function GPUJSCode(AnimCode:TStringList):String;
     function GPUJSAnimationFooter:String;
     procedure setupGPUPage;
 
@@ -112,8 +106,8 @@ type
   public
     { Public declarations }
     GeneratedHTML:String;
-    GPUStageArray:T3DNumArray;            // output from main graphical kernel
-    GPUOutputArray:T3DNumArray;            // output from non-graphical nested kernels
+    GPUStageArray:T3DNumArray;            // output from non-graphical nested kernels
+    GPUOutputArray:T3DNumArray;           // output from main graphical kernel
     GPUStageString:String;
     GPUOutputString:String;
     Dimensions:TDimsArray;
@@ -137,13 +131,12 @@ type
     function FullXMLString:String;
     function GetParamNumValue(pName:String):TNumArray;
     function GetConstIntValue(pName:String):integer;
-//    function GetParamImgValue(pName:String):TImgArray;
     procedure SetParamNumValue(pName:String;pValue:TNumArray;ForwardToWidget:Boolean);
     procedure SetConstIntValue(pName:String;pValue:integer);
-//    procedure SetParamImgValue(pName:String;pValue:TImgArray;ForwardToWidget:Boolean);
     function CompileAnimCode:TStringList;
     function FetchAllAnimCode:TAnimCodeArray;
     function BuildKernelList:String;
+    function KernelDimsString(KNum:integer):String;
 
 published
     { Published declarations }
@@ -159,8 +152,10 @@ published
     property NumFrames: integer read GetNumFrames write SetNumFrames;
     property MaxFramesPerSec: integer read GetMaxFramesPerSec write SetMaxFramesPerSec;
     property NumKernels:integer read GetNumKernels write SetNumKernels;
-    property DfltZDepth:integer read GetDfltZDepth write SetDfltZDepth;
     property InitStageData: String read GetInitStageData write SetInitStageData;
+    property KernelXDims: String read GetKernelXDims write SetKernelXDims;
+    property KernelYDims: String read GetKernelYDims write SetKernelYDims;
+    property KernelZDims: String read GetKernelZDims write SetKernelZDims;
 
   end;
 
@@ -199,6 +194,28 @@ begin
     OList:=OList+',"Kernel '+inttostr(i+1)+'"';
   OList:=OList+']';
   result:=OList;
+end;
+
+function TXGPUCanvas.KernelDimsString(KNum:integer):String;
+var
+  xdims,ydims,zdims:TStringList;
+  str:string;
+begin
+  xdims:=JSONStringToStringList(self.KernelxDims);
+  ydims:=JSONStringToStringList(self.KernelyDims);
+  zdims:=JSONStringToStringList(self.KernelzDims);
+  if (xdims.count<KNum+1)
+  or (ydims.count<KNum+1)
+  or (zdims.count<KNum+1) then
+    str:='**err**'
+  else
+  begin
+    str:='['+xdims[KNum]+','+ydims[KNum]+','+zdims[KNum]+']';
+  end;
+  xdims.Free;
+  ydims.Free;
+  zdims.Free;
+  result:=str;
 end;
 
 procedure TXGPUCanvas.SetPropertyDefaults;
@@ -249,7 +266,7 @@ begin
   begin
     if Active then
     begin
-      self.StopMyGPU;
+      self.StopMyGPU(true);
     end;
     myControl.Free;
   end;
@@ -462,13 +479,25 @@ function TXGPUCanvas.GetNumKernels:integer;
 begin
   result:=StrToInt(myNode.getAttribute('NumKernels',true).AttribValue);
 end;
-function TXGPUCanvas.GetDfltZDepth:integer;
-begin
-  result:=StrToInt(myNode.getAttribute('DfltZDepth',true).AttribValue);
-end;
+//function TXGPUCanvas.GetDfltZDepth:integer;
+//begin
+//  result:=StrToInt(myNode.getAttribute('DfltZDepth',true).AttribValue);
+//end;
 function TXGPUCanvas.GetInitStageData:string;
 begin
   result:=myNode.getAttribute('InitStageData',true).AttribValue;
+end;
+function TXGPUCanvas.GetKernelXDims:string;
+begin
+  result:=myNode.getAttribute('KernelXDims',true).AttribValue;
+end;
+function TXGPUCanvas.GetKernelYDims:string;
+begin
+  result:=myNode.getAttribute('KernelYDims',true).AttribValue;
+end;
+function TXGPUCanvas.GetKernelZDims:string;
+begin
+  result:=myNode.getAttribute('KernelZDims',true).AttribValue;
 end;
 
 function TXGPUCanvas.FullParamList:String;
@@ -482,15 +511,17 @@ begin
   result:=plist;
 end;
 
-function TXGPUCanvas.GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
+function TXGPUCanvas.GPUJSCode(AnimCode:TStringList):String;
+//function TXGPUCanvas.GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
 var
-  str,vstr,cma, plist, KName:String;
+  str,vstr,cma, plist, KName,tempstr:String;
   i,j,d:integer;
   vn:TNumArray;
   vi:TIntArray;
   h,w,n:integer;
+  xdims,ydims,zdims:TStringList;
+
 begin
-  //numKernels:=2;
   if AnimCode.Count<1 then
   begin
     showmessage('Error: Unable to find any animation code block(s)');
@@ -508,6 +539,7 @@ begin
 //  'document.domain = "/abc"; ' + LineEnding
   'document.title = "'+myNode.NodeName+' '+myNode.NodeType+'"; ' + LineEnding
   +'/*/ ------------------------------------ Initialise the GPU ---------------------------------/*/ ' + LineEnding
+  +'const '+self.MyNode.NodeName+'Matrix = new GPU({mode: ''gpu''});   '+LineEnding
   +'const '+self.MyNode.NodeName+' = new GPU({mode: ''gpu''});   '+LineEnding
   +'let running=true; '+LineEnding;
   str:= str + 'let outputArrayString = ''[]'';'+LineEnding;
@@ -603,13 +635,69 @@ begin
   plist:=self.FullParamList;
   KName:=self.MyNode.NodeName+'CanvasRenderFn';
 
+  // Build the Dimensions array
+  setlength(self.Dimensions,numKernels+1);
+  setlength(self.Dimensions[0],3);
+  self.Dimensions[0,0]:=self.ActualWidth;
+  self.Dimensions[0,1]:=self.ActualHeight;
+  self.Dimensions[0,2]:=1;
+  TempStr:=self.KernelXDims;
+  xdims:=JSONStringToStringList(TempStr);
+  TempStr:=self.KernelyDims;
+  ydims:=JSONStringToStringList(TempStr);
+  TempStr:=self.KernelzDims;
+  zdims:=JSONStringToStringList(TempStr);
+  // ... some validation tests ...
+  if xdims.Count<>numKernels then
+  begin
+    showmessage('Number of Kernel X Dimensions must match number of kernels');
+    EXIT;
+  end;
+  if ydims.Count<>numKernels then
+  begin
+    showmessage('Number of Kernel Y Dimensions must match number of kernels');
+    EXIT;
+  end;
+  if zdims.Count<>numKernels then
+  begin
+    showmessage('Number of Kernel Z Dimensions must match number of kernels');
+    EXIT;
+  end;
+  for n:=1 to numKernels do
+  begin
+    if not IsStrFloatNum(xdims[n-1]) then
+    begin
+      showmessage('GPU KernelXDims item '+inttostr(n)+' is not numeric');
+      EXIT;
+    end;
+    if not IsStrFloatNum(ydims[n-1]) then
+    begin
+      showmessage('GPU KernelYDims item '+inttostr(n)+' is not numeric');
+      EXIT;
+    end;
+    if not IsStrFloatNum(zdims[n-1]) then
+    begin
+      showmessage('GPU KernelZDims item '+inttostr(n)+' is not numeric');
+      EXIT;
+    end;
+  end;
+  // set up the kernel dimensions...
+  for n:=1 to numKernels do
+  begin
+    setlength(self.Dimensions[n],3);            //x,y,z
+    self.Dimensions[n,0]:=strtoint(xdims[n-1]);
+    self.Dimensions[n,1]:=strtoint(ydims[n-1]);
+    self.Dimensions[n,2]:=strtoint(zdims[n-1]);
+  end;
+
+
   // Create the required set of non-graphical kernels.
   // All these kernels operate with the same set of parameters.
   for n:=0 to numKernels-1 do
   begin
     str:=str
     +'/*/------------ Create Kernel '+inttostr(n)+' -------/*/ ' + LineEnding
-    +'const '+KName+inttostr(n)+' = '+self.MyNode.NodeName+'.createKernel(function(myArray,AnimationCounterValue'+plist
+    +'const '+KName+inttostr(n)+' = '+self.MyNode.NodeName+'Matrix.createKernel(function(myArray,AnimationCounterValue'+plist
        +') { ' + LineEnding;
     str:=str + '  var myValue=0.0;' + LineEnding;
     str:=str + AnimCode[n+1];
@@ -690,7 +778,7 @@ begin
   if numKernels>0 then
   begin
     str:=str
-    +'const superKernel = '+self.MyNode.NodeName+'.combineKernels('+LineEnding;
+    +'const superKernel = '+self.MyNode.NodeName+'Matrix.combineKernels('+LineEnding;
 
     for n:=0 to numKernels-1 do
     begin
@@ -739,7 +827,7 @@ begin
   // the 3D stageArray here.  Instead, there is a message posted into the iframe document (StartTheGPU),
   // which is handled in the iframe, sets up the array, and then runs this function.
   str:=str
-  +'let stageArray=[];'  +LineEnding;
+  +'let stageArray=[[[0]]];'  +LineEnding;
   {$endif}
   str:=str+LineEnding;
   str:=str+'function StartTheGPU() {'+LineEnding;
@@ -764,7 +852,7 @@ begin
   str:=str
   +'    var '+self.MyNode.NodeName+'BrowserCanvas = '+self.MyNode.NodeName+'CanvasRenderFnG.getCanvas();  ' + LineEnding
 //  +'     let '+self.MyNode.NodeName+'BrowserCanvas = '+self.MyNode.NodeName+'CanvasRenderFnG.canvas;  ' + LineEnding     // works in gpujs v2
-  +'    '+self.MyNode.NodeName+'BrowserCanvas.height = '+intToStr(h)+';  ' + LineEnding
+//  +'    '+self.MyNode.NodeName+'BrowserCanvas.height = '+intToStr(h)+';  ' + LineEnding
   +'    document.getElementsByTagName("body")[0].appendChild('+self.MyNode.NodeName+'BrowserCanvas);     ' + LineEnding ;
 
   if self.Animated then
@@ -1028,14 +1116,18 @@ begin
   setlength(allcode,numKernels+1);
   bits:= stringsplit(self.AnimationCode,eventListdelimiter);
 
+  // for each kernel...
   for n:=0 to bits.count-1 do
   begin
     if length(allcode)<=n then
       setlength(allcode,n+1);
     // get the code block for this kernel...
     allcode[n].CodeBlock:=TStringList.Create;
+
     cdbits:=StringSplit(bits[n],EventAttributeDelimiter);
     allcode[n].CodeBlock.Text:=cdbits[0];
+    (*
+    // sort out dimensions for this kernel...      !!!!
     if cdbits.Count<2 then
     begin
       cdbits.Add('');
@@ -1046,7 +1138,6 @@ begin
       else
         // output for the graphical kernel is current pixel size
         cdbits[1]:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight);
-    // get the output dimensions for this kernel...
     allcode[n].KDimensionsStr:=cdbits[1];
 
     dimbits:=StringSplit(cdbits[1],',');
@@ -1059,6 +1150,8 @@ begin
     except
       showmessage('Warning: Found non-integer Kernel output dimensions in GPUCanvas '+self.myNode.NodeName);
     end;
+    *)
+
   end;
 
   // Add Empty code blocks for missing stages (number of code blocks == numKernels+1)
@@ -1072,29 +1165,29 @@ begin
       +'  myValue:=myArray[this.thread.z,this.thread.y,this.thread.x]; '+LineEnding
       +'end;'+LineEnding;
 
-    setlength(allcode[n].KDimensions,3);
-    allcode[n].KDimensionsStr:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight)+','+inttostr(self.DfltZDepth);
-    allcode[n].KDimensions[0]:=self.ActualWidth;
-    allcode[n].KDimensions[1]:=self.ActualHeight;
-    allcode[n].KDimensions[2]:=self.DfltZDepth;
+//    setlength(allcode[n].KDimensions,3);
+//    allcode[n].KDimensionsStr:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight)+','+inttostr(self.DfltZDepth);
+//    allcode[n].KDimensions[0]:=self.ActualWidth;
+//    allcode[n].KDimensions[1]:=self.ActualHeight;
+//    allcode[n].KDimensions[2]:=self.DfltZDepth;
   end;
 
   // In case this has adjusted the data, save the concatenated code block again to the AnimationCode property
   RevisedAnimCode:='';
-  setlength(self.Dimensions,numKernels+1);
+//  setlength(self.Dimensions,numKernels+1);
   for n:=0 to numKernels do
   begin
     if n>0 then
       RevisedAnimCode:=RevisedAnimCode + eventListdelimiter;
     RevisedAnimCode:=RevisedAnimCode + allcode[n].CodeBlock.Text;
-    RevisedAnimCode:=RevisedAnimCode + EventAttributeDelimiter;
-    RevisedAnimCode:=RevisedAnimCode + allcode[n].KDimensionsStr;
-    // store numeric dimensions data with the GPUCanvas component
-    setlength(self.Dimensions[n],length(allcode[n].KDimensions));
-    for d:=0 to length(allcode[n].KDimensions)-1 do
-    begin
-      self.Dimensions[n,d]:=allcode[n].KDimensions[d];
-    end;
+//    RevisedAnimCode:=RevisedAnimCode + EventAttributeDelimiter;
+//    RevisedAnimCode:=RevisedAnimCode + allcode[n].KDimensionsStr;
+//    // store numeric dimensions data with the GPUCanvas component
+//    setlength(self.Dimensions[n],length(allcode[n].KDimensions));
+//    for d:=0 to length(allcode[n].KDimensions)-1 do
+//    begin
+//      self.Dimensions[n,d]:=allcode[n].KDimensions[d];
+//    end;
   end;
   self.myNode.SetAttributeValue('AnimationCode',RevisedAnimCode);
   result:=allcode;
@@ -1484,7 +1577,8 @@ begin
 
     // Get the set of kernel output dimensions
     // and wrap it with the GPU JS...
-    tmp:= GPUJSCode(Pas2JSTrimmed,self.Dimensions);
+    //tmp:= GPUJSCode(Pas2JSTrimmed,self.Dimensions);
+    tmp:= GPUJSCode(Pas2JSTrimmed);
     FullString:= tmp;
     if self.Animated then
     begin
@@ -1746,7 +1840,7 @@ begin
   end;
 end;
 
-procedure TXGPUCanvas.StopMyGPU;
+procedure TXGPUCanvas.StopMyGPU(isdestroying:Boolean);
 var
   tmp,doJS,myurl:String;
 begin
@@ -1758,7 +1852,8 @@ begin
     doJS:='running=false;';
     if self.Animated then
       doJS:=doJS + ' clearInterval(GPUIntervalRunner);';
-
+    if isdestroying then
+      doJS:=doJS + LineEnding + myNode.NodeName+'.destroy();';
     {$ifndef JScript}
     {$ifdef Chromium}
     if myChromium<>nil then
@@ -1775,7 +1870,7 @@ begin
       // when/if the GPU is re-started. (see SetupGPUPage and SetHTMLSource).
       myNode.SetAttributeValue('HTMLSource',myNode.GetAttribute('HTMLSource',true).AttribValue + '/**/');
     {$else}
-    //!!!!  external browser
+    //!!!!  external browser ??
     {$endif}
     {$else}
     asm
@@ -1786,8 +1881,6 @@ begin
     end;
     self.HTMLSource:='';   //about:blank??  clear the canvas??
     {$endif}
-
-
 
   end;
 end;
@@ -1805,7 +1898,7 @@ begin
       self.StartMyGPU;
     end
     else
-      self.StopMyGPU;
+      self.StopMyGPU(false);
   end;
 end;
 
@@ -1874,6 +1967,18 @@ procedure TXGPUCanvas.SetInitStageData(AValue:string);
 begin
   myNode.SetAttributeValue('InitStageData',AValue,'String');
 end;
+procedure TXGPUCanvas.SetKernelXDims(AValue:string);
+begin
+  myNode.SetAttributeValue('KernelXDims',AValue,'String');
+end;
+procedure TXGPUCanvas.SetKernelYDims(AValue:string);
+begin
+  myNode.SetAttributeValue('KernelYDims',AValue,'String');
+end;
+procedure TXGPUCanvas.SetKernelZDims(AValue:string);
+begin
+  myNode.SetAttributeValue('KernelZDims',AValue,'String');
+end;
 
 (*procedure TXGPUCanvas.SetParamImgList(AValue:string);
 var
@@ -1931,10 +2036,10 @@ procedure TXGPUCanvas.SetNumKernels(AValue:integer);
 begin
   myNode.SetAttributeValue('NumKernels',IntToStr(AValue),'Integer');
 end;
-procedure TXGPUCanvas.SetDfltZDepth(AValue:integer);
-begin
-  myNode.SetAttributeValue('DfltZDepth',IntToStr(AValue),'Integer');
-end;
+//procedure TXGPUCanvas.SetDfltZDepth(AValue:integer);
+//begin
+//  myNode.SetAttributeValue('DfltZDepth',IntToStr(AValue),'Integer');
+//end;
 
 
 
@@ -1962,8 +2067,11 @@ begin
 //  AddDefaultAttribute(myDefaultAttribs,'FetchFrameOutput','Boolean','False','',false);
   AddDefaultAttribute(myDefaultAttribs,'AnimationCode','String','','',false);
   AddDefaultAttribute(myDefaultAttribs,'NumKernels','Integer','0','Number of nested non-graphical kernels',false);
-  AddDefaultAttribute(myDefaultAttribs,'DfltZDepth','Integer','1','Default Number of z-planes in the stage arrays handled by non-graphical kernels',false);
+//  AddDefaultAttribute(myDefaultAttribs,'DfltZDepth','Integer','1','Default Number of z-planes in the stage arrays handled by non-graphical kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'InitStageData','String','[[["1"]]]','3D Array string for input to the first non-graphical kernel',false,false);
+  AddDefaultAttribute(myDefaultAttribs,'KernelXDims','String','[]','x-dimensions of output from the non-graphical kernels eg. [100,150] for 2 kernels',false);
+  AddDefaultAttribute(myDefaultAttribs,'KernelYDims','String','[]','y-dimensions of output from the non-graphical kernels eg. [100,150] for 2 kernels',false);
+  AddDefaultAttribute(myDefaultAttribs,'KernelZDims','String','[]','z-dimensions of output from the non-graphical kernels eg. [1,2] for 2 kernels',false);
   AddDefaultsToTable(MyNodeType,myDefaultAttribs);
 
   AddAttribOptions(MyNodeType,'Alignment',AlignmentOptions);

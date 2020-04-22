@@ -58,6 +58,7 @@ type
     procedure OIEditEventCodeFromCodeTree(NodeNameToEdit:string;EventToEdit:string);
     procedure TestButtonClick(e:TEventStatus;nodeId:string;myValue:string);
     procedure OIEditPropertyButtonClick(e:TEventStatus;nodeId:string;myValue:string);
+    procedure CloseGPUEditor(e:TEventStatus;nodeId:string;myValue:string);
     {$ifdef JScript}
     procedure OIPasteTarget(e:TEventStatus;nodeId:string;myValue:string);
     {$endif}
@@ -1024,13 +1025,11 @@ begin
      RegisterResource('RUI','TXIFrame','TXIFrame','IFrame',-1,AttrParams);
 
      ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'HTMLSource','String','',false);
      AddAttrib(AttrParams,'FrameHeight','Integer','300',false);
      AddAttrib(AttrParams,'FrameWidth','Integer','300',false);
      AddAttrib(AttrParams,'AnimationCode','String','',false);
      AddAttrib(AttrParams,'ParamNumList','String','',false);
      AddAttrib(AttrParams,'ConstIntList','String','',false);
-     AddAttrib(AttrParams,'ParamImgList','String','',false);
      AddAttrib(AttrParams,'Active','Boolean','False',false);
      AddAttrib(AttrParams,'Animated','Boolean','False',false);
      AddAttrib(AttrParams,'MaxIterations','Integer','512',false);
@@ -4153,6 +4152,13 @@ begin
       end;
 end;
 
+procedure TOIEventWrapper.CloseGPUEditor(e:TEventStatus;nodeId:string;myValue:string);
+begin
+  GPUEvents.CloseCodeEditor(e,nodeId,myValue);
+  if ObjectInspectorSelectedNavTreeNode<>nil then
+    RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
+end;
+
 procedure CodeEditorClosed(EditBoxNode:TdataNode);
 var
   tmp:string;
@@ -4301,10 +4307,6 @@ begin
   CodeEditForm.InitialiseOnShow('Event Handler',NodeNameToEdit,EventToEdit);
   ShowXForm('CodeEditForm',true);
 
-  {$ifndef JScript}
-  // on return....
-  //CodeEditorClosed(OIEditBox);
-  {$endif}
 end;
 
 procedure TOIEventWrapper.OIEditEventCode(e:TEventStatus;nodeId:string;myValue:string);
