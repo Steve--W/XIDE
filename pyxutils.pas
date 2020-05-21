@@ -18,7 +18,8 @@ uses
   XMemo, EventsInterface;
 
 var
-  PythonLibDir,PythonVersion:String;
+  //PythonLibDir,
+  PythonVersion:String;
 
 {$ifndef JScript}
 function PyodideScript:TStringList;
@@ -113,7 +114,15 @@ begin
     for j:=0 to l-1 do
     begin
       v:=varri[j];
+      if v<>null then
+      try
       arr[i,j]:=Double(v);
+      except
+        on exception do
+          arr[i,j]:=-999;
+      end
+      else
+        arr[i,j]:=-999;
     end;
   end;
   result:=arr;
@@ -199,6 +208,8 @@ begin
   end
   else if fname='SetGPUParamNumValue' then
     mmo.mmiSetGPUParamNumValue(fnArgs[0], fnArgs[1], fnargs[2])
+  else if fname='SetGPUParam2DNumValue' then
+    mmo.mmiSetGPUParam2DNumValue(fnArgs[0], fnArgs[1], fnargs[2])
   else if fname='SetGPUConstIntValue' then
     mmo.mmiSetGPUConstIntValue(fnArgs[0], fnArgs[1], fnargs[2])
   else if fname='StartMain' then
@@ -351,51 +362,72 @@ end;
 procedure DoPy_InitEngine;
 var
   pth:string;
+//  PythonVersion: TPythonVersion;
+
 begin
-  if Assigned(PyInterfaceVar) then
-    PyInterfaceVar.Destroy;
-  if Assigned(PyInterfaceE) then
-    PyInterfaceE.Destroy;
   if Assigned(PythonEngine1) then
   begin
-    PythonEngine1.Finalize;
-    PythonEngine1.UnloadDll;
-    PythonEngine1.Destroy;
+    // clear out all the defined stuff...
+    PythonEngine1.ExecString('for name in dir(): '+LineEnding+
+                             '  if not name.startswith(''_'')'+
+                                ' and not name==''PyInterfaceVar'''+
+                                ' and not name==''PyInterfaceE'':'+LineEnding+
+                             '    del globals()[name]'+LineEnding);
+  end
+  else
+  begin
+//  if Assigned(PyInterfaceVar) then
+//    PyInterfaceVar.Destroy;
+//  if Assigned(PyInterfaceE) then
+//    PyInterfaceE.Destroy;
+//  if Assigned(PythonEngine1) then
+//  begin
+//    PythonEngine1.Finalize;
+//    PythonEngine1.UnloadDll;
+//    PythonEngine1.Destroy;
+//  end;
+
+    PythonEngine1:=TPythonEngine.Create(nil);
+    PythonEngine1.Name:='PythonEngine1';
+    PythonEngine1.PyFlags:=[pfUseClassExceptionsFlag];
+    PythonEngine1.RedirectIO:=true;
+    PythonEngine1.IO:=PythonIO;
+
+  //  pth:=ExtractFileDir(PythonLibDir);
+  //  if pth<>'' then
+  //    if pth[length(pth)]<>'\' then
+  //      pth:=pth+'\';
+  //  PythonEngine1.DllPath:= pth;
+  //  PythonEngine1.DllName:= ExtractFileName(PythonLibDir);
+  //  PythonEngine1.RegVersion:=PythonVersion;
+    PythonEngine1.UseLastKnownVersion:=true;
+    PythonEngine1.AutoLoad:=false;
+  //  PythonEngine1.AutoLoad:=true;
+    //MaskFPUExceptions(True);
+    PythonEngine1.LoadDll;
+  //  PythonEngine1.SetPythonHome(pth);
+    PythonVersion:=PythonEngine1.RegVersion;
+
+
+
+    PyInterfaceVar:=TPythonDelphiVar.Create(nil);
+    PyInterfaceVar.Name:='PyInterfaceVar';
+    PyInterfaceVar.VarName:='PyInterfaceVar';
+    PyInterfaceVar.Module:='__main__';
+    PyInterfaceVar.Engine:=PythonEngine1;
+    PyInterfaceVar.OnExtGetData:=@PyEvents.PyVarExtGetData;
+    PyInterfaceVar.OnExtSetData:=@PyEvents.PyVarExtSetData;
+    PyInterfaceVar.Initialize;
+
+    PyInterfaceE:=TPythonDelphiVar.Create(nil);
+    PyInterfaceE.Name:='PyInterfaceE';
+    PyInterfaceE.VarName:='PyInterfaceE';
+    PyInterfaceE.Module:='__main__';
+    PyInterfaceE.Engine:=PythonEngine1;
+    PyInterfaceE.OnExtGetData:=@PyEvents.PyVarEExtGetData;
+    PyInterfaceE.OnExtSetData:=@PyEvents.PyVarEExtSetData;
+    PyInterfaceE.Initialize;
   end;
-
-  PythonEngine1:=TPythonEngine.Create(nil);
-  PythonEngine1.Name:='PythonEngine1';
-  PythonEngine1.PyFlags:=[pfUseClassExceptionsFlag];
-  PythonEngine1.RegVersion:=PythonVersion;
-  PythonEngine1.UseLastKnownVersion:=false;
-  PythonEngine1.RedirectIO:=true;
-  PythonEngine1.IO:=PythonIO;
-
-  pth:=ExtractFileDir(PythonLibDir);
-  if pth<>'' then
-    if pth[length(pth)]<>'\' then
-      pth:=pth+'\';
-  PythonEngine1.DllPath:= pth;
-  PythonEngine1.DllName:= ExtractFileName(PythonLibDir);
-  PythonEngine1.LoadDll;
-
-  PyInterfaceVar:=TPythonDelphiVar.Create(nil);
-  PyInterfaceVar.Name:='PyInterfaceVar';
-  PyInterfaceVar.VarName:='PyInterfaceVar';
-  PyInterfaceVar.Module:='__main__';
-  PyInterfaceVar.Engine:=PythonEngine1;
-  PyInterfaceVar.OnExtGetData:=@PyEvents.PyVarExtGetData;
-  PyInterfaceVar.OnExtSetData:=@PyEvents.PyVarExtSetData;
-  PyInterfaceVar.Initialize;
-
-  PyInterfaceE:=TPythonDelphiVar.Create(nil);
-  PyInterfaceE.Name:='PyInterfaceE';
-  PyInterfaceE.VarName:='PyInterfaceE';
-  PyInterfaceE.Module:='__main__';
-  PyInterfaceE.Engine:=PythonEngine1;
-  PyInterfaceE.OnExtGetData:=@PyEvents.PyVarEExtGetData;
-  PyInterfaceE.OnExtSetData:=@PyEvents.PyVarEExtSetData;
-  PyInterfaceE.Initialize;
 end;
 
 procedure InitPythonComponents;
@@ -408,8 +440,8 @@ end;
 
 procedure SetupPyEngine(PyLibDir,PyVersion:String);
 begin
-  PythonLibDir:=PyLibDir;
-  PythonVersion:=PyVersion;
+  //PythonLibDir:=PyLibDir;
+  //PythonVersion:=PyVersion;
   InitPythonComponents;
   // start the engine
   DoPy_InitEngine;
@@ -429,12 +461,28 @@ begin
   script.add('</script>  ');
 
   script.add('<script type="application/javascript" >');
+  script.add('var pyodideReady = "no"; ');
   script.add('languagePluginLoader.then(() => {');
   script.add('  // pyodide is now ready to use...');
   script.add('  console.log(''python: ''+pyodide.runPython(''import sys\nsys.version''));');
-  script.add('  pyodide.loadPackage(''numpy'');');
-  script.add('  pyodide.loadPackage(''scipy'');');
+//  script.add('  pyodide.loadPackage(''numpy'');');
+//  script.add('  pyodide.loadPackage(''scipy'');');
+
+  script.add('  pyodide.loadPackage(''numpy'').then(() => {');
+  script.add('    console.log(''numpy is now available'') ');
+  script.add('  });');
+  script.add('  pyodide.loadPackage(''matplotlib'').then(() => {');
+  script.add('    console.log(''matplotlib is now available'') ');
+//  script.add('    import matplotlib.pyplot as plt');
+  script.add('    pyodideReady = ''yes''');
+  script.add('  });');
+//  script.add('  pyodide.loadPackage(''scipy'').then(() => {');
+//  script.add('    console.log(''scipy is now available'') ');
+//  script.add('    pas.XIDEMain.StartupPython();');
+//  script.add('  });');
+
   script.add('  pas.XIDEMain.StartupPython();');
+
   script.add('});');
   script.add('</script>  ');
   result:=script;
@@ -444,6 +492,7 @@ procedure RunInitialScript;
 var
   InitScript:TStringList;
   txt:String;
+  FPUExceptionMask:TFPUExceptionMask;
 begin
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
   InitScript:=TStringList.Create;
@@ -506,6 +555,8 @@ begin
   InitScript.add('  return RunXIDEFunc(''GetGPUConstIntValue'',(GPUName,pName))');
   InitScript.add('def SetGPUParamNumValue(GPUName,pName,pValue):');
   InitScript.add('  RunXIDEFunc(''SetGPUParamNumValue'',(GPUName,pName,pValue))');
+  InitScript.add('def SetGPUParam2DNumValue(GPUName,pName,pValue):');
+  InitScript.add('  RunXIDEFunc(''SetGPUParam2DNumValue'',(GPUName,pName,pValue))');
   InitScript.add('def SetGPUConstIntValue(GPUName,pName,pValue):');
   InitScript.add('  RunXIDEFunc(''SetGPUConstIntValue'',(GPUName,pName,pValue))');
   InitScript.add('def StartMain(e):');
@@ -536,11 +587,25 @@ begin
   InitScript.add('  return RunXIDEFunc(''GetGPUStageArray'',(GPUName,0))');
   InitScript.add('def GetGPUStageArrayAsString(GPUName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUStageArrayAsString'',(GPUName,0))');
+  InitScript.add('def ShowPythonPlot(ImgName,fig):');            //!!!! how to do this with string var instead of file ????
+  InitScript.add('  fig.savefig(ImgName+''.png'')');
+  InitScript.add('  SetPropertyValue(''pyplot'',''Source'',ImgName+''.png'')');
+  InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
+  InitScript.add('  return json.dumps(npArray.tolist())');
+
+
   InitScript.add('print(''Python Engine Initialised'')');
 
   // execute the initialisation py script  (creates MyMessage python class and object)
   PythonEngine1.ExecStrings( InitScript );
   InitScript.Free;
+
+//  FPUExceptionMask := GetExceptionMask;
+//  SetExceptionMask([exZeroDivide, exPrecision]);
+  PythonEngine1.ExecString('import numpy as np');       // err 'no module named numpy'
+  PythonEngine1.ExecString('import matplotlib.pyplot as plt');       // err 'no module named numpy'
+//  SetExceptionMask(FPUExceptionMask);
+
 end;
 {$else}
 procedure RunInitialScript;
@@ -548,10 +613,19 @@ var
   InitScript:TStringList;
   txt:String;
 begin
+  txt:='for name in dir(): '+LineEnding+
+       '  if not name.startswith(''_''):'+LineEnding+
+       '    del globals()[name]'+LineEnding;
+  asm
+  pyodide.runPython(txt);
+  end;
+
   InitScript:=TStringList.Create;
   // load the initialisation py script
   // Sets up an internal library of XIDE Interface functions, available to the user.
   InitScript.Clear;
+
+  InitScript.add('print(''Running Python Initial Script'')');
   InitScript.add('class eClass:');
   InitScript.add('  EventType = ''''');
   InitScript.add('  NodeId = ''''');
@@ -559,11 +633,11 @@ begin
   InitScript.add('  ReturnString = ''''');
   InitScript.add('e = eClass()');
   InitScript.add('');
-  InitScript.add('from js import pas');    //!!!!  ??????
+  InitScript.add('from js import pas');
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
   InitScript.add('  return pas.InterfaceTypes.GetPropertyValue(NodeName,PropName)');
-//  InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');
-//  InitScript.add('  RunXIDEFunc(''SetPropertyValue'',(NodeName,PropName,NewValue))');
+  InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');
+  InitScript.add('  pas.InterfaceTypes.SetPropertyValue(NodeName,PropName,NewValue)');
   InitScript.add('def ShowMessage(Messg):');
   InitScript.add('  pas.InterfaceTypes.ShowMessage(Messg)');
   InitScript.add('def ShowXForm(XFormID,Modal):');
@@ -594,6 +668,8 @@ begin
   InitScript.add('  return pas.InterfaceTypes.GetGPUConstIntValue(GPUName,pName)');
   InitScript.add('def SetGPUParamNumValue(GPUName,pName,pValue):');
   InitScript.add('  pas.InterfaceTypes.SetGPUParamNumValue(GPUName,pName,pValue)');
+  InitScript.add('def SetGPUParam2DNumValue(GPUName,pName,pValue):');
+  InitScript.add('  pas.InterfaceTypes.SetGPUParam2DNumValue(GPUName,pName,pValue)');
   InitScript.add('def SetGPUConstIntValue(GPUName,pName,pValue):');
   InitScript.add('  pas.InterfaceTypes.SetGPUConstIntValue(GPUName,pName,pValue)');
   InitScript.add('def StartMain(e):');
@@ -624,6 +700,16 @@ begin
   InitScript.add('  return pas.InterfaceTypes.GetGPUStageArray(GPUName)');
   InitScript.add('def GetGPUStageArrayAsString(GPUName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUStageArrayAsString(GPUName)');
+  InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
+  InitScript.add('  return json.dumps(npArray.tolist())');
+  InitScript.add('def ShowPythonPlot(ImgName,fig):');
+  InitScript.add('  buf = io.BytesIO()');
+  InitScript.add('  fig.savefig(buf, format=''png'')');
+  InitScript.add('  buf.seek(0)');
+  InitScript.add('  img_str = ''data:image/png;base64,'' + base64.b64encode(buf.read()).decode(''UTF-8'')');
+  InitScript.add('  pas.InterfaceTypes.SetImageSource(ImgName,img_str)');
+
+  InitScript.add('print(''RunInitialScript done'')');
 
   // execute the initialisation py script
   txt:=InitScript.Text;

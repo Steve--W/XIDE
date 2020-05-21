@@ -11,7 +11,7 @@ object PropertyEditForm: TPropertyEditForm
   LCLVersion = '2.1.0.0'
   object PropertyEditVBox1: TXVBox
     Name = 'PropertyEditVBox1'
-    Tag = 405372944
+    Tag = 389442824
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -32,18 +32,18 @@ object PropertyEditForm: TPropertyEditForm
     InheritColor = False
     object PropertyEditFormXTabControl11: TXTabControl
       Name = 'PropertyEditFormXTabControl11'
-      Tag = 405372560
+      Tag = 389442440
       Left = 2
       Height = 373
       Top = 2
       Width = 645
-      ActivePage = PropertyEditTabSheet2
+      ActivePage = PropertyEditTabSheet3
       Align = alTop
       Constraints.MaxHeight = 373
       Constraints.MaxWidth = 645
       Constraints.MinHeight = 373
       Constraints.MinWidth = 645
-      TabIndex = 1
+      TabIndex = 2
       TabOrder = 0
       IsContainer = True
       IsVisible = True
@@ -62,7 +62,7 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditTab1VBox1: TXVBox
           Name = 'PropertyEditTab1VBox1'
-          Tag = 405372480
+          Tag = 389442360
           AnchorSideLeft.Control = PropertyEditTabSheet1
           AnchorSideTop.Side = asrCenter
           Left = 0
@@ -169,7 +169,7 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditSourceHBox: TXHBox
           Name = 'PropertyEditSourceHBox'
-          Tag = 405372880
+          Tag = 389442760
           Left = 0
           Height = 341
           Top = 0
@@ -264,11 +264,9 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditVBox99: TXVBox
           Name = 'PropertyEditVBox99'
-          Tag = 405372928
-          AnchorSideLeft.Control = PropertyEditTabSheet3
-          AnchorSideTop.Side = asrCenter
+          Tag = 389442808
           Left = 0
-          Height = 369
+          Height = 341
           Top = 0
           Width = 643
           Align = alTop
@@ -285,7 +283,7 @@ object PropertyEditForm: TPropertyEditForm
           InheritColor = False
           object PropertyEditLabel: TXLabel
             Name = 'PropertyEditLabel'
-            Tag = 405372896
+            Tag = 389442776
             Left = 0
             Height = 32
             Top = 0
@@ -312,9 +310,7 @@ object PropertyEditForm: TPropertyEditForm
           end
           object PropertyEditVBox66: TXVBox
             Name = 'PropertyEditVBox66'
-            Tag = 405372912
-            AnchorSideLeft.Control = PropertyEditVBox99
-            AnchorSideTop.Side = asrCenter
+            Tag = 389442792
             Left = 0
             Height = 328
             Top = 32

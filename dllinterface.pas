@@ -47,10 +47,9 @@ IMyMethodInterface = interface(IInterface)
     function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
-//    function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
+    procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);  stdcall;
     procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
-//    procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
     procedure mmiStartMain(e:TEventStatus);    stdcall;
     procedure mmiShowBusy(e:TEventStatus);    stdcall;
     procedure mmiHideBusy;   stdcall;
@@ -67,6 +66,7 @@ IMyMethodInterface = interface(IInterface)
     function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
     procedure mmiDebugStart; stdcall;
     procedure mmiRunPython(str:String); stdcall;
+    procedure mmiSetImageSource(nm,str:String); stdcall;
 end;
 
 type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
@@ -92,10 +92,9 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
       function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
       function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
-//      function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
       procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
+      procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);  stdcall;
       procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
-//      procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
       procedure mmiStartMain(e:TEventStatus); stdcall;
       procedure mmiShowBusy(e:TEventStatus); stdcall;
       procedure mmiHideBusy; stdcall;
@@ -112,6 +111,7 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
       procedure mmiDebugStart; stdcall;
       procedure mmiRunPython(str:String); stdcall;
+      procedure mmiSetImageSource(nm,str:String); stdcall;
   end;
 
 type TEventTimerTag = class
@@ -396,6 +396,18 @@ end;
      end;
    end;
 
+   procedure TMyMethodObject.mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);  stdcall;
+   var
+     myNode:TDataNode;
+   begin
+    //showmessage('mmiSetGPUParam2DNumValue GPUName='+GPUName);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+     begin
+       TXGPUCanvas(myNode.ScreenObject).SetParam2DNumValue(pName,pValue,true);
+     end;
+   end;
+
    procedure TMyMethodObject.mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
    var
      myNode:TDataNode;
@@ -408,19 +420,6 @@ end;
      end;
 
    end;
-
-//   procedure TMyMethodObject.mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
-//   var
-//     myNode:TDataNode;
-//   begin
-//    //showmessage('mmiSetGPUParamImgValue GPUName='+GPUName);
-//     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
-//     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
-//     begin
-//       TXGPUCanvas(myNode.ScreenObject).SetParamImgValue(pName,pValue,true);
-//     end;
-//
-//   end;
 
    function TMyMethodObject.mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
    var
@@ -568,7 +567,10 @@ end;
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        {$ifdef Chromium}
-       result:=JsonStringTo3DNumArray(TXGPUCanvas(myNode.ScreenObject).GPUStageString);
+       if length( TXGPUCanvas(myNode.ScreenObject).GPUStageArray) > 0 then
+         result:=TXGPUCanvas(myNode.ScreenObject).GPUStageArray
+       else
+         result:=JsonStringTo3DNumArray(TXGPUCanvas(myNode.ScreenObject).GPUStageString);
        {$else}
        {$endif}
      end;
@@ -584,7 +586,10 @@ end;
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        {$ifdef Chromium}
-       result:=TXGPUCanvas(myNode.ScreenObject).GPUStageString;
+       if TXGPUCanvas(myNode.ScreenObject).GPUStageString<>'' then
+         result:=TXGPUCanvas(myNode.ScreenObject).GPUStageString
+       else
+         result:=Num3DArrayToJsonString(TXGPUCanvas(myNode.ScreenObject).GPUStageArray);
        {$else}
        {$endif}
      end;
@@ -596,6 +601,11 @@ end;
    begin
      {$ifdef Python}
      PyExeString(str);
+     {$endif}
+   end;
+   procedure TMyMethodObject.mmiSetImageSource(nm,str:String);                  stdcall;
+   begin
+     {$ifdef Python}
      {$endif}
    end;
 

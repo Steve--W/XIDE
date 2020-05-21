@@ -16,8 +16,8 @@ unit XIDEMain;
 {$INTERFACES CORBA}
 {$endif}
 
-interface
 
+interface
 
 uses
   Classes, SysUtils,
@@ -272,7 +272,6 @@ private
 public
   { public declarations }
  end;
-
 
 var
 XIDEForm: TXIDEForm;
@@ -785,7 +784,6 @@ procedure TXIDEForm.DebugTreeHandleButtonClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 var
   txt:String;
-  tmpl:TStringList;
 begin
 
   DebugwriteNodetree(SystemnodeTree,txt,0);
@@ -875,13 +873,12 @@ begin
   end;
 end;
 
-
 procedure InitialiseResources;
 // define project-specific resources.
 // required files have been pre-built into the resource file xide.lrs.
 // the resource folders and files will be created from these lists by the procedure WriteResourceFiles in unit UtilsJSCompile.
 begin
-  gpujs:=ResourceToString('gpu');
+  gpujs:=ResourceToString('gpu-browser');
 
   // files needed for this project to be compiled by pas2js, to generate the project JS file...
   AddRequiredFile('webtranspilerutils','resources/project/webtranspilerutils.pas');
@@ -891,7 +888,7 @@ begin
   AddRequiredFile('x3dtable','resources/project/x3dtable.pas');
   AddRequiredFile('xcomposite','resources/project/xcomposite.pas');
   AddRequiredFile('xcompositeintf','resources/project/xcompositeintf.pas');
-  AddRequiredFile('gpu','resources/project/gpu.js');
+  AddRequiredFile('gpu-browser','resources/project/gpu-browser.js');
 
   AddRequiredFile('xidemain','resources/project/XIDEMain.pas');
   AddRequiredFile('xobjectinsp','resources/project/xobjectinsp.pas');
@@ -955,7 +952,6 @@ procedure TXIDEForm.FormCreate(Sender: TObject);
 var
   SystemDescription:String;
   RunSettingsNode:TDataNode;
-  tmpl:TStringList;
 begin
   MainForm:=self;
   MainFormTopControl:=MyRootDiv;
@@ -1048,7 +1044,6 @@ begin
   ExtraDirectives:=TStringList.Create;
   // Compile the user-created event code into a unit, to check for pas2js compile errors.
   ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS');
-
 
   ExtraHTML:=TStringList.Create;
   if ok then
@@ -1191,7 +1186,7 @@ begin
   {$I typinfopas.inc}
   //  {$I rttipas.inc}
 
-  {$I gpujs.inc}
+  {$I gpu-browserjs.inc}
 
   SetupAnimatedPointer;
 

@@ -209,10 +209,10 @@ begin
 
 
   // Wrap the text with pascal code that will load it into a string variable.
-  if filename+suffix='gpujs' then
+  if filename+suffix='gpu-browserjs' then
   begin
-    // gpu.js
-    TxtLines.Insert(0,'pas.XGPUCanvas.'+filename+suffix+' = ');
+    // gpu-browser.js
+    TxtLines.Insert(0,'pas.XGPUCanvas.gpujs = ');
   end
   else if suffix='js' then
     TxtLines.Insert(0,'pas.CompileUserCode.'+filename+suffix+' = ')
@@ -282,7 +282,7 @@ begin
   //  WriteRTLIncFile('resources/rtl/','webgl');
   //  WriteRTLIncFile('resources/rtl/','webrouter');
 
-  WriteRTLIncFile('resources/project/','gpu','js');
+  WriteRTLIncFile('resources/project/','gpu-browser','js');
 end;
 
 
@@ -785,6 +785,7 @@ begin
   // can be limited (they are self-contained, with no access to data/functions in the main thread).
   BuildThreadEventsUnit(Compiler,RunMode);
 
+  FreeAndNil(lines);
   FreeAndNil(UnitCode);
 
   result:=FirstUnitName;
@@ -842,7 +843,7 @@ begin
         if length(FuncInputs)>0 then
         begin
           tmp:=BuildFuncHeaderNoParams(FuncNode,2);
-          Lines:=TStringList.Create;
+          Lines.Clear;
           Lines.Add(tmp);
           Lines.Add('begin');
                tmp:='result:='+FuncNode.NameSpace+FuncNode.NodeName+'(';
@@ -971,6 +972,7 @@ end;
 {$ifdef Python}
 procedure TPyProcs.GatherAndRunPythonScripts(dummy:PtrInt);
 var
+    ok:Boolean;
     i,j:integer;
     tmp,nm:string;
     lines:TStringList;
@@ -982,42 +984,55 @@ var
     end;
 
 begin
-
+  ok:=true;
   // user-created scripts are held as data nodes (class 'Code', type 'PythonScript')
   // create a pas file on disk for each unit, and insert the unit name for the dll 'uses' clause
   Lines:=TStringList.Create;
   PyCode:=TStringList.Create;
-  PyCode.Clear;
 
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
   begin
-        if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
-        begin
-           UnitNode:=CodeRootNode.ChildNodes[i];
-           // code is all in attribute : Code
-           nm:=UnitNode.NodeName;
+    PyCode.Clear;
+    if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
+    begin
+       UnitNode:=CodeRootNode.ChildNodes[i];
+       // code is all in attribute : Code
+       nm:=UnitNode.NodeName;
 
-           // add user-written unit code block
-           tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
-           Lines:=StringSplit(tmp,LineEnding);
-           for j:=0 to Lines.Count-1 do
-             AddUnitCodeLine(Lines[j]);
-
-        end;
-  end;
-  if PyCode.Count>0 then
-    {$ifndef JScript}
-    PythonEngine1.ExecStrings( PyCode );
-    {$else}
-    tmp:=PyCode.Text;
-    asm
-    pyodide.runPython(tmp)
+       // add user-written unit code block
+       tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
+       Lines:=StringSplit(tmp,LineEnding);
+       for j:=0 to Lines.Count-1 do
+         AddUnitCodeLine(Lines[j]);
     end;
-    {$endif}
+
+    if PyCode.Count>0 then
+    begin
+      {$ifndef JScript}
+      try
+      PythonEngine1.ExecStrings( PyCode );
+      except
+        on E: Exception do
+        begin
+          showmessage('Python error in '+nm+' : '+e.Message);
+        end;
+      end;
+      {$else}
+      tmp:=PyCode.Text;
+      asm
+      console.log('running python user code '+nm);
+      end;
+      asm
+      try {
+      pyodide.runPython(tmp);
+      } catch(err) { alert(err.message+'  in '+nm); }
+      end;
+      {$endif}
+    end;
+  end;
 
   FreeAndNil(PyCode);
   FreeAndNil(Lines);
-
 end;
 {$ifndef JScript}
 procedure GatherAndRunPythonScriptsLater;

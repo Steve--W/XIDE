@@ -44,10 +44,9 @@ TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;
 TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean of object;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
-//TGetGPUParamImgValue=function(GPUName,pName:String):TImgArray of object;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;
+TSetGPUParam2DNumValue=procedure(GPUName,pName:String;pValue:T2DNumArray) of object;
 TSetGPUConstIntValue=procedure(GPUName,pName:String;pValue:integer) of object;
-//TSetGPUParamImgValue=procedure(GPUName,pName:String;pValue:TImgArray) of object;
 TStartMain=procedure(e:TEventStatus) of object;
 TShowBusy=procedure(e:TEventStatus) of object;
 THideBusy=procedure of object;
@@ -64,6 +63,7 @@ TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;
 TGetGPUStageArrayAsString=function(GPUName:String):String of object;
 TDebugStart=procedure of object;
 TRunPython=procedure(str:String) of object;
+TSetImageSource=procedure(nm,str:String) of object;
 
 {$ifdef JScript}
 var
@@ -75,7 +75,6 @@ Prompt:Tprompt;
 SetPropertyValue:Tsetpropertyvalue;
 SetPropertyValueIndexed:Tsetpropertyvalueindexed;
 GetPropertyValue:Tgetpropertyvalue;
-//getpropertyvalueindexed:Tgetpropertyvalueindexed;
 CopyToClip:TCopyToClip;
 CopyFromClip:TCopyFromClip;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
@@ -88,6 +87,7 @@ DeleteComponent:TDeleteComponent;
 GetGPUParamNumValue:TGetGPUParamNumValue;
 GetGPUConstIntValue:TGetGPUConstIntValue;
 SetGPUParamNumValue:TSetGPUParamNumValue;
+SetGPUParam2DNumValue:TSetGPUParam2DNumValue;
 SetGPUConstIntValue:TSetGPUConstIntValue;
 ShowBusy:TShowBusy;
 HideBusy:THideBusy;
@@ -104,6 +104,7 @@ GetGPUStageArray:TGetGPUStageArray;
 GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
 DebugStart:TDebugStart;
 RunPython:TRunPython;
+SetImageSource:TSetImageSource;
 
 
 var EventsNameSpace:String;
@@ -120,7 +121,6 @@ type TMethodsClass = class(TObject)
  procedure mmisetpropertyvalue(nodeName:String;propName:String;newValue:String);
  procedure mmisetpropertyvalueindexed(nodeName:String;propName:String;newValue:TStringArray; x,y:integer);
  function mmigetpropertyvalue(nodeName:String;propName:String):string;
-// function mmigetpropertyvalueindexed(nodeName:String;propName:String; x,y,w,h:integer):TstringArray;
  Function mmiconfirm(TextMessage:string):boolean;
  Function mmiprompt(TextMessage,promptString:string):string;
  procedure mmiCopyToClip(str:String);
@@ -134,10 +134,9 @@ type TMethodsClass = class(TObject)
  function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;
  function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
  function mmiGetGPUConstIntValue(GPUName,pName:String):integer;
-// function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;
  procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
+ procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);
  procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);
-// procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);
  procedure mmiStartMain(e:TEventStatus);
  procedure mmiShowBusy(e:TEventStatus);
  procedure mmiHideBusy;
@@ -154,6 +153,7 @@ type TMethodsClass = class(TObject)
  function mmiGetGPUStageArrayAsString(GPUName:String):String;
  procedure mmiDebugStart;
  procedure mmiRunPython(str:String);
+ procedure mmiSetImageSource(nm,str:String);
 end;
 
 type AnsiString=String;
@@ -176,7 +176,6 @@ begin
   setpropertyvalue:=@AppMethods.mmisetpropertyvalue;
   setpropertyvalueindexed:=@AppMethods.mmisetpropertyvalueindexed;
   getpropertyvalue:=@AppMethods.mmigetpropertyvalue;
-//  getpropertyvalueindexed:=@AppMethods.mmigetpropertyvalueindexed;
   confirm:=@AppMethods.mmiconfirm;
   prompt:=@AppMethods.mmiprompt;
   copytoclip:=@AppMethods.mmiCopyToClip;
@@ -190,10 +189,9 @@ begin
   deletecomponent:=@appmethods.mmiDeleteComponent;
   getgpuparamnumvalue:=@appmethods.mmiGetGPUParamNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
-//  getgpuparamimgvalue:=@appmethods.mmiGetGPUParamImgValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
+  setgpuparam2Dnumvalue:=@appmethods.mmiSetGPUParam2DNumValue;
   setgpuconstintvalue:=@appmethods.mmiSetGPUConstIntValue;
-//  setgpuparamimgvalue:=@appmethods.mmiSetGPUParamImgValue;
   showbusy:=@appmethods.mmiShowBusy;
   hidebusy:=@appmethods.mmiHideBusy;
   processmessages:=@appmethods.mmiProcessMessages;
@@ -209,6 +207,7 @@ begin
   GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
   DebugStart:=@appmethods.mmiDebugStart;
   RunPython:=@appmethods.mmiRunPython;
+  SetImageSource:=@appmethods.mmiSetImageSource;
 end;
 
 procedure TMethodsClass.mmiSetEventsNameSpace(NameSpace:String);
@@ -446,6 +445,17 @@ begin
     }
   end;
 end;
+procedure TMethodsClass.mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);
+begin
+  asm
+  //alert('mmiSetGPUParam2DNumValue '+GPUName+' '+pName);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      //alert('calling SetParamNumValue '+pName+' '+pValue);
+      myNode.SetParam2DNumValue(pName,pValue,true);
+    }
+  end;
+end;
 procedure TMethodsClass.mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);
 begin
 asm
@@ -457,17 +467,6 @@ asm
   }
 end;
 end;
-//procedure TMethodsClass.mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);
-//begin
-//  asm
-//  //alert('mmiSetGPUParamImgValue '+GPUName+' '+pName);
-//    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
-//    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-//      //alert('calling SetParamImgValue '+pName+' '+pValue);
-//      myNode.SetParamImgValue(pName,pValue,true);
-//    }
-//  end;
-//end;
 function TMethodsClass.mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
 var
   pval:TNumArray;
@@ -662,8 +661,17 @@ end;
 procedure TMethodsClass.mmiRunPython(str:String);
 begin
   asm
-    //alert('RunPython - needs to be done');
     pyodide.runPython(str);
+  end;
+end;
+procedure TMethodsClass.mmiSetImageSource(nm,str:String);
+begin
+  asm
+    var ob=document.getElementById(nm+"Contents");
+    if (ob!=null) {
+      //ob.src=pyodide.globals.img_str
+      ob.src=str;
+    }
   end;
 end;
 

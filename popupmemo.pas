@@ -155,7 +155,9 @@ begin
   'function  GetGPUConstIntValue(GPUName,pName:String):integer;'  + LineEnding +
   '                            For the given TXGPUCanvas component, returns the value of the named integer parameter '  + LineEnding +
   'procedure SetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);'  + LineEnding +
-  '                            For the given TXGPUCanvas component, sets the value of the named image parameter as an array '  + LineEnding +
+  '                            For the given TXGPUCanvas component, sets the value of the named numeric parameter as a 1-D array '  + LineEnding +
+  'procedure SetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);'  + LineEnding +
+  '                            For the given TXGPUCanvas component, sets the value of the named numeric parameter as a 2-D array '  + LineEnding +
   'procedure SetGPUConstIntValue(GPUName,pName:String;pValue:integer);'  + LineEnding +
   '                            For the given TXGPUCanvas component, sets the value of the named integer parameter '  + LineEnding +
   'function  GetGPUPixelArray(GPUName:String):T3DNumArray; '  + LineEnding +
@@ -166,6 +168,14 @@ begin
   '                            Fetch the stage array (resulting from the non-graphical kernel stack) for the given TXGPUCanvas component  '  + LineEnding +
   'function  GetGPUStageArrayAsString(GPUName:String):String;'  + LineEnding +
   '                            Fetch the stage array in string format for the given TXGPUCanvas component  '  + LineEnding;
+
+  PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
+  ' ' + LineEnding +
+  'Python Only' + LineEnding +
+  '===========' + LineEnding +
+  'function  ShowPythonPlot(ImgName,fig) '  + LineEnding +
+  '                            In the given TXImage component, displays the contents of fig (a matplotlib figure) '  + LineEnding;
+
 
 end;
 

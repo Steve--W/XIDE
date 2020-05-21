@@ -671,7 +671,7 @@ begin
  if linenumber>Messages.Count then
    EXIT;
  SelectedLine:= Messages[linenumber-1];
-
+ Messages.Free;
  // Find the indicated line number from the message
  thisCodeEdit.GetFileNameLineNumAndCharPos(FoundLineNum,SelectedLine, '(',FileName,LineNum,CharPos );
  //showmessage('FileName='+FileName+' Indicated Linenum is '+linenum);
@@ -825,6 +825,7 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
       if p>0 then
         self.CodeEdit.AddMessage(TheName+'.'+TheType+'('+inttostr(i)+','+inttostr(p)+') '+lines[i]);
     end;
+    FreeAndNil(lines);
   end;
   {$endif}
 

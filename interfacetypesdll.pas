@@ -45,10 +45,9 @@ TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;          
 TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean of object;             stdcall;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;                                stdcall;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;                                stdcall;
-//TGetGPUParamImgValue=function(GPUName,pName:String):TImgArray of object;                                stdcall;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;                        stdcall;
+TSetGPUParam2DNumValue=procedure(GPUName,pName:String;pValue:T2DNumArray) of object;                        stdcall;
 TSetGPUConstIntValue=procedure(GPUName,pName:String;pValue:integer) of object;                        stdcall;
-//TSetGPUParamImgValue=procedure(GPUName,pName:String;pValue:TImgArray) of object;                        stdcall;
 TStartMain=procedure(e:TEventStatus) of object;                        stdcall;
 TShowBusy=procedure(e:TEventStatus) of object;                        stdcall;
 THideBusy=procedure of object;                        stdcall;
@@ -65,6 +64,7 @@ TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;               
 TGetGPUStageArrayAsString=function(GPUName:String):String of object;                                stdcall;
 TDebugStart=procedure of object; stdcall;
 TRunPython=procedure(str:String) of object; stdcall;
+TSetImageSource=procedure(nm,str:String) of object; stdcall;
 
 
 type
@@ -90,10 +90,9 @@ IMyMethodInterface = interface(IInterface)
     function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
-//    function mmiGetGPUParamImgValue(GPUName,pName:String):TImgArray;  stdcall;
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
+    procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);  stdcall;
     procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
-//    procedure mmiSetGPUParamImgValue(GPUName,pName:String;pValue:TImgArray);  stdcall;
     procedure mmiStartMain(e:TEventStatus); stdcall;
     procedure mmiShowBusy(e:TEventStatus); stdcall;
     procedure mmiHideBusy; stdcall;
@@ -110,6 +109,7 @@ IMyMethodInterface = interface(IInterface)
     function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
     procedure mmiDebugStart; stdcall;
     procedure mmiRunPython(str:String); stdcall;
+    procedure mmiSetImageSource(nm,str:String); stdcall;
 end;
 
 
@@ -136,10 +136,9 @@ copycomponent:TCopyComponent;
 deletecomponent:TDeleteComponent;
 getgpuparamnumvalue:TGetGPUParamNumValue;
 getgpuconstintvalue:TGetGPUConstIntValue;
-//getgpuparamimgvalue:TGetGPUParamImgValue;
 setgpuparamnumvalue:TSetGPUParamNumValue;
+setgpuparam2Dnumvalue:TSetGPUParam2DNumValue;
 setgpuconstintvalue:TSetGPUConstIntValue;
-//setgpuparamimgvalue:TSetGPUParamImgValue;
 startmain:TStartMain;
 showbusy:TShowBusy;
 hidebusy:THideBusy;
@@ -156,6 +155,7 @@ GetGPUStageArray:TGetGPUStageArray;
 GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
 DebugStart:TDebugStart;
 RunPython:TRunPython;
+SetImageSource:TSetImageSource;
 
 
 procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
@@ -194,6 +194,7 @@ begin
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
 //  getgpuparamimgvalue:=@appmethods.mmiGetGPUParamImgValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
+  setgpuparam2Dnumvalue:=@appmethods.mmiSetGPUParam2DNumValue;
   setgpuconstintvalue:=@appmethods.mmiSetGPUConstIntValue;
 //  setgpuparamimgvalue:=@appmethods.mmiSetGPUParamImgValue;
   startmain:=@appmethods.mmiStartMain;
@@ -212,6 +213,7 @@ begin
   GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
   DebugStart:=@appmethods.mmiDebugStart;
   RunPython:=@appmethods.mmiRunPython;
+  SetImageSource:=@appmethods.mmiSetImageSource;
 
  // dummy:=GetPropertyValue('UIRoot','Name');     // fudge...didn't work
 

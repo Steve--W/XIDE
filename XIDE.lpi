@@ -182,6 +182,7 @@
     <Conditionals Value="UnitPath += &apos;;$PkgOutDir(CEF4Delphi_Lazarus)&apos;;
 UnitPath += &apos;;XIDEComponents&apos;;
 UnitPath += &apos;;$PkgOutDir(Python4Lazarus_Package)&apos;;
+UnitPath += &apos;;$PkgSrcPath(Python4Lazarus_Package)&apos;;
 IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
     <CodeGeneration>
       <RelocatableUnit Value="True"/>
@@ -203,7 +204,7 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
         <ShowDebugInfo Value="True"/>
       </Verbosity>
       <CustomOptions Value="-dChromium
-//-dPython"/>
+-dPython"/>
     </Other>
   </CompilerOptions>
   <Debugging>

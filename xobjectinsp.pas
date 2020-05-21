@@ -1028,8 +1028,6 @@ begin
      AddAttrib(AttrParams,'FrameHeight','Integer','300',false);
      AddAttrib(AttrParams,'FrameWidth','Integer','300',false);
      AddAttrib(AttrParams,'AnimationCode','String','',false);
-     AddAttrib(AttrParams,'ParamNumList','String','',false);
-     AddAttrib(AttrParams,'ConstIntList','String','',false);
      AddAttrib(AttrParams,'Active','Boolean','False',false);
      AddAttrib(AttrParams,'Animated','Boolean','False',false);
      AddAttrib(AttrParams,'MaxIterations','Integer','512',false);
@@ -2760,6 +2758,7 @@ begin
     else
       ok:=true;
   end;
+  SetSystemName(sysname);
   sysname:=sysname+'.xide';
   {$ifndef JScript}
   sysname:='SavedSystems/'+sysname;
@@ -3843,13 +3842,20 @@ begin
     HandleEvent(nil,'OnEnterRunMode','UIRootNode','','');
     {$ifdef Python}
     //exec all defined python scripts
+    try
     PyProcs.GatherAndRunPythonScripts(0);
+    except
+      on E: Exception do
+      begin
+        showmessage('Error executing Python script: '+e.Message);
+      end;
+    end;
     {$endif}
     {$endif}
   end
   else
   begin
-    // compilation of event code has failed
+    // Pascal compilation of event code has failed
     {$ifndef JScript}
     DisplayDllCompileErrors;
     {$else}
@@ -3923,10 +3929,19 @@ begin
         CloseXFormForDesign(OpenXForms[i].NodeName);
     end;
 
-    ShowGreyOverlay('UIRootNode','Grey1');
-    // timeout here so the grey overlay appears
     asm
-      myTimeout(pas.XObjectInsp.ContinueToggleToRunMode,5,'ContinueToggleToRunMode',0);
+      if (pyodideReady!="yes") {
+        alert('pyodide is not ready');
+        ok = false;
+      }
+    end;
+    if ok then
+    begin
+      ShowGreyOverlay('UIRootNode','Grey1');
+      // timeout here so the grey overlay appears
+      asm
+        myTimeout(pas.XObjectInsp.ContinueToggleToRunMode,5,'ContinueToggleToRunMode',0);
+      end;
     end;
     {$endif}
   end

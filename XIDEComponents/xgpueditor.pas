@@ -34,8 +34,6 @@ uses
 
 type TAnimCodeRec = record
   CodeBlock:TStringList;
-//  KDimensions:Array of integer;
-//  KDimensionsStr:String;
 end;
 type TAnimCodeArray = Array of TAnimCodeRec;
 type TDimsArray = Array of array of integer;
@@ -44,7 +42,6 @@ type  TGPUEventClass = class
     procedure GPUCodeEditHandleClickMessage(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure LaunchGPUHTML(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure GPUComboBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-//    procedure GPUEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure TabChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     {$ifndef JScript}
     procedure EditorResize(Sender: TObject);
@@ -233,8 +230,6 @@ var
   i,d:integer;
 begin
   AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
-//  for i:=0 to length(AllKernels)-1 do
-//    showmessage('Existing '+inttostr(i)+': '+AllKernels[i].Text);
   // Re-concatenate the kernel code blocks
   for i:=0 to length(AllKernels)-1 do
   begin
@@ -246,30 +241,11 @@ begin
     begin
       AllCode:=AllCode+GPUCodeEditor.ItemValue;
     end;
-//    // add the dimensions spec...
-//    AllCode:=AllCode+EventAttributeDelimiter;
-//    if i<>idx then
-//    begin
-//      AllCode:=AllCode+AllKernels[i].KDimensionsStr;
-//      for d:=0 to length(AllKernels[i].KDimensions)-1 do
-//      begin
-//        if d>0 then AllCode:=AllCode+',';
-//        AllCode:=AllCode+intToStr(AllKernels[i].KDimensions[d]);
-//      end;
-//    end
-//    else
-//    begin
-//      // save the edited dimensions
-//      AllCode:=AllCode+GPUEditBox.ItemValue;
-//    end;
 
     if i<length(AllKernels)-1 then
       AllCode:=AllCode+eventListdelimiter;
   end;
   EditAttributeValue(EditingGPUNode,'AnimationCode',AllCode);
-//  AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
-//  for i:=0 to length(AllKernels)-1 do
-//    showmessage('After Save '+inttostr(i)+': '+AllKernels[i].Text);
 end;
 
 procedure TGPUEventClass.CloseCodeEditor(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -288,7 +264,8 @@ begin
     // and the init Stage Array
     EditingGPUNode.SetAttributeValue('InitStageData',GPUTableEditor.Table3DData);
   end;
-
+  // Clear the 3D table data
+  GPUTableEditor.Table3DData:='[[[0]]]';
 //  if ObjectInspectorSelectedNavTreeNode<>nil then
 //    RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
 end;
@@ -297,7 +274,6 @@ procedure TGPUEventClass.GPUCodeEditHandleClickMessage(e:TEventStatus;nodeID: An
 var linenumber:integer;
     SelectedLine,FileName,CharPos:string;
     FoundLineNum:Boolean;
- //   tmp1:TStringList;
     LineNum:String;
     Messages:TStringList;
 begin
@@ -370,26 +346,12 @@ begin
     // Fetch the required code block
     AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
     GPUCodeEditor.ItemValue:=AllKernels[GPUComboBox.ItemIndex].CodeBlock.Text;
-//    GPUEditBox.ItemValue:=AllKernels[GPUComboBox.ItemIndex].KDimensionsStr;
-//    if GPUComboBox.ItemIndex>0 then
-//      GPUEditBox.ReadOnly:=false
-//    else
-//      GPUEditBox.ReadOnly:=true;
     if  GPUComboBox.ItemIndex>0 then
       GPUEditBox.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).KernelDimsString(GPUComboBox.ItemIndex-1)
     else
       GPUEditBox.ItemValue:='* pixelmap size *';
   end;
 end;
-
-//procedure TGPUEventClass.GPUEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-//begin
-//  if (EditingGPUNode<>nil) then
-//  begin
-//    // Save the current kernel dimensions.     !! happens when code block is saved
-//    //SaveKernelDimensions(GPUEditBox.ItemValue);
-//  end;
-//end;
 
 procedure ShowGPUEditor(GPUNode:TDataNode;TabPage:integer);
 var
@@ -401,12 +363,9 @@ begin
   // These are delimited by the EventListDelimiter string.
   // The GPU Code Editor needs to show the first kernel proc.
   AllKernels:=TXGPUCanvas(GPUNode.ScreenObject).FetchAllAnimCode;
-  //XGPUCanvas.GPUCodeEditor.ItemValue:=ObjectInspectorSelectedCodeTreeNode.GetAttribute('AnimationCode',true).AttribValue;
   GPUCodeEditor.ItemValue:=AllKernels[0].CodeBlock.Text;
   GPUCodeEditor.MessageLines:='';
   GPUCodeEditor.MessagesHeight:='1';
-//  GPUEditBox.ItemValue:=AllKernels[0].KDimensionsStr;
-//  GPUEditBox.ReadOnly:=true;
   GPUEditBox.ItemValue:='* pixelmap size *';
   //   GPUMemo.ItemValue:=TXGPUCanvas(ObjectInspectorSelectedCodeTreeNode.ScreenObject).GeneratedHTML;
   //!! Lazarus bug?     Have to populate GPUMemo later (eg. on tab change), otherwise the popup form crashes.
@@ -420,6 +379,7 @@ begin
   GPUEditorTabControl.TabIndex:=TabPage;
 
   tmp:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
+  GPUTableEditor.Table3DData:='[[[1]]]';
   GPUTableEditor.Table3DData:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
   {$ifndef JScript}
   GPUTableEditor.ResequenceComponents;
@@ -458,11 +418,6 @@ begin
     GPUComboBox.ItemIndex:=targetKernel;
     GPUComboBox.PriorIndex:=targetKernel;
     GPUCodeEditor.ItemValue:=AllKernels[targetKernel].CodeBlock.Text;
-//    GPUEditBox.ItemValue:=AllKernels[targetKernel].KDimensionsStr;
-//    if targetKernel>0 then
-//      GPUEditBox.ReadOnly:=false
-//    else
-//      GPUEditBox.ReadOnly:=true;
 
     GPUCodeEditor.ReadOnly:=false;
     GPUEditorMode:='Animation';

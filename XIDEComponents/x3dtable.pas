@@ -8,7 +8,7 @@ interface
 
 uses
     Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame, Math,
-    UtilsJSCompile, XForm, XButton, XVBox, XTabControl, XEditBox, XNumberSpinner, EventsInterface,
+    UtilsJSCompile, XForm, XButton, XVBox, XTabControl, XEditBox, XNumberSpinner,XComboBox, EventsInterface,
     PasteDialogUnit,
   {$ifndef JScript}
     fpjson  , jsonparser,
@@ -20,9 +20,6 @@ uses
   {$endif}
     WrapperPanel, Events, XTable;
 
-type TStringArray = Array of String;
-type T2DStringArray = Array of TStringArray;
-type T3DStringArray = Array of T2DStringArray;
 
 type
   TX3DTable = class(TXVBox)
@@ -40,9 +37,8 @@ type
     procedure SetXDimension(AValue:integer);
     procedure SetYDimension(AValue:integer);
     procedure SetZDimension(AValue:integer);
-    procedure SetTable3DData(AValue:string);
+    procedure SetTable3DData(const AValue:string);
 
- //   procedure SetMyEventTypes;  override;
     procedure SetPropertyDefaults;
     procedure BuildWidget;
     procedure ReBuild3DTableData;
@@ -67,7 +63,7 @@ type
     { Public declarations }
     myTableView:TXTable;
     PasteBtn:TXButton;
-    ZSelector:TXNumberSpinner;
+    ZSelector:TXComboBox;
     XDimEdit:TXEditBox;
     YDimEdit:TXEditBox;
     ZDimEdit:TXEditBox;
@@ -110,13 +106,32 @@ end;
 procedure TX3DTable.BuildWidget;
 var
   TblNode,ZNumNode,XEditNode,YEditNode,ZEditNode,BtnNode:TDataNode;
+  zeds:string;
+  i:integer;
 begin
 
-  ZNumNode:=AddDynamicWidget('TXNumberSpinner',self.myNode.MyForm,self.myNode,'ZSelector',self.myNode.NodeName,'Left',-1);
-  ZSelector:=TXNumberSpinner(ZNumNode.ScreenObject);
-  ZSelector.MinVal:=0;
-  ZSelector.MaxVal:=self.ZDimension-1;
-  ZSelector.ItemValue:=0;
+//  ZNumNode:=AddDynamicWidget('TXNumberSpinner',self.myNode.MyForm,self.myNode,'ZSelector',self.myNode.NodeName,'Left',-1);
+//  ZSelector:=TXNumberSpinner(ZNumNode.ScreenObject);
+//  ZSelector.MinVal:=0;
+//  ZSelector.MaxVal:=self.ZDimension-1;
+//  ZSelector.ItemValue:=0;
+//  ZSelector.LabelPos:='Left';
+//  ZSelector.LabelText:='Select Z Index:';
+//  ZNumNode.IsDynamic:=false;
+//  ZSelector.myNode.registerEvent('Change',@self.ZSelectorChange);
+
+  zeds:='[';
+  for i:=0 to self.ZDimension-1 do
+  begin
+    if i>0 then zeds:=zeds+',';
+    zeds:=zeds + inttostr(i);
+  end;
+  zeds:=zeds+']';
+
+  ZNumNode:=AddDynamicWidget('TXComboBox',self.myNode.MyForm,self.myNode,'ZSelector',self.myNode.NodeName,'Left',-1);
+  ZSelector:=TXComboBox(ZNumNode.ScreenObject);
+  ZSelector.OptionList:=zeds;
+  ZSelector.ItemValue:='0';
   ZSelector.LabelPos:='Left';
   ZSelector.LabelText:='Select Z Index:';
   ZNumNode.IsDynamic:=false;
@@ -278,13 +293,12 @@ begin
 end;
 {$endif}
 
-function JsonStringTo3DStringArray(str:String):T3DStringArray;
+function JsonStringTo3DStringArray(const str:String):T3DStringArray;
 {$ifndef JScript}
 var
-   Data,zData : TJSONData;
+   zData : TJSONData;
    zCount:integer;
    arr:T3DStringArray;
-   ArrayStr:String;
     zItem,yItem,xItem : TJSONData;
     z,y,x:integer;
     object_type:string;
@@ -293,51 +307,47 @@ begin
   // "[[[...],[...]],[[...]]]"
   setlength(arr,0);
   try
-    Data := GetJSON(str);
+  zData := GetJSON(str);
   except
     on E: Exception do
     begin
       showmessage('JSON error: '+e.Message);
-      Data := nil;
+      FreeAndNil(zData);
+      EXIT;
     end;
   end;
-  if Data<>nil then
+  zcount:=zData.Count;
+  setlength(arr,zCount);
+  for z :=0 to zcount-1 do
   begin
-    ArrayStr:=str;
-
-    zData := GetJSON(ArrayStr);
-    zcount:=zData.Count;
-    setlength(arr,zCount);
-    for z :=0 to zcount-1 do
+    zItem := zData.Items[z];
+    setlength(arr[z],zItem.Count);
+    for y:=0 to zItem.Count-1 do
     begin
-      zItem := zData.Items[z];
-      setlength(arr[z],zItem.Count);
-      for y:=0 to zItem.Count-1 do
+      yItem := zItem.Items[y];
+      setlength(arr[z,y],yItem.Count);
+      object_type := GetEnumName(TypeInfo(TJSONtype), Ord(yItem.JSONType));
+      if object_type='jtArray' then
       begin
-        yItem := zItem.Items[y];
-        setlength(arr[z,y],yItem.Count);
-        object_type := GetEnumName(TypeInfo(TJSONtype), Ord(yItem.JSONType));
-        if object_type='jtArray' then
+        for x:=0 to yItem.Count-1 do
         begin
-          for x:=0 to yItem.Count-1 do
+          xItem:= yItem.Items[x];
+          object_type := GetEnumName(TypeInfo(TJSONtype), Ord(xItem.JSONType));
+          if object_type='jtString' then
           begin
-            xItem:= yItem.Items[x];
-            object_type := GetEnumName(TypeInfo(TJSONtype), Ord(xItem.JSONType));
-            if object_type='jtString' then
-            begin
-              arr[z,y,x]:=QuoteIt(xItem.AsString);
-            end
-            else if object_type='jtNumber' then
-            begin
-              arr[z,y,x]:=xItem.AsString;
-            end
-            else
-              arr[z,y,x]:='""';
-          end;
+            arr[z,y,x]:=QuoteIt(xItem.AsString);
+          end
+          else if object_type='jtNumber' then
+          begin
+            arr[z,y,x]:=xItem.AsString;
+          end
+          else
+            arr[z,y,x]:='""';
         end;
       end;
     end;
   end;
+  zData.Free;
 
   result:=arr;
 end;
@@ -354,11 +364,14 @@ begin
 end;
 {$endif}
 
+
 function TX3DTable.Construct3DTableStringFromArray(arr:T3DStringArray):String;
 var
     z:integer;
     str:String;
 begin
+  //strl:=TStringList.Create;
+  str:='';
   for z:=0 to length(arr)-1 do
   begin
     if z>0 then
@@ -372,16 +385,14 @@ procedure TX3DTable.SetNew3DTableData;
 var
     arr:T3DStringArray;
     z:integer;
-    str,zData:String;
 begin
 //  Redisplay the data for the current Z index, from new 3d data string
-  str:=self.Table3DData;
   arr:=JsonStringTo3DStringArray(self.Table3DData);
-  z:=self.ZSelector.ItemValue;
+  z:=self.ZSelector.ItemIndex;
   if z>length(arr)-1 then
   begin
     z:=length(arr)-1;
-    self.ZSelector.ItemValue:=z;        // !!!!fires ZSelectorChange...comes back here
+    self.ZSelector.ItemIndex:=z;        // !!!!fires ZSelectorChange...comes back here
   end;
   if z<0 then z:=0;
   self.ZDimEdit.ItemValue:=inttostr(length(arr));
@@ -425,8 +436,7 @@ begin
 
   if length(arr)>0 then
   begin
-    zData:=myTableView.ConstructTableStringFromArray(arr[z]);
-    self.myTableView.TableData:=zData;
+    self.myTableView.TableData:=myTableView.ConstructTableStringFromArray(arr[z]);
   end;
 end;
 
@@ -439,9 +449,10 @@ var
 begin
 //  Rebuild the full TableData string, substituting the current Z Table's data at the relevant Z-index
   arr:=JsonStringTo3DStringArray(self.Table3DData);
-  z:=self.ZSelector.ItemValue;
+  z:=self.ZSelector.ItemIndex;
   zData:=self.myTableView.GetCellsAsArray(false);
   arr[z]:=zData;
+  self.myNode.SetAttributeValue('Table3DData','[[[0]]]'); // free some memory??
   NewData:=self.Construct3DTableStringFromArray(arr);
   self.myNode.SetAttributeValue('Table3DData',NewData);
 end;
@@ -450,13 +461,16 @@ procedure TX3DTable.Resize3DData;
 var
     arr,newArr:T3DStringArray;
     x,y,z:integer;
-    xdim,ydim:integer;
+    xdim,ydim,zdim:integer;
     NewData:String;
 begin
-  // X or Y dimension has been changed
+  //myTableView.TableData:='[1,2,3]';   // to free some memory?
+  // X or Y or Z dimension has been changed
   ydim:=strtoint(self.YDimEdit.ItemValue);
   xdim:=strtoint(self.XDimEdit.ItemValue);
-  setlength(newArr,self.ZSelector.MaxVal+1);
+  zdim:=strtoint(self.ZDimEdit.ItemValue);
+//  setlength(newArr,self.ZSelector.MaxVal+1);
+  setlength(newArr,zdim);
   arr:=JsonStringTo3DStringArray(self.Table3DData);
   for z:=0 to length(newArr)-1 do
   begin
@@ -519,10 +533,21 @@ begin
   self.ReSize3DData;
 end;
 procedure TX3DTable.ZEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+var
+    zeds:string;
+    i:integer;
 begin
  // {$ifdef JScript}showmessage('3d ZDim Change');{$endif}
   self.ZDimension:=strtoint(myValue);
-  self.ZSelector.MaxVal:=strtoint(myValue)-1;
+//  self.ZSelector.MaxVal:=strtoint(myValue)-1;
+  zeds:='[';
+  for i:=0 to self.ZDimension-1 do
+  begin
+    if i>0 then zeds:=zeds+',';
+    zeds:=zeds + inttostr(i);
+  end;
+  zeds:=zeds+']';
+  self.ZSelector.OptionList:=zeds;
   self.ReSize3DData;
 end;
 procedure TX3DTable.PasteData(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -633,7 +658,7 @@ procedure TX3DTable.SetZDimension(AValue:integer);
 begin
   myNode.SetAttributeValue('ZDimension',IntToStr(AValue),'Integer');
 end;
-procedure TX3DTable.SetTable3DData(AValue:string);
+procedure TX3DTable.SetTable3DData(const AValue:string);
 begin
   myNode.SetAttributeValue('Table3DData',AValue,'String');
   if self.ZSelector<>nil then

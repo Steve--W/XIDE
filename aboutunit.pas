@@ -114,7 +114,7 @@ begin
      {$endif}
      {$ifdef Python}
      {$ifndef JScript}
-     +'            ..............Python4Delphi <<<Python>>>' + LineEnding
+     +'            ..............Python <<<Python>>>' + LineEnding
      {$else}
      +'            ..............Pyodide     <<<Pyodide>>>' + LineEnding
      {$endif}
