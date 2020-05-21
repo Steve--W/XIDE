@@ -81,8 +81,8 @@ Desktop - uses the embedded python engine - users must first download and instal
 (https://github.com/Alexey-T/Python-for-Lazarus), and necessary embedded runtime files (eg https://www.python.org/downloads/windows/).  
 The path to these files must be set in XIDE.lpr (PythonLibDir and PythonVersion).
 
-Browser - Pyodide is included in XIDE to provide the Python interface.  The required Pyodide files are provided in the project 
-resource file xidepyodide.lrs.
+Browser - Pyodide is included in XIDE to provide the Python interface.  
+(ref: https://pyodide.readthedocs.io/en/latest/using_pyodide_from_javascript.html)
 
 Style Designer
 --------------

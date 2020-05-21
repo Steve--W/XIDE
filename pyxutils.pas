@@ -452,12 +452,13 @@ var
   script:TStringList;
 begin
   script:=TStringList.Create;
-  script.add('<script type="application/javascript" src="pyodide_local/loadlocal.js">');
-  script.add('</script> ');
-  script.add('<script>');
-  script.add('window.languagePluginUrl = "./pyodide_local/";');
-  script.add('</script>');
-  script.add('<script type="application/javascript" src="pyodide_local/pyodide.js">');
+  //script.add('<script type="application/javascript" src="pyodide_local/loadlocal.js">');
+  //script.add('</script> ');
+  //script.add('<script>');
+  //script.add('window.languagePluginUrl = "./pyodide_local/";');
+  //script.add('</script>');
+  //script.add('<script type="application/javascript" src="pyodide_local/pyodide.js">');
+  script.add('<script type="application/javascript" src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js">');
   script.add('</script>  ');
 
   script.add('<script type="application/javascript" >');
@@ -465,15 +466,12 @@ begin
   script.add('languagePluginLoader.then(() => {');
   script.add('  // pyodide is now ready to use...');
   script.add('  console.log(''python: ''+pyodide.runPython(''import sys\nsys.version''));');
-//  script.add('  pyodide.loadPackage(''numpy'');');
-//  script.add('  pyodide.loadPackage(''scipy'');');
 
   script.add('  pyodide.loadPackage(''numpy'').then(() => {');
   script.add('    console.log(''numpy is now available'') ');
   script.add('  });');
   script.add('  pyodide.loadPackage(''matplotlib'').then(() => {');
   script.add('    console.log(''matplotlib is now available'') ');
-//  script.add('    import matplotlib.pyplot as plt');
   script.add('    pyodideReady = ''yes''');
   script.add('  });');
 //  script.add('  pyodide.loadPackage(''scipy'').then(() => {');
