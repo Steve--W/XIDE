@@ -72,17 +72,21 @@ It also allows complete pascal code units to be added, to provide any common fun
 Python
 ------
 
-If the compiler directive -dPython is set, there is also an option to create Python language scripts here.  Python
-code is executed on entry to run mode.
+If the compiler directive -dPython is set, there is also an option to create Python language scripts here.  
+Python code is executed on entry to run mode.
 
 Python code can also be called directly from a Pascal event handler, using the function RunPython('..txt..');
 
-Desktop - uses the embedded python engine - users must first download and install the Python4Lazarus_package 
-(https://github.com/Alexey-T/Python-for-Lazarus), and necessary embedded runtime files (eg https://www.python.org/downloads/windows/).  
-The path to these files must be set in XIDE.lpr (PythonLibDir and PythonVersion).
+Desktop - uses the Lazarus embedded python engine - users must first download and install the Python4Lazarus_package 
+(https://github.com/Alexey-T/Python-for-Lazarus), and also install Python on their machine (https://www.python.org/downloads/).
 
 Browser - Pyodide is included in XIDE to provide the Python interface.  
 (ref: https://pyodide.readthedocs.io/en/latest/using_pyodide_from_javascript.html)
+   Offline - If you need to use Pyodide offline, it is necessary to create a local folder (./pyodide_local) containing 
+   the downloaded pyodide toolset (eg. from https://github.com/iodide-project/pyodide/releases/download/0.14.3/pyodide-build-0.14.3.tar.bz2)
+   This folder must also contain the file loadlocal.js, which can be found at:
+   https://github.com/iodide-project/pyodide/tree/6a2dd522f1eb4143f2630deae0a1fa9555546dfe/runlocal
+   or alternatively use the version of loadlocal.js supplied with XIDE.
 
 Style Designer
 --------------

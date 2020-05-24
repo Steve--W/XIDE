@@ -606,6 +606,9 @@ end;
    procedure TMyMethodObject.mmiSetImageSource(nm,str:String);                  stdcall;
    begin
      {$ifdef Python}
+     //!!!! do we need this here?  (required on browser, not desktop??)
+     // on desktop, image is populated via the 'source' property on TXImage, which wants a file name.
+     // ...can this be done using a pdf-formatted string instead? (eg as returned from a python figure)
      {$endif}
    end;
 

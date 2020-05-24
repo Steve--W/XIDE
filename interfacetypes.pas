@@ -669,7 +669,6 @@ begin
   asm
     var ob=document.getElementById(nm+"Contents");
     if (ob!=null) {
-      //ob.src=pyodide.globals.img_str
       ob.src=str;
     }
   end;

@@ -1066,6 +1066,7 @@ begin
   ExtraHTML.Free;
 end;
 
+
 procedure TXIDEForm.CompilerShowLogClick(Sender: TObject);
 begin
   ShowCompilerLog;

@@ -367,7 +367,8 @@ var
 begin
   if Assigned(PythonEngine1) then
   begin
-    // clear out all the defined stuff...
+    // Engine already exists,
+    // clear out any previously-declared python vars, functions etc...
     PythonEngine1.ExecString('for name in dir(): '+LineEnding+
                              '  if not name.startswith(''_'')'+
                                 ' and not name==''PyInterfaceVar'''+
@@ -376,6 +377,8 @@ begin
   end
   else
   begin
+    // First time in, Create python engine and interfaces...
+
 //  if Assigned(PyInterfaceVar) then
 //    PyInterfaceVar.Destroy;
 //  if Assigned(PyInterfaceE) then
@@ -400,16 +403,16 @@ begin
   //  PythonEngine1.DllPath:= pth;
   //  PythonEngine1.DllName:= ExtractFileName(PythonLibDir);
   //  PythonEngine1.RegVersion:=PythonVersion;
-    PythonEngine1.UseLastKnownVersion:=true;
-    PythonEngine1.AutoLoad:=false;
-  //  PythonEngine1.AutoLoad:=true;
-    //MaskFPUExceptions(True);
-    PythonEngine1.LoadDll;
   //  PythonEngine1.SetPythonHome(pth);
+  //  MaskFPUExceptions(True);
+  //  PythonEngine1.AutoLoad:=true;
+
+    PythonEngine1.UseLastKnownVersion:=true;     // use the Python version installed on the machine
+    PythonEngine1.AutoLoad:=false;
+    PythonEngine1.LoadDll;
     PythonVersion:=PythonEngine1.RegVersion;
 
-
-
+    // create interface objects for communication to/from Pascal code
     PyInterfaceVar:=TPythonDelphiVar.Create(nil);
     PyInterfaceVar.Name:='PyInterfaceVar';
     PyInterfaceVar.VarName:='PyInterfaceVar';
@@ -430,59 +433,95 @@ begin
   end;
 end;
 
-procedure InitPythonComponents;
-begin
-  PythonIO:=TPythonGUIInputOutput.Create(nil);
-  PyEvents:=TMyPyEvents.Create;
-  PythonIO.OnSendData:=@PyEvents.PyIOSent;
-  PythonIO.OnSendUniData:=@PyEvents.PyIOSentUni;
-end;
-
 procedure SetupPyEngine(PyLibDir,PyVersion:String);
 begin
   //PythonLibDir:=PyLibDir;
   //PythonVersion:=PyVersion;
-  InitPythonComponents;
-  // start the engine
+  PythonIO:=TPythonGUIInputOutput.Create(nil);
+  PyEvents:=TMyPyEvents.Create;
+  PythonIO.OnSendData:=@PyEvents.PyIOSent;
+  PythonIO.OnSendUniData:=@PyEvents.PyIOSentUni;
+  // create and start the python engine
   DoPy_InitEngine;
 end;
 
 function PyodideScript:TStringList;
 var
   script:TStringList;
+  myCode:String;
 begin
   script:=TStringList.Create;
-  //script.add('<script type="application/javascript" src="pyodide_local/loadlocal.js">');
-  //script.add('</script> ');
-  //script.add('<script>');
-  //script.add('window.languagePluginUrl = "./pyodide_local/";');
-  //script.add('</script>');
-  //script.add('<script type="application/javascript" src="pyodide_local/pyodide.js">');
-  script.add('<script type="application/javascript" src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js">');
-  script.add('</script>  ');
-
+  // Load the pyodide script from the web; if unavailable try loading from pyodide_local...
   script.add('<script type="application/javascript" >');
-  script.add('var pyodideReady = "no"; ');
-  script.add('languagePluginLoader.then(() => {');
-  script.add('  // pyodide is now ready to use...');
-  script.add('  console.log(''python: ''+pyodide.runPython(''import sys\nsys.version''));');
+  script.add('var pyodideReady = "no";');
+  script.add('var localErrDone = false;');
+  script.add('var pysrc1=document.createElement("script")');
+  script.add('var pysrc2=document.createElement("script")');
+  script.add('var pysrc3=document.createElement("script")');
+  script.add('pysrc1.setAttribute("type","application/javascript")');
+  script.add('pysrc2.setAttribute("type","application/javascript")');
+  script.add('pysrc3.setAttribute("type","application/javascript")');
+  script.add('function loadpyodidefromweb(){');
+  script.add('    console.log("try web pyodide load...");');
+  script.add('    window.languagePluginUrl = "https://pyodide-cdn2.iodide.io/v0.15.0/full/";');
+  script.add('    pysrc1.setAttribute("src","https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js");');
+  script.add('    document.getElementsByTagName("head")[0].prepend(pysrc1)');
+  script.add('}');
+  script.add('function loadpyodidelocal(){ ');
+  script.add('       console.log("try local pyodide load..."); ');
+  script.add('       if (pysrc1.parentNode!=null) { ');
+  script.add('         document.getElementsByTagName("head")[0].removeChild(pysrc1); }');
+  script.add('       window.languagePluginUrl = "./pyodide_local/";');
+  script.add('       pysrc2.setAttribute("src", "pyodide_local/loadlocal.js");');
+  script.add('       document.getElementsByTagName("head")[0].prepend(pysrc2);');
+  script.add('       pysrc3.setAttribute("src", "pyodide_local/pyodide.js");');
+  script.add('       pysrc2.after(pysrc3); ');
+  script.add('}');
+  script.add('loadpyodidefromweb(); //dynamically load and add pyodide script');
+  script.add('</script>');
+  script.add('<script type="text/javascript" > ');
+  script.add('pysrc1.onerror = function (){');
+  script.add('              console.log("web load failed");');
+  script.add('              loadpyodidelocal();');
+  script.add('            } ');
+  script.add('function noLocalPyodide(){');
+  script.add('  if (localErrDone==false) {');
+  script.add('    console.log("cannot load local pyodide - Python will be unavailable"); ');
+  script.add('    console.log("To work with Pyodide offline, create a folder ./pyodide_local"); ');
+  script.add('    console.log("   This folder must contain pyodide files, such as provided from:"); ');
+  script.add('    console.log("      https://github.com/iodide-project/pyodide/releases/download/0.14.3/pyodide-build-0.14.3.tar.bz2");');
+  script.add('    console.log("   and also include the file loadlocal.js, which can be found at:");');
+  script.add('    console.log("      https://github.com/iodide-project/pyodide/tree/6a2dd522f1eb4143f2630deae0a1fa9555546dfe/runlocal");');
+  script.add('    localErrDone = true;');
+  script.add('    alert("cannot load pyodide - Python will be unavailable. See console for messages."); ');
+  script.add('}} ');
+  script.add('pysrc2.onerror = function (){');
+  script.add('              noLocalPyodide(); ');
+  script.add('            }');
+  script.add('pysrc3.onerror = function (){');
+  script.add('              noLocalPyodide(); ');
+  script.add('            }');
+  script.add('</script>');
+  script.add('<script type="text/javascript" > ');
+  script.add('function pysrcLoaded() { ');
+  script.add('    // pyodide is now ready to use...  ' );
+  script.add('    console.log("python: "+pyodide.runPython("import sys\nsys.version"));' );
+  script.add('    pyodide.loadPackage("numpy").then(() => {');
+  script.add('      console.log("numpy is now available");' );
+  script.add('    });');
+  script.add('    pyodide.loadPackage("matplotlib").then(() => {');
+  script.add('      console.log("matplotlib is now available"); ' );
+  script.add('      pyodideReady = "yes";');
+  script.add('    }); ' );
+  script.add('  pas.XIDEMain.StartupPython(); ');
+  script.add(' } ');
+  script.add('</script> ');
+  script.add('<script> ');
+  script.add('        window.addEventListener(''DOMContentLoaded'', function() { ');
+  script.add('             languagePluginLoader.then(() => { pysrcLoaded();}); ');
+  script.add('	    });');
+  script.add('</script> ');
 
-  script.add('  pyodide.loadPackage(''numpy'').then(() => {');
-  script.add('    console.log(''numpy is now available'') ');
-  script.add('  });');
-  script.add('  pyodide.loadPackage(''matplotlib'').then(() => {');
-  script.add('    console.log(''matplotlib is now available'') ');
-  script.add('    pyodideReady = ''yes''');
-  script.add('  });');
-//  script.add('  pyodide.loadPackage(''scipy'').then(() => {');
-//  script.add('    console.log(''scipy is now available'') ');
-//  script.add('    pas.XIDEMain.StartupPython();');
-//  script.add('  });');
-
-  script.add('  pas.XIDEMain.StartupPython();');
-
-  script.add('});');
-  script.add('</script>  ');
   result:=script;
 end;
 
@@ -519,7 +558,7 @@ begin
   InitScript.add('  PyInterfaceVar.Value = Xmsg');
   InitScript.add('  return Xmsg.rslt');
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
-  InitScript.add('  return RunXIDEFunc(''GetPropertyValue'',(NodeName,PropName))');
+  InitScript.add('  return RunXIDEFunc(''GetPropertyValue'',(NodeName,PropName)).decode(''utf-8'')');
 //  InitScript.add('  print(msg.args[0]+'' ''+msg.args[1]+'' = ''+msg.rslt)');
   InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');
   InitScript.add('  RunXIDEFunc(''SetPropertyValue'',(NodeName,PropName,NewValue))');
@@ -570,13 +609,13 @@ begin
   InitScript.add('def HidePointer():');
   InitScript.add('  RunXIDEFunc(''HidePointer'',(0,0))');
   InitScript.add('def UserSystemAsString():');
-  InitScript.add('  return RunXIDEFunc(''UserSystemAsString'',(0,0))');
+  InitScript.add('  return RunXIDEFunc(''UserSystemAsString'',(0,0)).decode(''utf-8'')');
   InitScript.add('def LoadUserSystemString(SystemString):');
   InitScript.add('  RunXIDEFunc(''LoadUserSystemString'',(SystemString,0))');
   InitScript.add('def ConsoleLog(txt):');
   InitScript.add('  RunXIDEFunc(''ConsoleLog'',(txt,0))');
   InitScript.add('def Array2DToString(arr):');
-  InitScript.add('  return RunXIDEFunc(''Array2DToString'',(arr,0))');
+  InitScript.add('  return RunXIDEFunc(''Array2DToString'',(arr,0)).decode(''utf-8'')');
   InitScript.add('def GetGPUPixelArray(GPUName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUPixelArray'',(GPUName,0))');
   InitScript.add('def GetGPUPixelArrayAsString(GPUName):');
@@ -611,6 +650,7 @@ var
   InitScript:TStringList;
   txt:String;
 begin
+  // remove any previously-declared python vars, functions etc
   txt:='for name in dir(): '+LineEnding+
        '  if not name.startswith(''_''):'+LineEnding+
        '    del globals()[name]'+LineEnding;
@@ -623,7 +663,6 @@ begin
   // Sets up an internal library of XIDE Interface functions, available to the user.
   InitScript.Clear;
 
-  InitScript.add('print(''Running Python Initial Script'')');
   InitScript.add('class eClass:');
   InitScript.add('  EventType = ''''');
   InitScript.add('  NodeId = ''''');
@@ -632,6 +671,8 @@ begin
   InitScript.add('e = eClass()');
   InitScript.add('');
   InitScript.add('from js import pas');
+  InitScript.add('import io');
+  InitScript.add('import base64');
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
   InitScript.add('  return pas.InterfaceTypes.GetPropertyValue(NodeName,PropName)');
   InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');
@@ -698,16 +739,14 @@ begin
   InitScript.add('  return pas.InterfaceTypes.GetGPUStageArray(GPUName)');
   InitScript.add('def GetGPUStageArrayAsString(GPUName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUStageArrayAsString(GPUName)');
-  InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
-  InitScript.add('  return json.dumps(npArray.tolist())');
   InitScript.add('def ShowPythonPlot(ImgName,fig):');
   InitScript.add('  buf = io.BytesIO()');
   InitScript.add('  fig.savefig(buf, format=''png'')');
   InitScript.add('  buf.seek(0)');
   InitScript.add('  img_str = ''data:image/png;base64,'' + base64.b64encode(buf.read()).decode(''UTF-8'')');
   InitScript.add('  pas.InterfaceTypes.SetImageSource(ImgName,img_str)');
-
-  InitScript.add('print(''RunInitialScript done'')');
+  InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
+  InitScript.add('  return json.dumps(npArray.tolist())');
 
   // execute the initialisation py script
   txt:=InitScript.Text;
