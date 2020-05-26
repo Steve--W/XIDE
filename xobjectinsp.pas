@@ -1252,6 +1252,7 @@ end;
 
 function getname(PromptString:string):string;
 var resultstring,DefaultString:string;
+  ok:Boolean;
 begin
    DefaultString := 'Created_'+DateTimeToStr(Now);
    DefaultString :=myStringReplace( DefaultString,' ','_',999,999);
@@ -1259,7 +1260,22 @@ begin
    DefaultString :=myStringReplace( DefaultString,'-','_',999,999);
    DefaultString :=myStringReplace( DefaultString,'/','_',999,999);
 
-   resultstring:= XIDEPrompt(PromptString,DefaultString);
+   ok:=false;
+   while not ok do
+   begin
+     resultstring:= trim(XIDEPrompt(PromptString,DefaultString));
+     DefaultString:=resultstring;
+     if FoundString(resultstring,'.')>0 then
+       showmessage('Enter the name without dot characters ''.''')
+     else if FoundString(resultstring,' ')>0 then
+       showmessage('Enter the name without space characters')
+     else if not SysUtils.IsValidIdent(resultstring) then
+       showmessage('Name is not valid - Use Alphanumeric characters plus ''_''; first char non-numeric.')
+     else
+       ok:=true;
+   end;
+
+
    result:=resultstring;
 end;
 
@@ -2365,7 +2381,7 @@ begin
          if ObjectInspectorSourceCut=false then
          begin
              // Dialog for name entry
-             NewName:=trim(getname('Enter Component Name:'));
+             NewName:=getname('Enter Component Name:');
          end
          else
          begin
@@ -3264,7 +3280,8 @@ begin
   if (AvailableResourcesSelectedNode<>nil)
     and (AvailableResourcesSelectedNode.NodeClass='RUI')
     and (AvailableResourcesSelectedNode.NodeType='TXComposite') then
-    OIDeleteComposite;
+    if XIDEConfirm('OK to delete '+AvailableResourcesSelectedNode.NodeName+'?') then
+      OIDeleteComposite;
 end;
 
 procedure OILoadComposite;
@@ -3344,8 +3361,8 @@ begin
     if (TreeInFocus.NodeName=SystemRootName)
     and (ObjectInspectorSelectedNavTreeNode<>nil) then
     begin
-      //showmessage('OIDeleteItem '+ObjectInspectorSelectedNavTreeNode.NodeName);
-      DeleteItem(UIRootNode,ObjectInspectorSelectedNavTreeNode)
+      if XIDEConfirm('OK to delete component '+ObjectInspectorSelectedNavTreeNode.NodeName+'?') then
+        DeleteItem(UIRootNode,ObjectInspectorSelectedNavTreeNode)
     end;
   end;
 end;
@@ -3358,7 +3375,8 @@ begin
   Deleted:=false;
   NodeToDelete:=FindDataNodeById(UIRootNode,NodeId,NameSpace,ShowNotFoundMsg);
   if NodeToDelete<>nil then
-    Deleted:=DeleteItem(UIRootNode,NodeToDelete);
+    if XIDEConfirm('OK to delete component '+NodeToDelete.NodeName+'?') then
+      Deleted:=DeleteItem(UIRootNode,NodeToDelete);
   result:=Deleted;
 end;
 
@@ -3852,10 +3870,12 @@ begin
     end;
     {$endif}
     {$endif}
+    SuppressUserEvents:=false;
   end
   else
   begin
     // Pascal compilation of event code has failed
+    SuppressUserEvents:=true;
     {$ifndef JScript}
     DisplayDllCompileErrors;
     {$else}
@@ -3970,6 +3990,7 @@ begin
     {$endif}
 
     DesignMode:=true;
+    SuppressUserEvents:=true;
     SetLength(SourcedAttribs,0);        // keep these during design mode !!!!????
     TXMenuItem(Sender).Caption:='Run Mode';
     // Show Object Inspector
@@ -4208,8 +4229,8 @@ begin
       and (CodeEditForm.Mode='FunctionCode') then
       begin
         // we are displaying compiler errors in the unit...
-        // !!!! needs sorting out. Unit code is partly auto-generated so cannot allow edits here !!!!
-        showmessage('arg - see CodeEditorClosed');
+        // !! needs sorting out. Unit code is partly auto-generated so cannot allow edits here !!
+        showmessage('oops - see CodeEditorClosed');
       end
       else
       begin
@@ -4995,8 +5016,11 @@ begin
     or  (ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript')
     or  (ObjectInspectorSelectedCodeTreeNode.NodeType='Function') then
     begin
-      DeleteItem(CodeRootNode,ObjectInspectorSelectedCodeTreeNode);
-      OISelectedCodeProcName:='';
+      if XIDEConfirm('OK to delete '+ObjectInspectorSelectedCodeTreeNode.NodeName+'?') then
+      begin
+        DeleteItem(CodeRootNode,ObjectInspectorSelectedCodeTreeNode);
+        OISelectedCodeProcName:='';
+      end;
     end
     else
       if  (ObjectInspectorSelectedCodeTreeNode.NodeType='Root') then
@@ -5013,20 +5037,10 @@ end;
 Procedure OIEncapsulate;
 var
   fullstring,itemName:String;
-  ok:Boolean;
 begin
   // Take the current user-defined system, and store its structure in the resource tree under 'Composites', with
   // a name provided by the user, and save to local storage.
-  ok:=false;
-
-  while not ok do
-  begin
-    itemName:=trim(getname('Enter Name of new Composite Item:'));
-    if FoundString(itemName,'.')>0 then
-      showmessage('Enter the name without dot characters ''.''')
-    else
-      ok:=true;
-  end;
+  itemName:=getname('Enter Name of new Composite Item:');
   fullstring:=BuildSystemString(true);
   itemName:=itemName+'.xcmp';
   {$ifndef JScript}

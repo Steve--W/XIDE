@@ -11,7 +11,7 @@ object PropertyEditForm: TPropertyEditForm
   LCLVersion = '2.1.0.0'
   object PropertyEditVBox1: TXVBox
     Name = 'PropertyEditVBox1'
-    Tag = 389442824
+    Tag = 389649376
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -32,29 +32,29 @@ object PropertyEditForm: TPropertyEditForm
     InheritColor = False
     object PropertyEditFormXTabControl11: TXTabControl
       Name = 'PropertyEditFormXTabControl11'
-      Tag = 389442440
+      Tag = 389649056
       Left = 2
-      Height = 373
+      Height = 395
       Top = 2
       Width = 645
       ActivePage = PropertyEditTabSheet3
       Align = alTop
-      Constraints.MaxHeight = 373
+      Constraints.MaxHeight = 395
       Constraints.MaxWidth = 645
-      Constraints.MinHeight = 373
+      Constraints.MinHeight = 395
       Constraints.MinWidth = 645
       TabIndex = 2
       TabOrder = 0
       IsContainer = True
       IsVisible = True
       ContainerWidth = '100%'
-      ContainerHeight = '85%'
+      ContainerHeight = '90%'
       BgColor = 13619376
       Alignment = 'Left'
       object PropertyEditTabSheet1: TXTabSheet
         Name = 'PropertyEditTabSheet1'
         Caption = 'Validation'
-        ClientHeight = 345
+        ClientHeight = 367
         ClientWidth = 637
         AlignChildrenVertical = True
         IsContainer = True
@@ -62,11 +62,11 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditTab1VBox1: TXVBox
           Name = 'PropertyEditTab1VBox1'
-          Tag = 389442360
+          Tag = 389648976
           AnchorSideLeft.Control = PropertyEditTabSheet1
           AnchorSideTop.Side = asrCenter
           Left = 0
-          Height = 369
+          Height = 391
           Top = 0
           Width = 637
           Align = alTop
@@ -161,7 +161,7 @@ object PropertyEditForm: TPropertyEditForm
       object PropertyEditTabSheet2: TXTabSheet
         Name = 'PropertyEditTabSheet2'
         Caption = 'Source'
-        ClientHeight = 345
+        ClientHeight = 367
         ClientWidth = 637
         AlignChildrenVertical = True
         IsContainer = True
@@ -169,9 +169,11 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditSourceHBox: TXHBox
           Name = 'PropertyEditSourceHBox'
-          Tag = 389442760
+          Tag = 389649328
+          AnchorSideLeft.Control = PropertyEditTabSheet2
+          AnchorSideTop.Side = asrCenter
           Left = 0
-          Height = 341
+          Height = 391
           Top = 0
           Width = 637
           Align = alTop
@@ -189,21 +191,19 @@ object PropertyEditForm: TPropertyEditForm
             Name = 'PropertyEditSourceBox'
             Tag = -1
             Left = 0
-            Height = 341
+            Height = 363
             Top = 0
             Width = 66
             Align = alLeft
             AutoSize = True
             myControl.Tag = -1
-            myControl.AnchorSideLeft.Side = asrCenter
+            myControl.AnchorSideLeft.Side = asrBottom
             myControl.AnchorSideTop.Control = PropertyEditSourceBox
-            myControl.AnchorSideTop.Side = asrCenter
             myControl.AnchorSideBottom.Side = asrBottom
             myControl.Left = -161
             myControl.Height = 23
-            myControl.Top = 0
+            myControl.Top = 1
             myControl.Width = 399
-            myControl.Anchors = []
             myControl.Constraints.MaxWidth = 399
             myControl.Constraints.MinWidth = 399
             myControl.TabOrder = 0
@@ -225,7 +225,7 @@ object PropertyEditForm: TPropertyEditForm
             Name = 'PropertyEditSourceBtn'
             Tag = -1
             Left = 66
-            Height = 341
+            Height = 363
             Top = 0
             Width = 35
             Align = alLeft
@@ -256,7 +256,7 @@ object PropertyEditForm: TPropertyEditForm
       object PropertyEditTabSheet3: TXTabSheet
         Name = 'PropertyEditTabSheet3'
         Caption = 'Edit'
-        ClientHeight = 345
+        ClientHeight = 367
         ClientWidth = 637
         AlignChildrenVertical = True
         IsContainer = True
@@ -264,18 +264,17 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditVBox99: TXVBox
           Name = 'PropertyEditVBox99'
-          Tag = 389442808
+          Tag = 389649360
           Left = 0
-          Height = 341
+          Height = 363
           Top = 0
-          Width = 643
+          Width = 637
           Align = alTop
           AutoSize = True
           IsContainer = True
           AlignChildrenVertical = True
           Alignment = 'Left'
           IsVisible = True
-          ContainerWidth = '100%'
           ContainerHeight = '100%'
           BgColor = 13619376
           SpacingAround = 0
@@ -283,11 +282,11 @@ object PropertyEditForm: TPropertyEditForm
           InheritColor = False
           object PropertyEditLabel: TXLabel
             Name = 'PropertyEditLabel'
-            Tag = 389442776
-            Left = 0
-            Height = 32
-            Top = 0
-            Width = 643
+            Tag = -1
+            Left = 2
+            Height = 15
+            Top = 2
+            Width = 633
             Align = alTop
             AutoSize = True
             myControl.AnchorSideLeft.Control = PropertyEditLabel
@@ -302,19 +301,18 @@ object PropertyEditForm: TPropertyEditForm
             AlignChildrenVertical = True
             Alignment = 'Left'
             IsVisible = True
-            ContainerHeight = '10%'
             BgColor = clNone
-            SpacingAround = 0
+            SpacingAround = 2
             Border = False
             LabelCaption = 'Edit the Property Value:'
           end
           object PropertyEditVBox66: TXVBox
             Name = 'PropertyEditVBox66'
-            Tag = 389442792
+            Tag = 389651696
             Left = 0
-            Height = 328
-            Top = 32
-            Width = 641
+            Height = 359
+            Top = 19
+            Width = 643
             Align = alTop
             AutoSize = True
             IsContainer = True
@@ -322,7 +320,7 @@ object PropertyEditForm: TPropertyEditForm
             Alignment = 'Left'
             IsVisible = True
             ContainerWidth = '100%'
-            ContainerHeight = '90%'
+            ContainerHeight = '100%'
             BgColor = clNone
             SpacingAround = 0
             Border = False
@@ -336,7 +334,7 @@ object PropertyEditForm: TPropertyEditForm
       Tag = -1
       Left = 2
       Height = 25
-      Top = 375
+      Top = 397
       Width = 643
       Align = alTop
       AutoSize = True

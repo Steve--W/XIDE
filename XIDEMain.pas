@@ -18,6 +18,7 @@ unit XIDEMain;
 
 interface
 
+
 uses
   Classes, SysUtils,
 {$ifndef JScript}

@@ -739,7 +739,9 @@ begin
            if targetNode.NodeType='PasUnit' then
              self.Mode:='PasUnitCode'
            else if targetNode.NodeType='Function' then
-             self.Mode:='FunctionCode';
+             self.Mode:='FunctionCode'
+           else if targetNode.NodeType='PythonScript' then
+             self.Mode:='PythonScriptCode';
            Context:=targetNode.NodeType;
            self.EventType:='';
            CodeEditInit.ItemValue:='';
@@ -1046,7 +1048,7 @@ begin
   begin
     CodeEditStatus:='ok';
     TXForm(self).Showing:='No';
-       CodeEditorClosed(OIEditBox);
+    CodeEditorClosed(OIEditBox);
   end;
 end;
 

@@ -626,7 +626,7 @@ begin
   InitScript.add('  return RunXIDEFunc(''GetGPUStageArrayAsString'',(GPUName,0))');
   InitScript.add('def ShowPythonPlot(ImgName,fig):');            //!!!! how to do this with string var instead of file ????
   InitScript.add('  fig.savefig(ImgName+''.png'')');
-  InitScript.add('  SetPropertyValue(''pyplot'',''Source'',ImgName+''.png'')');
+  InitScript.add('  SetPropertyValue(ImgName,''Source'',ImgName+''.png'')');
   InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
   InitScript.add('  return json.dumps(npArray.tolist())');
 

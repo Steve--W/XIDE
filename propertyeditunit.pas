@@ -74,6 +74,7 @@ type
     procedure InsertTableColumn(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure DeleteTableRow(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure DeleteTableColumn(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+    procedure CopyStringToTable(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 
     procedure SetupPages;
   private
@@ -169,7 +170,7 @@ begin
         NewEditBox.LabelText:='';
         EditNode:=NewEditBox.myNode;
         NewEditBox.ItemValue:=TargetAttribute.AttribValue;
-        NewEditBox.BoxWidth:='300px';
+        NewEditBox.BoxWidth:='90%';
       end;
     end;
   end
@@ -220,7 +221,7 @@ begin
     NewTable.IsNumeric:=TXTable(TargetNode.ScreenObject).IsNumeric;
     NewTable.TableData:=TargetAttribute.AttribValue;
     str:= NewTable.TableData;
-    NewTable.TableHeight:='80%';
+    NewTable.TableHeight:='70%';
     NewTable.TableWidth:='100%';
     NewTable.LabelText:='';
     if TargetNode.NodeType='TXTable' then
@@ -253,6 +254,20 @@ begin
     NewBtn4.myNode.registerEvent('ButtonClick',@PropertyEditForm.DeleteTableColumn);
 
     EditNode:=NewTable.myNode;
+
+    // option to edit the TableData string directly - EditBox
+    NewEditBox:=TXEditBox(AddDynamicWidget('TXEditBox',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditWidget2','','Left',-1).ScreenObject);
+    NewEditBox.LabelText:='OR edit TableData as string....';
+    NewEditBox.LabelPos:='Top';
+    //EditNode:=NewEditBox.myNode;
+    NewEditBox.ItemValue:=TargetAttribute.AttribValue;
+    NewEditBox.BoxWidth:='90%';
+    NewBtn5:=TXButton(AddDynamicWidget('TXButton',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditBtn5','','Left',-1).ScreenObject);
+    NewBtn5.Caption:='Apply to Table';
+    NewBtn5.Hint:='Apply the string value to the Table';
+    NewBtn5.myNode.registerEvent('ButtonClick',@PropertyEditForm.CopyStringToTable);
+
+
   end
   else if TargetAttribute.AttribType='Boolean' then
   begin
@@ -268,6 +283,7 @@ begin
     EditNode:=NewColorPicker.myNode;
     NewColorPicker.ItemValue:=TargetAttribute.AttribValue;
   end;
+  PropertyEditFormXTabControl11.TabIndex:=2;
 end;
 
 {$ifndef JScript}
@@ -524,9 +540,12 @@ end;
 procedure TPropertyEditForm.InsertTableRow(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
   myTable:TXTable;
+  myEditBox:TXEditBox;
 begin
   myTable:=TXTable(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget','',true).ScreenObject);
+  myEditBox:=TXEditBox(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget2','',true).ScreenObject);
   myTable.AddTableRows(1);
+  myEditBox.ItemValue:=myTable.TableData;
   {$ifndef JScript}
   TStringGrid(myTable.myControl).FixedRows:=0; //allow editing column headers
   {$endif}
@@ -536,9 +555,12 @@ end;
 procedure TPropertyEditForm.InsertTableColumn(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
   myTable:TXTable;
+  myEditBox:TXEditBox;
 begin
   myTable:=TXTable(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget','',true).ScreenObject);
+  myEditBox:=TXEditBox(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget2','',true).ScreenObject);
   myTable.AddTableColumns(1);
+  myEditBox.ItemValue:=myTable.TableData;
   {$ifndef JScript}
   TStringGrid(myTable.myControl).FixedRows:=0; //allow editing column headers
   {$endif}
@@ -547,17 +569,22 @@ end;
 procedure TPropertyEditForm.DeleteTableRow(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
   myTable:TXTable;
+  myEditBox:TXEditBox;
 begin
   myTable:=TXTable(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget','',true).ScreenObject);
+  myEditBox:=TXEditBox(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget2','',true).ScreenObject);
   myTable.DeleteSelectedRow;
+  myEditBox.ItemValue:=myTable.TableData;
 end;
 
 procedure TPropertyEditForm.DeleteTableColumn(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
   myTable:TXTable;
+  myEditBox:TXEditBox;
   r,c:integer;
 begin
   myTable:=TXTable(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget','',true).ScreenObject);
+  myEditBox:=TXEditBox(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget2','',true).ScreenObject);
   r:=myTable.SelectedRow;
   c:=myTable.SelectedCol;
   //i:=TStringGridAccess(TStringGrid(myTable.myControl)).Col;
@@ -579,12 +606,23 @@ begin
     end;
     {$endif}
     myTable.TableData:=myTable.ConstructDataString;
+    myEditBox.ItemValue:=myTable.TableData;
     {$ifndef JScript}
     TStringGrid(myTable.myControl).FixedRows:=0; //allow editing column headers
     {$endif}
   end;
 end;
 
+procedure TPropertyEditForm.CopyStringToTable(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+var
+  myTable:TXTable;
+  myEditBox:TXEditBox;
+  r,c:integer;
+begin
+  myTable:=TXTable(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget','',true).ScreenObject);
+  myEditBox:=TXEditBox(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget2','',true).ScreenObject);
+  myTable.TableData:=myEditBox.ItemValue;
+end;
 
 
 end.
