@@ -64,6 +64,7 @@ TGetGPUStageArrayAsString=function(GPUName:String):String of object;
 TDebugStart=procedure of object;
 TRunPython=procedure(str:String) of object;
 TSetImageSource=procedure(nm,str:String) of object;
+TWobbleCEF=procedure(nm:String) of object;
 
 {$ifdef JScript}
 var
@@ -105,6 +106,7 @@ GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
 DebugStart:TDebugStart;
 RunPython:TRunPython;
 SetImageSource:TSetImageSource;
+WobbleCEF:TWobbleCEF;
 
 
 var EventsNameSpace:String;

@@ -21,7 +21,7 @@ interface
 uses
   Classes, SysUtils, StringUtils, ExtCtrls, Dialogs, Clipbrd, Forms, Controls,
   NodeUtils, LazsUtils, EventsInterface, Events, XForm, XBitMap, XObjectInsp, XGPUCanvas, XTable,
-  XComposite, EventLogging,
+  XComposite, EventLogging, XIframe,
   MouseAndKeyInput, LCLType, TypInfo;
 
 type
@@ -67,6 +67,7 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiDebugStart; stdcall;
     procedure mmiRunPython(str:String); stdcall;
     procedure mmiSetImageSource(nm,str:String); stdcall;
+    procedure mmiWobbleCEF(nm:String);                  stdcall;
 end;
 
 type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
@@ -112,6 +113,7 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiDebugStart; stdcall;
       procedure mmiRunPython(str:String); stdcall;
       procedure mmiSetImageSource(nm,str:String); stdcall;
+      procedure mmiWobbleCEF(nm:String);       stdcall;
   end;
 
 type TEventTimerTag = class
@@ -609,6 +611,20 @@ end;
      //!!!! do we need this here?  (required on browser, not desktop??)
      // on desktop, image is populated via the 'source' property on TXImage, which wants a file name.
      // ...can this be done using a pdf-formatted string instead? (eg as returned from a python figure)
+     {$endif}
+   end;
+   procedure TMyMethodObject.mmiWobbleCEF(nm:String);                  stdcall;
+   var
+     fr:TXIFrame;
+     myNode:TDataNode;
+   begin
+     {$ifdef Chromium}
+     myNode:=FindDataNodeById(SystemNodetree,nm,EventsNameSpace,true);
+     if myNode<>nil then
+     begin
+       fr:=TXIframe(myNode.ScreenObject);
+       fr.Wobble;
+     end;
      {$endif}
    end;
 

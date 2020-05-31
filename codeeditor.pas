@@ -100,6 +100,7 @@ type
   public
     Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode
     TargetNodeName:String;
+    TargetNameSpace:String;
     EventType:String;
 
     NumInputs:integer;
@@ -126,6 +127,7 @@ uses XObjectInsp;
 procedure TCodeEditForm.InitialiseOnShow(Context,NodeName,EvType:String);
 begin
   TargetNodeName:=NodeName;
+  TargetNameSpace:='';
   EventType:=EvType;
   self.CodeEditContextLabel.LabelCaption:=Context+' '+NodeName+' '+EvType;
   CodeEdit.LabelText:='';
@@ -277,6 +279,7 @@ begin
   CodeEditFunctionResultType.ItemIndex:=0;
 
   TargetNodeName:='';
+  TargetNameSpace:='';
   EventType:='';
   self.CodeEditContextLabel.LabelCaption:='';
   CodeEdit.LabelText:='';
@@ -582,6 +585,7 @@ begin
     FreeAndNil(tmp1);
 
     self.TargetNodeName:='';
+    self.TargetNameSpace:='';
     self.EventType:='';
     //filename is NodeName + EventType
     FStrings2:=StringSplit(FileName,'.');
@@ -589,36 +593,51 @@ begin
     begin
       if FStrings2[1]='inc' then
       begin
-        // could be a function or an event handler
+        // could be a function or an event handler       !!!!namespace - separate with _ ?  !!!!disallow _ in element names????
         FStrings:=StringSplit(FStrings2[0],'__');
         if FStrings.Count>=2 then
         begin
-          self.TargetNodeName:=FStrings[0];
-          self.EventType:=FStrings[1];
-          self.Mode:='EventCode';
-          Context:='Event Handler';
+          if FStrings.Count=2 then
+          begin
+            self.TargetNodeName:=FStrings[0];
+            self.EventType:=FStrings[1];
+          end
+          else
+          begin
+            self.TargetNameSpace:=FStrings[0];
+            self.TargetNodeName:=FStrings[1];
+            self.EventType:=FStrings[2];
+          end;
 
-          CodeEditInitTab.IsVisible:=true;
+          if self.TargetNameSpace='' then
+          begin
+            self.Mode:='EventCode';
+            Context:='Event Handler';
 
-          // Load up both the main event code AND the initialisation code...
-          TargetNode:=FindDataNodeById(SystemNodeTree,self.TargetNodeName,'',true);
-          CodeEditInit.ItemValue:=TargetNode.GetEventInitCode(self.EventType);
+            CodeEditInitTab.IsVisible:=true;
 
-          CodeEdit.ItemValue:=TargetNode.GetEventCode(self.EventType);
-          targetLine:=StrToInt(linenum)-1;
-          if FoundString(FileName,'Init.')>0 then
-             CodeEditMainTabs.TabIndex:=1;
-        end
-        else
-        begin
-          self.TargetNodeName:=FStrings[0];
-          self.Mode:='FunctionCode';
-          Context:='Function';
-          targetLine:=StrToInt(linenum);
+            // Load up both the main event code AND the initialisation code...
+            TargetNode:=FindDataNodeById(SystemNodeTree,self.TargetNodeName,'',true);
+            if TargetNode<>nil then
+            begin
+              CodeEditInit.ItemValue:=TargetNode.GetEventInitCode(self.EventType);
+
+              CodeEdit.ItemValue:=TargetNode.GetEventCode(self.EventType);
+              targetLine:=StrToInt(linenum)-1;
+              if FoundString(FileName,'Init.')>0 then
+                 CodeEditMainTabs.TabIndex:=1;
+            end;
+          end;
+        //end
+        //else
+        //begin
+        //  self.TargetNodeName:=FStrings[0];
+        //  self.Mode:='FunctionCode';
+        //  Context:='Function';
+        //  targetLine:=StrToInt(linenum);
+        //end;
         end;
 
-        //self.CodeEditContextLabel.LabelCaption:=self.TargetNodeName+' '+self.EventType;
-        //CodeEdit.LabelText:=self.TargetNodeName+' '+self.EventType;
         FreeAndNil(FStrings);
       end
       else
@@ -627,14 +646,21 @@ begin
         self.EventType:='';
         self.Mode:='UnitCode';
         Context:='PasUnit';
-        //self.CodeEditContextLabel.LabelCaption:=self.TargetNodeName;
-        //CodeEdit.LabelText:=self.TargetNodeName;
-        targetLine:=StrToInt(linenum);
+        TargetNode:=FindDataNodeById(SystemNodeTree,self.TargetNodeName,'',true);
+        CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
+        targetLine:=StrToInt(linenum)-1;     // -1 because there is no top line (unit xxx;) in the source code
       end;
     end;
     FreeAndNil(FStrings2);
-    self.InitialiseOnShow(Context,self.TargetNodeName,self.EventType);
-    SetCursorPosition(targetLine,strToInt(charPos));
+    if self.TargetNameSpace='' then
+    begin
+      self.InitialiseOnShow(Context,self.TargetNodeName,self.EventType);
+      SetCursorPosition(targetLine,strToInt(charPos));
+    end
+    else
+    begin
+      showmessage('This code is within an encapsulated element - not available for edit');
+    end;
   end
   else
   begin

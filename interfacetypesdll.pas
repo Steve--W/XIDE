@@ -65,6 +65,7 @@ TGetGPUStageArrayAsString=function(GPUName:String):String of object;            
 TDebugStart=procedure of object; stdcall;
 TRunPython=procedure(str:String) of object; stdcall;
 TSetImageSource=procedure(nm,str:String) of object; stdcall;
+TWobbleCEF=procedure(nm:String)of object;    stdcall;
 
 
 type
@@ -110,6 +111,7 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiDebugStart; stdcall;
     procedure mmiRunPython(str:String); stdcall;
     procedure mmiSetImageSource(nm,str:String); stdcall;
+    procedure mmiWobbleCEF(nm:String);    stdcall;
 end;
 
 
@@ -156,7 +158,7 @@ GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
 DebugStart:TDebugStart;
 RunPython:TRunPython;
 SetImageSource:TSetImageSource;
-
+WobbleCEF:TWobbleCEF;
 
 procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
 {$endif}
@@ -214,7 +216,7 @@ begin
   DebugStart:=@appmethods.mmiDebugStart;
   RunPython:=@appmethods.mmiRunPython;
   SetImageSource:=@appmethods.mmiSetImageSource;
-
+  WobbleCEF:=@appmethods.mmiWobbleCEF;
  // dummy:=GetPropertyValue('UIRoot','Name');     // fudge...didn't work
 
 end;

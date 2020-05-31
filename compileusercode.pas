@@ -126,7 +126,7 @@ var
     AProcess: TProcess;
 {$endif}
 var
-    PascalCode,ExportsList,NamespaceUnits:TStringList;
+    PascalCode,ExportsList,NamespaceUnits,PyCodeFromComposites:TStringList;
 
 
 {$ifndef JScript}
@@ -498,7 +498,7 @@ end;
 procedure GatherEventCode(RunMode,NameSpace:String;Compiler:TObject;StartNode:TDataNode;UnitCode:TStringList);
 var
     i,j:integer;
-    hdr,tmp,Dflt,nm,et:string;
+    hdr,tmp,Dflt,nm,ns,et:string;
     IncCode,InitCode:TStringList;
 begin
   if StartNode.NameSpace=NameSpace then
@@ -525,13 +525,17 @@ begin
            InitCode.Insert(0,hdr);
            if InitCode.Count=1 then
              InitCode.Add('begin end;');
-           WriteIncFile(Compiler,Namespace+StartNode.NodeName, StartNode.myEventTypes[i]+'__Init','tempinc/', UnitCode, InitCode);
+           if Namespace='' then
+             ns:=''
+           else
+             ns:=Namespace+'__';
+           WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i]+'__Init','tempinc/', UnitCode, InitCode);
 
            // Insert a procedure containing the main code for the event
            hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'Main');
            IncCode:=StringSplit(StartNode.myEventHandlers[i].TheCode,LineEnding);
            IncCode.Insert(0,hdr);
-           WriteIncFile(Compiler,NameSpace+StartNode.NodeName, StartNode.myEventTypes[i],'tempinc/', UnitCode, IncCode);
+           WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i],'tempinc/', UnitCode, IncCode);
 
            // Insert a control procedure to run the init and main code for the event
            tmp:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
@@ -726,25 +730,74 @@ begin
   FreeAndNil(UnitCode);
 end;
 
+function AddPasUnit(UnitNode:TDataNode; MainUnitCode:TStringList;Compiler:TObject):String;
+var
+    j,k:integer;
+    tmp,nm:string;
+    UnitCode:TStringList;
+begin
+  UnitCode:=TStringList.Create;
+  // Pascal Unit code is all in attribute attribute : Code
+  UnitCode.Clear;
+  nm:=UnitNode.NodeName;
+
+  if UnitNode.NameSpace<>'' then
+    nm:=UnitNode.NameSpace+'__'+nm;
+  UnitCode.Add('unit '+nm+';');
+
+  // add user-written unit code block
+  tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
+  //UnitCode:=StringSplit(tmp,LineEnding);
+  UnitCode.Append(tmp);
+
+  {$ifndef JScript}
+  // save the generated pas file
+  SysUtils.DeleteFile('tempinc/'+nm+'.pas');
+  UnitCode.SaveToFile('tempinc/'+nm+'.pas');
+  {$else}
+  TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(nm+'.pas',UnitCode.Text);
+  XIDEUserUnits.add(nm+'.pas');
+  {$endif}
+
+  // add this unit to the uses list in the main module
+  MainUnitCode.Add(','+nm);
+
+  FreeAndNil(UnitCode);
+  result:=nm;
+end;
+
+function AddPyScript(UnitNode:TDataNode; PythonCode:TStringList):String;
+var
+    i:integer;
+    tmp,nm:string;
+    UnitCode:TStringList;
+begin
+  //UnitCode:=TStringList.Create;
+  // Pascal Unit code is all in attribute attribute : Code
+  //UnitCode.Clear;
+  nm:=UnitNode.NodeName;
+  if UnitNode.NameSpace<>'' then
+    nm:=UnitNode.NameSpace+'__'+nm;
+
+  // add user-written unit code block
+  tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
+  //UnitCode:=StringSplit(tmp,LineEnding);
+  PythonCode.Append(tmp);
+
+  //FreeAndNil(UnitCode);
+  result:=nm;
+end;
+
+
 function GatherUserUnits(RunMode:String; Compiler:TObject):String;
 var
-    i,j,k:integer;
-    tmp,FirstUnitName,nm:string;
-    lines, FuncCode:TStringList;
-    UnitNode, FuncNode:TdataNode;
-    UnitCode:TStringList;
-    FuncInputs:TCodeInputs;
-    procedure AddUnitCodeLine(str:String);
-    begin
-      UnitCode.add(str);
-    end;
+    i:integer;
+    FirstUnitName,nm:string;
 
 begin
 
   // user-created units are held as data nodes (attribute 'Code')
   // create a pas file on disk for each unit, and insert the unit name for the dll 'uses' clause
-  UnitCode:=TStringList.Create;
-  Lines:=TStringList.Create;
 
   {$ifdef JScript}
   XIDEUserUnits.clear;
@@ -752,32 +805,11 @@ begin
 
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
   begin
-        if CodeRootNode.ChildNodes[i].NodeType='PasUnit' then
-        begin
-           UnitNode:=CodeRootNode.ChildNodes[i];
-           if i=0 then FirstUnitName:=UnitNode.NodeName;
-           // Raw Unit code is all in attribute attribute : Code
-           UnitCode.Clear;
-           nm:=UnitNode.NodeName;
-
-           // add user-written unit code block
-           tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
-           Lines:=StringSplit(tmp,LineEnding);
-           for j:=0 to Lines.Count-1 do
-             AddUnitCodeLine(Lines[j]);
-
-           {$ifndef JScript}
-           // save the generated pas file
-           SysUtils.DeleteFile('tempinc/'+UnitNode.NodeName+'.pas');
-           UnitCode.SaveToFile('tempinc/'+UnitNode.NodeName+'.pas');
-           {$else}
-           TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(UnitNode.NodeName+'.pas',UnitCode.Text);
-           XIDEUserUnits.add(UnitNode.NodeName+'.pas');
-           {$endif}
-
-           // add this unit to the uses list in the main module
-           PascalCode.Add(','+UnitNode.NodeName);
-        end;
+    if CodeRootNode.ChildNodes[i].NodeType='PasUnit' then
+    begin
+      nm:=AddPasUnit(CodeRootNode.ChildNodes[i],PascalCode,Compiler);
+      if i=0 then FirstUnitName:=nm;
+    end;
   end;
 
   // Build a separate unit to hold 'event' code for worker threads (within TXThreads components)
@@ -785,17 +817,37 @@ begin
   // can be limited (they are self-contained, with no access to data/functions in the main thread).
   BuildThreadEventsUnit(Compiler,RunMode);
 
-  FreeAndNil(lines);
-  FreeAndNil(UnitCode);
-
   result:=FirstUnitName;
 
 end;
 
+
+procedure GatherUserUnitsInComposites(RunMode,NameSpace:String;StartNode:TDataNode;MainUnitCode:TStringList;Compiler:TObject);
+var
+    i,j:integer;
+    tmp,Dflt:string;
+begin
+  if (StartNode.NodeType='TXComposite') then
+  begin
+    for i:=0 to length(StartNode.ChildNodes)-1 do
+      if StartNode.ChildNodes[i].NodeType='PasUnit' then
+      begin
+        tmp:=AddPasUnit(StartNode.ChildNodes[i],MainUnitCode,Compiler);
+      end
+      else if StartNode.ChildNodes[i].NodeType='PythonScript' then
+      begin
+        PyCodeFromComposites.add('print(''running script '+StartNode.ChildNodes[i].NodeName+''')');
+        AddPyScript(StartNode.ChildNodes[i],PyCodeFromComposites);
+      end;
+  end;
+
+end;
+
+(*
 procedure GatherUserFuncs(RunMode,NameSpace:String; Compiler:TObject; StartNode:TDataNode;UnitCode:TStringList;var n:integer);
 var
     i,j,k:integer;
-    tmp,nm:string;
+    tmp,nm,ns:string;
     lines, FuncCode:TStringList;
     UnitNode, FuncNode:TdataNode;
     FuncInputs:TCodeInputs;
@@ -837,7 +889,11 @@ begin
 
         // each function is held in its own inc file so that we can display the relevant code section
         // when there are compiler errors
-        WriteIncFile(Compiler,FuncNode.NameSpace+FuncNode.NodeName, '','tempinc/', UnitCode, FuncCode);
+        if Namespace='' then
+          ns:=''
+        else
+          ns:=FuncNode.Namespace+'__';
+        WriteIncFile(Compiler,ns+FuncNode.NodeName, '','tempinc/', UnitCode, FuncCode);
 
         // add the overloaded function to fetch values of all declared inputs
         if length(FuncInputs)>0 then
@@ -873,8 +929,9 @@ begin
       GatherUserFuncs(RunMode,NameSpace,Compiler,StartNode.ChildNodes[i],UnitCode,n);
 
 end;
+*)
 
-procedure BuildNamespaceUnit(RunMode,NameSpace:String; Compiler:TObject);
+procedure BuildNamespaceUnit(RunMode,NameSpace:String; ThisNode:TDataNode;Compiler:TObject);
 var
     UnitCode:TStringList;
     n:integer;
@@ -893,54 +950,50 @@ begin
   n:=0;
   UnitCode:=TStringList.Create;
 
-           // Unit code is built from separate attributes : Code, Init.
-           UnitCode.Clear;
-           AddUnitCodeLine('unit '+NameSpace+';');
-           AddUnitCodeLine('{$ifndef JScript}');
-           AddUnitCodeLine('{$mode objfpc}{$H+}');
-           AddUnitCodeLine('{$endif}');
-           AddUnitCodeLine('interface');
-           AddUnitCodeLine('uses Classes, SysUtils, Math, contnrs, dateutils,');
-           AddUnitCodeLine('  rtlconsts, strutils, types, typinfo, EventsInterface,');
-           if RunMode='LazDll' then
-             AddUnitCodeLine('  InterfaceTypesDll;')
-           else
-           begin
-             AddUnitCodeLine('  InterfaceTypes;');
-           end;
+  // Unit code is built from separate attributes : Code, Init.
+  UnitCode.Clear;
+  AddUnitCodeLine('unit '+NameSpace+';');
+  AddUnitCodeLine('{$ifndef JScript}');
+  AddUnitCodeLine('{$mode objfpc}{$H+}');
+  AddUnitCodeLine('{$endif}');
+  AddUnitCodeLine('interface');
+  AddUnitCodeLine('uses Classes, SysUtils, Math, contnrs, dateutils,');
+  AddUnitCodeLine('  rtlconsts, strutils, types, typinfo, EventsInterface');
+  GatherUserUnitsInComposites(RunMode,NameSpace,ThisNode,UnitCode,Compiler);
+  if RunMode='LazDll' then
+   AddUnitCodeLine('  ,InterfaceTypesDll;')
+  else
+  begin
+   AddUnitCodeLine('  ,InterfaceTypes;');
+  end;
 
-           GatherEventHeaders(RunMode,NameSpace,SystemNodeTree,UnitCode,n);
+  GatherEventHeaders(RunMode,NameSpace,SystemNodeTree,UnitCode,n);
 
-           AddUnitCodeLine('implementation');
+  AddUnitCodeLine('implementation');
 
-           GatherUserFuncs(RunMode,NameSpace,Compiler,CodeRootNode,UnitCode,n);
+  //GatherUserFuncs(RunMode,NameSpace,Compiler,CodeRootNode,UnitCode,n);
 
-           GatherEventCode(RunMode,NameSpace,Compiler,SystemNodeTree,UnitCode);
+  GatherEventCode(RunMode,NameSpace,Compiler,SystemNodeTree,UnitCode);
 
-           AddUnitCodeLine('    ' );
-           AddUnitCodeLine('begin');
-           AddUnitCodeLine('end.');
+  AddUnitCodeLine('    ' );
+  AddUnitCodeLine('begin');
+  AddUnitCodeLine('end.');
 
-           if n>0 then
-           begin
-             {$ifndef JScript}
-             // save the generated pas file
-             //!!!! namespaces....255 char limit on file names !!!!!!!!!
-             SysUtils.DeleteFile('tempinc/'+NameSpace+'.pas');
-             UnitCode.SaveToFile('tempinc/'+NameSpace+'.pas');
-             {$else}
-             TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(NameSpace+'.pas',UnitCode.Text);
-             {$endif}
+  if n>0 then
+  begin
+   {$ifndef JScript}
+   // save the generated pas file
+   //!!!! namespaces....255 char limit on file names !!!!!!!!!
+   SysUtils.DeleteFile('tempinc/'+NameSpace+'.pas');
+   UnitCode.SaveToFile('tempinc/'+NameSpace+'.pas');
+   {$else}
+   TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(NameSpace+'.pas',UnitCode.Text);
+   {$endif}
 
-             // add this unit to the uses list in the main module
-             PascalCode.Add(','+NameSpace);
+   // add this unit to the uses list in the main module
+   PascalCode.Add(','+NameSpace);
 
-           end;
-
-  // Build a separate unit to hold 'event' code for worker threads (within TXThreads components)
-  // This code is in a separate unit from the main event code so that the scope of worker threads
-  // can be limited (they are self-contained, with no access to data/functions in the main thread).
-  //BuildThreadEventsUnit(Compiler,RunMode);
+  end;
 
   FreeAndNil(UnitCode);
 
@@ -958,7 +1011,7 @@ begin
   begin
     CompositeNameSpace:=CompositeNameSpace+StartNode.NodeName;
     if length(StartNode.ChildNodes)>0 then
-      BuildNamespaceUnit(RunMode,CompositeNameSpace,Compiler);
+      BuildNamespaceUnit(RunMode,CompositeNameSpace,StartNode,Compiler);
   end;
 
   // Walk the system tree looking for namespace components
@@ -978,19 +1031,50 @@ var
     lines:TStringList;
     UnitNode:TdataNode;
     PyCode:TStringList;
-    procedure AddUnitCodeLine(str:String);
+    function RunPyScript(PyScriptCode:TStringList):Boolean;
+    var
+        ok:Boolean;
     begin
-      PyCode.add(str);
+      ok:=true;
+      {$ifndef JScript}
+      try
+      PythonEngine1.ExecStrings( PyScriptCode );
+      except
+        on E: Exception do
+        begin
+          showmessage('Python error in '+nm+' : '+e.Message);
+          ok:=false;
+        end;
+      end;
+      {$else}
+      tmp:=PyScriptCode.Text;
+      asm
+      console.log('running python user code '+nm);
+      end;
+      asm
+      try {
+      pyodide.runPython(tmp);
+      } catch(err) { alert(err.message+'  in '+nm);
+           ok=false;
+           }
+      end;
+      {$endif}
+      result:=ok;
     end;
 
 begin
   ok:=true;
   // user-created scripts are held as data nodes (class 'Code', type 'PythonScript')
-  // create a pas file on disk for each unit, and insert the unit name for the dll 'uses' clause
   Lines:=TStringList.Create;
   PyCode:=TStringList.Create;
 
+  // scripts for the main system are held under the root node CodeRootNode.
+  // There may be other scripts held within composite components (already gathered into PyCodeFromComposites).
+  if PyCodeFromComposites.Count>0 then
+     ok:=RunPyScript(PyCodeFromComposites);
+
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
+  if ok then
   begin
     PyCode.Clear;
     if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
@@ -998,36 +1082,18 @@ begin
        UnitNode:=CodeRootNode.ChildNodes[i];
        // code is all in attribute : Code
        nm:=UnitNode.NodeName;
+       PyCode.add('print(''running script '+nm+''')');
 
        // add user-written unit code block
        tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
        Lines:=StringSplit(tmp,LineEnding);
        for j:=0 to Lines.Count-1 do
-         AddUnitCodeLine(Lines[j]);
+         PyCode.add(Lines[j]);
     end;
 
     if PyCode.Count>0 then
     begin
-      {$ifndef JScript}
-      try
-      PythonEngine1.ExecStrings( PyCode );
-      except
-        on E: Exception do
-        begin
-          showmessage('Python error in '+nm+' : '+e.Message);
-        end;
-      end;
-      {$else}
-      tmp:=PyCode.Text;
-      asm
-      console.log('running python user code '+nm);
-      end;
-      asm
-      try {
-      pyodide.runPython(tmp);
-      } catch(err) { alert(err.message+'  in '+nm); }
-      end;
-      {$endif}
+      ok:=RunPyScript(PyCode);
     end;
   end;
 
@@ -1069,6 +1135,7 @@ begin
   {$endif}
  PascalCode.Clear;
  ExportsList.Clear;
+ PyCodeFromComposites.Clear;
  n:=0;
  setlength(XIDEProcsList,0);
 
@@ -1092,7 +1159,7 @@ begin
    PascalCode.Add('');
    PascalCode.Add('implementation' );
    PascalCode.Add('');
-   GatherUserFuncs(RunMode,'',Compiler,CodeRootNode,PascalCode,n);
+   //GatherUserFuncs(RunMode,'',Compiler,CodeRootNode,PascalCode,n);
 
    GatherEventCode(RunMode,'',Compiler,SystemNodeTree,PascalCode);
 
@@ -1118,7 +1185,7 @@ begin
    PascalCode.Add('');
    PascalCode.Add('');
 
-   GatherUserFuncs(RunMode,'',nil,CodeRootNode,PascalCode,n);
+   //GatherUserFuncs(RunMode,'',nil,CodeRootNode,PascalCode,n);
 
    GatherEventCode(RunMode,'',nil,SystemNodeTree,PascalCode);
 
@@ -1658,8 +1725,7 @@ end;
 function   DfltUnitCode(UnitName,UnitType:String):string;
 begin
   if UnitType='PasUnit' then
-    result:='unit '+UnitName+';' + LineEnding
-          +'{$ifdef Dll}'+ LineEnding
+    result:='{$ifdef Dll}'+ LineEnding                  //NB. unit name is generated at compile time
           +'{$mode objfpc}{$H+}{$R+}'+ LineEnding
           +'{$endif}'+ LineEnding
           + 'interface '+ LineEnding
@@ -1722,6 +1788,7 @@ end;
 begin
   PascalCode:=TStringList.Create;
   ExportsList:=TStringList.Create;
+  PyCodeFromComposites:=TStringList.Create;
   {$ifdef Python}
   PyProcs:=TPyProcs.Create;
   {$endif}

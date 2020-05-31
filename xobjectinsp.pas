@@ -2437,141 +2437,6 @@ begin
      end;
 end;
 
-(*
-function  repchar(instring,refstring:string):string;
-var i,j,k,m,num1,num2, wrap,testlength:integer;
-    newstring:string;
-begin
-  if length(refstring)< 1 then showmessage('Error ....refstring is too short in ComponentWrapper.repchar');
-  j:=0;
-  k:=0;
-  newstring:='';
-  testlength:=8;
-  if length(instring)> testlength
-  then
-  begin
-    for i:=1 to testlength do
-    begin
-      newstring:= newstring+instring[i];
-    end;
-    if (ord(instring[i]) > 126)
-    then
-    begin
-       newstring:= newstring+instring[i];
-       if ord(instring[i])=160 then showmessage('Error ....char 160 is a reserved value in ComponentWrapper.repchar');
-    end
-    else
-    for i:=testlength+1 to length(instring) do
-    begin
-      k:=k+1;
-      if k > 13 then k:=1;
-      m:= (k xor 5);
-      num1:=ord(instring[i]);
-      if num1=160 then num1:=127;
-      num1:=num1-32;
-      j:=j+1;
-      if j>length(refstring)then j:=1;
-      wrap:= 4 * m + ord(refstring[j]);
-      if  wrap>126 then  wrap := wrap -95;
-      num2:=(wrap-32);
-      num2:=trunc(num2/4);
-      num1:=(num1 xor num2)+32;
-      if num1=127 then num1:=160;
-      if (num1>126)and(num1<>160) then showmessage('Error ....char out of range in ComponentWrapper.repchar  '+inttostr(num1)+' '+chr(num1));
-      newstring:=newstring+ chr(num1);
-    end;
-  end else showmessage('Error ....instring too short in ComponentWrapper.repchar');
-  result:=newstring;
-end;
-
-
-function addpoochar(instring:string):string;
-var i,j,k,m,num:integer;
-    newstring:string;
-begin
-  k:=0;
-  instring:='sdfkisbdoisopjwepojwegaegohaspeoulvdoidfvd;ldfhddbldv;l,sc;ascethpnij[pfgb][lwefp;asckbjefog;lkdrpojgpoiejrgoigerauiervoieroiheg';
-  instring:=instring+ instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring;
-   instring:=instring+ instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring;
-   instring:=instring+ instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring;
-   instring:=instring+ instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring+instring;
-  newstring:= instring+'mpXiWmfG';
-  for i:=1 to length(instring) do
-  begin
-    k:=k+1;
-    if k > 11 then k:=1;
-    m:= (k xor 5);
-    j:=1+(i xor 5);
-    if ord(instring[i]) > 126
-    then newstring[j]:=instring[i]
-    else
-    begin
-      num:=ord(instring[i])+m;
-      if num>126 then num := num - 95;
-      newstring[j]:= chr(num);
-    end ;
-    if (j>length(newstring)) or (j<1) then showmessage('poo j = '+ inttostr(j));
-    if (ord(instring[i]) > 126) or ( ord(instring[i]) <32  )  then showmessage('odd char = >'+instring[i]+'<');
-    if (ord(newstring[j]) > 126) or ( ord(newstring[j]) <32  )  then showmessage('oops odd char j = >'+newstring[j]+'<');
-  end;
-  newstring:=repchar(newstring,'HelloWorld');
-  result:=newstring;
-end;
-
-function addchar(instring:string):string;
-var i,j,k,m,num:integer;
-    newstring:string;
-begin
-  k:=0;
-  newstring:= instring+'mpXiWmfG';
-  for i:=1 to length(instring) do
-  begin
-    k:=k+1;
-    if k > 11 then k:=1;
-    m:= (k xor 5);
-    j:=1+(i xor 5);
-    if ord(instring[i]) > 126
-    then newstring[j]:=instring[i]
-    else
-    begin
-      num:=ord(instring[i])+m;
-      if num>126 then num := num - 95;
-      newstring[j]:= chr(num);
-    end ;
-  end;
-  newstring:=repchar(newstring,'HelloWorld');
-  result:=newstring;
-end;
-
-function subchar(instring:string):string;
-var i,j,k,m,num:integer;
-    newstring,newstring2:string;
-begin
-  instring:=repchar(instring,'HelloWorld');
-  k:=0;
-  newstring:= instring;
-  newstring2:='';
-  for i:=1 to length(instring)-8 do
-  begin
-    k:=k+1;
-    if k> 11 then k:=1;
-    m:= (k xor 5);
-    j:=1+(i xor 5);
-    if ord(instring[j]) > 126
-    then newstring[i]:=instring[j]
-    else
-    begin
-      num:=ord(instring[j])-m;
-      if num<32 then num:=num+95;
-      newstring[i]:= chr(num);
-    end;
-  end;
-  for i:=  length(newstring)-8 to length(newstring)-1 do newstring[i+1]:=' ';
-  for i:=1 to length(instring)-8 do newstring2 := newstring2+newstring[i];
-  result:=newstring2;
-end;
-*)
-
 procedure ClearResourceInspector;
 var
   btnNode:TDataNode;
@@ -2740,10 +2605,13 @@ begin
     end;
   end;
 
+  if not Encapsulate then
+  begin
 //  showmessage('8');
-  // add the tree 'StyleSheet' so that its data is preserved with the user's project
-  StyleTreeParent:=FindDataNodeById(systemnodetree,'StyleDesigner','',true);
-  systemstring:=systemstring+NodeTreeToXML(StylesNode,StyleTreeParent,false,false);
+    // add the tree 'StyleSheet' so that its data is preserved with the user's project
+    StyleTreeParent:=FindDataNodeById(systemnodetree,'StyleDesigner','',true);
+    systemstring:=systemstring+NodeTreeToXML(StylesNode,StyleTreeParent,false,false);
+  end;
 
   fullstring:= systemstring;
 
@@ -2830,12 +2698,6 @@ begin
   RebuildResourcesTree;
   RedisplayResourceTree;
 
-  // un-suspend all the 'iframe' components...
-  GlobalSuppressFrameDisplay:=false;
-  UnSuspendFrames(SystemNodeTree);
-
-  GlobalSuppressFrameDisplay:=glb;
-
   RebuildNavigatorTree;
   RebuildCodeTree;
   SelectNavTreeNode(MainFormProjectRoot,true);
@@ -2845,6 +2707,9 @@ begin
     UIRootItem.SetAttributeValue('ContainerWidth','60%');
   //else
   //  UIRootItem.SetAttributeValue('ContainerWidth','80%');
+
+
+  GlobalSuppressFrameDisplay:=glb;
 
   sender.Destroy;
 end;
@@ -3265,6 +3130,9 @@ begin
     filename:=myStringReplace(AvailableResourcesSelectedNode.NodeName,'_xcmp','.xcmp',1,-1);
     if XIDEConfirm('OK to delete composite resource '+filename+'?') then
     begin
+      {$ifndef JScript}
+      filename:='SavedSystems/'+filename;
+      {$endif}
       ClearLocalStore( filename);
       RebuildResourcesTree;
     end;

@@ -169,6 +169,7 @@ TXIDEForm = class(TXForm)
   //procedure RITabsPaint;
   procedure RunSettingsHandleClick(e: TEventStatus; nodeID: AnsiString;
     myValue: AnsiString);
+  procedure LoadIframes(dum:integer);
   {$endif}
 
   // Common Event Handlers - created at design time along with X components...
@@ -1000,8 +1001,17 @@ begin
   {$endif}
 end;
 
+procedure TXIDEForm.LoadIframes(dum:integer);
+begin
+  // un-suspend all the 'iframe' components...
+  GlobalSuppressFrameDisplay:=false;
+  UnSuspendFrames(SystemNodeTree);
+end;
+
 procedure TXIDEForm.FormActivate(Sender: TObject);
 begin
+  LoadIframes(0);
+ // Application.QueueAsyncCall(@LoadIframes, 0);
 end;
 
 

@@ -68,6 +68,7 @@ type
   end;
 
   procedure CompositePropertyChanged(myNode:TDataNode; propName:String);
+  function FindCompositeContainer(StartNode:TDataNode):TdataNode;
 
 implementation
 
@@ -285,6 +286,36 @@ begin
          EditAttributeValue(TargetNode,propName,newValue);
     end;
   end;
+end;
+
+function FindCompositeContainer(StartNode:TDataNode):TdataNode;
+var
+  SearchNode, CompositeNode:TDataNode;
+  ok:Boolean;
+begin
+  // find the container of this composite namespace
+   ok:=false;
+   SearchNode:=StartNode;
+   while (ok=false) do
+   begin
+     SearchNode:=FindParentOfnode(SystemNodeTree,SearchNode);
+     if SearchNode<>nil then
+     begin
+       if (SearchNode.NodeType<>'TXComposite')
+       or (SearchNode.NameSpace<>'') then
+         ok:=false
+       else
+       begin
+         ok:=true;
+         CompositeNode:=SearchNode;
+       end;
+     end
+     else
+       ok:=true;  // will return nil
+   end;
+   // find the container of this composite namespace
+   //CompositeNode:=FindDataNodeById(SystemNodeTree,EventNode.NameSpace,'',true);       //!!!!deeper levels??
+   result:=CompositeNode;
 end;
 
 begin
