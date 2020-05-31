@@ -82,6 +82,8 @@ Python code can also be called directly from a Pascal event handler, using the f
 
 Desktop - uses the Lazarus embedded python engine - users must first download and install the Python4Lazarus_package 
 (https://github.com/Alexey-T/Python-for-Lazarus), and also install Python on their machine (https://www.python.org/downloads/).
+After installing Python, make sure that the system PATH variable is updated to include the installed location of Python.exe.
+If you want to use Python packages such as numpy or matplotlib, install these using the pip utility (https://pip.pypa.io/en/stable/installing/).
 
 Browser - Pyodide is included in XIDE to provide the Python interface.  
 (ref: https://pyodide.readthedocs.io/en/latest/using_pyodide_from_javascript.html)

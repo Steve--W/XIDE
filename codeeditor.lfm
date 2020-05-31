@@ -393,7 +393,6 @@ object CodeEditForm: TCodeEditForm
             SpacingAround = 0
             Border = False
             ItemIndex = -1
-            ReadOnly = False
             BoxWidth = '200'
             OptionList = '["Option 1","Option 2","Option 3"]'
             PriorIndex = 0

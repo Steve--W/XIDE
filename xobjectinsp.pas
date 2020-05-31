@@ -940,7 +940,6 @@ begin
      RegisterResource('RUI','TXCheckBox','TXCheckBox','Selectors',-1,AttrParams);
 
      ClearAttribs(AttrParams);
-    // AddAttrib(AttrParams,'OptionList','String',ExampleOptionList,false);
      AddAttrib(AttrParams,'ItemValue','String','',false);
      AddAttrib(AttrParams,'Caption','String','radio buttons',false);
      AddAttrib(AttrParams,'Hint','String','',false);
@@ -948,15 +947,12 @@ begin
      RegisterResource('RUI','TXRadioBtns','TXRadioBtns','Selectors',-1,AttrParams);
 
      ClearAttribs(AttrParams);
-  // //  AddAttrib(AttrParams,'OptionList','String',ExampleOptionList,false);
      AddAttrib(AttrParams,'ItemIndex','Integer','0',false);
      AddAttrib(AttrParams,'LabelText','String','ComboBox',false);
      AddAttrib(AttrParams,'Hint','String','',false);
-     AddAttrib(AttrParams,'ReadOnly','Boolean','False',false);
      RegisterResource('RUI','TXComboBox','TXComboBox','Selectors',-1,AttrParams);
 
      ClearAttribs(AttrParams);
-     // AddAttrib(AttrParams,'TreeData','TreeString',ExampleNodeTree,false);
      AddAttrib(AttrParams,'ItemText','String','Tree',false);
      AddAttrib(AttrParams,'OpenToLevel','Integer','1',false);
      AddAttrib(AttrParams,'TreeHeight','String','200',false);
@@ -4422,7 +4418,7 @@ begin
   NewColorPicker.ItemValue:=ItmValue;
   NewColorPicker.LabelText:=LblText;
   NewColorPicker.BoxWidth:='120px';
-  NewColorPicker.ReadOnly:=ro;
+  //NewColorPicker.ReadOnly:= ro;  //!!!! Do we need to use 'Enabled' instead? Sort out for Browser.
   NewColorPicker.LabelPos:='Left';
   NewColorPicker.Hint:=attribHint;
 
@@ -4478,11 +4474,10 @@ begin
 
   NewComboBox.LabelText:=LblText;
   NewComboBox.BoxWidth:='120px';
-  NewComboBox.ReadOnly:=ro;
+  //NewComboBox.ReadOnly:=ro;      //!!!! use Enabled instead?  Sort out for Browser.
   NewComboBox.LabelPos:='Left';
   NewComboBox.Alignment:='Right';
   NewComboBox.Hint:=attribHint;
-  //NewComboBox.OptionList:=StringListToListString(Options);
   NewComboBox.OptionList:=StringListToJSONString(Options);
 
   NewComboBox.ItemValue:=ItmValue;  // this will set itemindex

@@ -363,7 +363,7 @@ procedure DoPy_InitEngine;
 var
   pth:string;
 //  PythonVersion: TPythonVersion;
-
+  ok:boolean;
 begin
   if Assigned(PythonEngine1) then
   begin
@@ -377,6 +377,7 @@ begin
   end
   else
   begin
+    ok:=true;
     // First time in, Create python engine and interfaces...
 
 //  if Assigned(PyInterfaceVar) then
@@ -409,27 +410,39 @@ begin
 
     PythonEngine1.UseLastKnownVersion:=true;     // use the Python version installed on the machine
     PythonEngine1.AutoLoad:=false;
+    try
     PythonEngine1.LoadDll;
-    PythonVersion:=PythonEngine1.RegVersion;
+    except
+      on E: Exception do
+      begin
+        showmessage('Please ensure Python is installed, or remove the -dPython compiler directive to run without Python');
+        ok:=false;
+      end;
+    end;
 
-    // create interface objects for communication to/from Pascal code
-    PyInterfaceVar:=TPythonDelphiVar.Create(nil);
-    PyInterfaceVar.Name:='PyInterfaceVar';
-    PyInterfaceVar.VarName:='PyInterfaceVar';
-    PyInterfaceVar.Module:='__main__';
-    PyInterfaceVar.Engine:=PythonEngine1;
-    PyInterfaceVar.OnExtGetData:=@PyEvents.PyVarExtGetData;
-    PyInterfaceVar.OnExtSetData:=@PyEvents.PyVarExtSetData;
-    PyInterfaceVar.Initialize;
+    if ok then
+    begin
+      PythonVersion:=PythonEngine1.RegVersion;
 
-    PyInterfaceE:=TPythonDelphiVar.Create(nil);
-    PyInterfaceE.Name:='PyInterfaceE';
-    PyInterfaceE.VarName:='PyInterfaceE';
-    PyInterfaceE.Module:='__main__';
-    PyInterfaceE.Engine:=PythonEngine1;
-    PyInterfaceE.OnExtGetData:=@PyEvents.PyVarEExtGetData;
-    PyInterfaceE.OnExtSetData:=@PyEvents.PyVarEExtSetData;
-    PyInterfaceE.Initialize;
+      // create interface objects for communication to/from Pascal code
+      PyInterfaceVar:=TPythonDelphiVar.Create(nil);
+      PyInterfaceVar.Name:='PyInterfaceVar';
+      PyInterfaceVar.VarName:='PyInterfaceVar';
+      PyInterfaceVar.Module:='__main__';
+      PyInterfaceVar.Engine:=PythonEngine1;
+      PyInterfaceVar.OnExtGetData:=@PyEvents.PyVarExtGetData;
+      PyInterfaceVar.OnExtSetData:=@PyEvents.PyVarExtSetData;
+      PyInterfaceVar.Initialize;
+
+      PyInterfaceE:=TPythonDelphiVar.Create(nil);
+      PyInterfaceE.Name:='PyInterfaceE';
+      PyInterfaceE.VarName:='PyInterfaceE';
+      PyInterfaceE.Module:='__main__';
+      PyInterfaceE.Engine:=PythonEngine1;
+      PyInterfaceE.OnExtGetData:=@PyEvents.PyVarEExtGetData;
+      PyInterfaceE.OnExtSetData:=@PyEvents.PyVarEExtSetData;
+      PyInterfaceE.Initialize;
+    end;
   end;
 end;
 
@@ -639,8 +652,8 @@ begin
 
 //  FPUExceptionMask := GetExceptionMask;
 //  SetExceptionMask([exZeroDivide, exPrecision]);
-  PythonEngine1.ExecString('import numpy as np');       // err 'no module named numpy'
-  PythonEngine1.ExecString('import matplotlib.pyplot as plt');       // err 'no module named numpy'
+//  PythonEngine1.ExecString('import numpy as np');
+//  PythonEngine1.ExecString('import matplotlib.pyplot as plt');
 //  SetExceptionMask(FPUExceptionMask);
 
 end;
