@@ -23,7 +23,7 @@ uses
 {$ifndef JScript}
   FileUtil, Forms, Controls, Graphics, Dialogs, LCLIntf,
   ExtCtrls, Menus, ComCtrls, StdCtrls, TypInfo, LazIDEIntf, LResources,
-  Types, IpHtml, Ipfilebroker,
+  Types,
   Events, DllInterface, LazsUtils, CompilerLogUnit,
 {$else}
   HTMLUtils,

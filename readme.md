@@ -4,7 +4,9 @@ XIDE Project
 Overview
 --------
 This Lazarus project provides a RAD IDE for Free Pascal in the browser (Chrome) or desktop.
-(Lazarus downloads:   https://www.lazarus-ide.org/index.php?page=downloads)
+(Lazarus downloads:   https://wiki.lazarus.freepascal.org/fpcupdeluxe)
+XIDE is developed and tested on Lazarus version 2.1.0, FPC version 3.3.1.
+At present, XIDE is tested only on Windows, and Chrome.
 
 It is not intended for general purpose web page development, but for Line Of Business or Embedded System apps where 
 pascal is needed to provide extensive client side functionality and/or you need to share a code base between browser 
@@ -24,7 +26,7 @@ Load the XIDE project into Lazarus IDE.
 XIDE can be used either with or without components which use the ‘Chromium Embedded Framework’.  
 The compiler directive ‘-dChromium’ must be set in ‘Project Options’ to include these components (in both the project and the XComponents package).
 Also see cef installation notes provided with XComponents (docs/XComponentsProjectNotes.md).
-If the ‘-dChromium’ directive is set, then the CEF4Delphi_Lazarus package and cef4 runtime framework must also have been installed.
+If the ‘-dChromium’ directive is set, then the CEF4Delphi_Lazarus package and cef4 runtime framework must also have been installed,
 (see https://github.com/salvadordf/CEF4Delphi)
 In XIDE.lpr, set the string CEFLibDir to the location of your installed cef4 framework files (eg. 'C:\cef4Master\FrameworkDir');
 

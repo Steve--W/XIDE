@@ -97,7 +97,7 @@ begin
      +' ' + LineEnding
      +'It allows WYSIWYG Pascal/RAD application development in up to date HTML5 browsers and any native code platform that supports Electron or Lazarus/Pas2JS and the Chromium Embedded Framework.' + LineEnding
      +'' + LineEnding
-     +'The target applications are small, “in house”, client side, embedded or exploratory apps where the focus is on rapid development, specialist functionality or collaborative working.' + LineEnding
+     +'The target applications are small, "in house", client side, embedded or exploratory apps where the focus is on rapid development, specialist functionality or collaborative working.' + LineEnding
      +'' + LineEnding
      +'Applications developed for this run time will run client side in any of the target environments without modification or dependencies both on line or off line (once the run time has been installed or the web page downloaded).' + LineEnding
      +'' + LineEnding
@@ -119,7 +119,7 @@ begin
      +'            ..............Pyodide     <<<Pyodide>>>' + LineEnding
      {$endif}
      {$endif}
-     +'        Copyright  © Steve Wright all rights reserved' + LineEnding
+     +'        Copyright(c) Steve Wright all rights reserved' + LineEnding
      +'        License: GPL' + LineEnding
      +'                                                               ' + LineEnding
      +'Third Party Libraries and Tools included in the run time' + LineEnding

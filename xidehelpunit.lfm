@@ -1,7 +1,7 @@
 object XIDEHelpForm: TXIDEHelpForm
-  Left = 450
+  Left = 632
   Height = 694
-  Top = 164
+  Top = 166
   Width = 973
   Caption = 'XIDE Help'
   ClientHeight = 694
@@ -13,7 +13,7 @@ object XIDEHelpForm: TXIDEHelpForm
   LCLVersion = '2.1.0.0'
   object HelpFormVBox1: TXVBox
     Name = 'HelpFormVBox1'
-    Tag = 418402512
+    Tag = 415070136
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -32,85 +32,44 @@ object XIDEHelpForm: TXIDEHelpForm
     SpacingAround = 0
     Border = True
     InheritColor = False
-    object XIDEHelpScrollBox: TXScrollBox
-      Name = 'XIDEHelpScrollBox'
-      Tag = 418402592
+    object HelpHTMLText: TXHTMLText
+      Name = 'HelpHTMLText'
+      Tag = -1
       Left = 2
-      Height = 686
+      Height = 687
       Top = 2
-      Width = 969
-      HorzScrollBar.Page = 8
-      VertScrollBar.Page = 5
+      Width = 967
       Align = alTop
       AutoSize = True
-      BorderStyle = bsNone
-      ClientHeight = 686
-      ClientWidth = 969
-      Constraints.MaxHeight = 686
-      Constraints.MaxWidth = 969
-      Constraints.MinHeight = 686
-      Constraints.MinWidth = 969
-      Color = clWhite
-      ParentColor = False
-      TabOrder = 0
-      IsContainer = True
+      myControl.Tag = 415070216
+      myControl.AnchorSideLeft.Control = HelpHTMLText
+      myControl.AnchorSideTop.Side = asrBottom
+      myControl.Left = 2
+      myControl.Height = 679
+      myControl.Top = 6
+      myControl.Width = 959
+      myControl.CodePage = 0
+      myControl.DefBackground = 15658723
+      myControl.HistoryIndex = 0
+      myControl.HistoryMaxCount = 0
+      myControl.NoSelect = False
+      myControl.PrintMarginBottom = 2
+      myControl.PrintMarginLeft = 2
+      myControl.PrintMarginRight = 2
+      myControl.PrintMarginTop = 2
+      myControl.PrintScale = 1
+      myControl.TabOrder = 0
+      IsContainer = False
       AlignChildrenVertical = True
       Alignment = 'Left'
+      LabelPos = 'Top'
       IsVisible = True
+      BgColor = 15658723
       SpacingAround = 0
-      ContainerWidth = '100%'
-      ContainerHeight = '100%'
-      BgColor = clWhite
-      ScrollType = 'Both'
-      object HelpHTMLText: TXHTMLText
-        Name = 'HelpHTMLText'
-        Tag = -1
-        Left = 0
-        Height = 5
-        Top = 0
-        Width = 969
-        Align = alTop
-        AutoSize = True
-        myControl.Tag = 418401040
-        myControl.AnchorSideLeft.Control = HelpHTMLText
-        myControl.AnchorSideLeft.Side = asrCenter
-        myControl.AnchorSideTop.Side = asrCenter
-        myControl.Left = 1
-        myControl.Height = 6856
-        myControl.Top = -2053
-        myControl.Width = 967
-        myControl.Anchors = []
-        myControl.Constraints.MaxHeight = 6856
-        myControl.Constraints.MaxWidth = 967
-        myControl.Constraints.MinHeight = 6856
-        myControl.Constraints.MinWidth = 967
-        myControl.FixedTypeface = 'Courier New'
-        myControl.DefaultTypeFace = 'default'
-        myControl.DefaultFontSize = 12
-        myControl.FlagErrors = False
-        myControl.PrintSettings.MarginLeft = 0.5
-        myControl.PrintSettings.MarginTop = 0.5
-        myControl.PrintSettings.MarginRight = 0.5
-        myControl.PrintSettings.MarginBottom = 0.5
-        myControl.PrintSettings.Preview.Left = 480
-        myControl.PrintSettings.Preview.Top = 270
-        myControl.PrintSettings.Preview.Width = 1440
-        myControl.PrintSettings.Preview.Height = 810
-        myControl.TabOrder = 0
-        IsContainer = False
-        AlignChildrenVertical = True
-        Alignment = 'Left'
-        LabelPos = 'Top'
-        IsVisible = True
-        BgColor = clNone
-        SpacingAround = 0
-        Border = True
-        IsEditable = True
-        SourceText = '...text...'
-        FrameHeight = '1000%'
-        FrameWidth = '100%'
-        HTMLSource = '<html>'#13#10'<head>'#13#10#13#10'<title>TXHTMLText </title>'#13#10'</head>'#13#10'<body>'#13#10#13#10'<div id="FrameContent" class="content" style="background-color:powderblue; ">'#13#10#13#10'      <div id="thetext" class="wysiwyg" style="height: 100%; width: 100%; background-color:white; border-style: solid;border-width:thin;">'#13#10'<div contenteditable="false" class="wysiwyg-content">'#13#10'...text...'#13#10'</div>'#13#10'      </div>'#13#10#13#10'    </div>'#13#10'</body>'#13#10'</html>'#13#10
-      end
+      Border = True
+      SourceText = '...text...'
+      FrameHeight = '99%'
+      FrameWidth = '99%'
     end
   end
 end

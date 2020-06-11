@@ -21,7 +21,7 @@ uses
   {$ifdef Python}
   PyXUtils,PythonEngine,
   {$endif}
-  CEFXUtils, XGPUEditor;
+  CEFXUtils, FrameViewer09, XGPUEditor;
 
 {$R *.res}
 {$ifdef Chromium}
