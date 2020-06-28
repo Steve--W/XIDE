@@ -12198,32 +12198,32 @@ LazarusResources.Add('XIDEMain','PAS',[
   +' PARTICULAR PURPOSE.'#13#10#13#10' ****************************************'
   +'******************************'#13#10' *)'#13#10#13#10'unit XIDEMain;'#13#10
   +'{$ifndef JScript}'#13#10'{$mode objfpc}{$H+}'#13#10'{$INTERFACES CORBA}'#13
-  +#10'{$endif}'#13#10#13#10'interface'#13#10#13#10'uses'#13#10'  Classes, SysU'
-  +'tils,'#13#10'{$ifndef JScript}'#13#10'  FileUtil, Forms, Controls, Graphics'
-  +', Dialogs, LCLIntf,'#13#10'  ExtCtrls, Menus, ComCtrls, StdCtrls, TypInfo, '
-  +'LazIDEIntf, LResources,'#13#10'  Types,'#13#10'  Events, DllInterface, Lazs'
-  +'Utils, CompilerLogUnit,'#13#10'{$else}'#13#10'  HTMLUtils,'#13#10'{$endif}'
-  +#13#10'  // XComponents units...'#13#10'  PyXUtils, StringUtils, NodeUtils, '
-  +'PasteDialogUnit,'#13#10'  UtilsJSCompile, XIFrame, XSVGContainer, XMenu, XS'
-  +'crollBox, XVBox, XHBox, XTree, XMemo,'#13#10'  XTabControl, XButton, XLabel'
-  +', XEditBox, XCheckBox, XHyperLink, XRadioBtns,'#13#10'  XForm, XTable, XPro'
-  +'gressBar, XNumericSlider, XNumberSpinner,'#13#10'  XComboBox, XDatePicker, '
-  +'XColorPicker, XImage, XGroupBox, XCode, XStore,'#13#10'  XBitMap, XTrapEven'
-  +'ts, XIDEHelpUnit,'#13#10'  XHTMLText, XHTMLEditor, EventsInterface,'#13#10
-  +'  // XIDEComponents units...'#13#10'  XGPUCanvas, XGPUEditor, X3DTable, XTh'
-  +'reads, XComposite,'#13#10'  // XIDE project units...'#13#10'  CompileUserCo'
-  +'de, XObjectInsp,XIDESettings,'#13#10'  CodeEditor, InputSelectUnit, Propert'
-  +'yEditUnit,'#13#10'  PopupMemo, AboutUnit, SavedSystems, StylesUtils;'#13#10
-  +#13#10'{$ifdef JScript}'#13#10'procedure InitialisePage(dummy:string);'#13#10
-  +'{$ifdef Python}'#13#10'procedure StartupPython;'#13#10'{$endif}'#13#10'{$en'
-  +'dif}'#13#10#13#10'{ TXIDEForm }'#13#10#13#10'type'#13#10'TXIDEForm = class('
-  +'TXForm)'#13#10#13#10'  {$ifndef JScript}'#13#10'  // Lazarus-only Form comp'
-  +'onents...'#13#10'  WebMenu: TMenuItem;'#13#10'  CompileToJS: TMenuItem;'#13
-  +#10'  CompilerShowLog: TMenuItem;'#13#10'  {$endif}'#13#10#13#10#13#10'  Tog'
-  +'gleDesignRunMode: TXMenuItem;'#13#10'  CodeTreePascalUnitBtn: TXButton;'#13
-  +#10'  NavTreeUpBtn: TXButton;'#13#10'  NavTreeUpDownHBox: TXHBox;'#13#10'  N'
-  +'avTreeDownBtn: TXButton;'#13#10'  ResourceTreeButtonsHBox: TXHBox;'#13#10' '
-  +' ResourceTreeDelBtn: TXButton;'#13#10'  ResourceTreeLoadBtn: TXButton;'#13
+  +#10'{$endif}'#13#10#13#10#13#10'interface'#13#10#13#10'uses'#13#10'  Classes'
+  +', SysUtils,'#13#10'{$ifndef JScript}'#13#10'  FileUtil, Forms, Controls, Gr'
+  +'aphics, Dialogs, LCLIntf,'#13#10'  ExtCtrls, Menus, ComCtrls, StdCtrls, Typ'
+  +'Info, LazIDEIntf, LResources,'#13#10'  Types,'#13#10'  Events, DllInterface'
+  +', LazsUtils, CompilerLogUnit,'#13#10'{$else}'#13#10'  HTMLUtils,'#13#10'{$e'
+  +'ndif}'#13#10'  // XComponents units...'#13#10'  PyXUtils, StringUtils, Node'
+  +'Utils, PasteDialogUnit,'#13#10'  UtilsJSCompile, XIFrame, XSVGContainer, XM'
+  +'enu, XScrollBox, XVBox, XHBox, XTree, XMemo,'#13#10'  XTabControl, XButton,'
+  +' XLabel, XEditBox, XCheckBox, XHyperLink, XRadioBtns,'#13#10'  XForm, XTabl'
+  +'e, XProgressBar, XNumericSlider, XNumberSpinner,'#13#10'  XComboBox, XDateP'
+  +'icker, XColorPicker, XImage, XGroupBox, XCode, XStore,'#13#10'  XBitMap, XT'
+  +'rapEvents, XIDEHelpUnit,'#13#10'  XHTMLText, XHTMLEditor, EventsInterface,'
+  +#13#10'  // XIDEComponents units...'#13#10'  XGPUCanvas, XGPUEditor, X3DTabl'
+  +'e, XThreads, XComposite,'#13#10'  // XIDE project units...'#13#10'  Compile'
+  +'UserCode, XObjectInsp,XIDESettings,'#13#10'  CodeEditor, InputSelectUnit, P'
+  +'ropertyEditUnit,'#13#10'  PopupMemo, AboutUnit, SavedSystems, StylesUtils;'
+  +#13#10#13#10'{$ifdef JScript}'#13#10'procedure InitialisePage(dummy:string);'
+  +#13#10'{$ifdef Python}'#13#10'procedure StartupPython;'#13#10'{$endif}'#13#10
+  +'{$endif}'#13#10#13#10'{ TXIDEForm }'#13#10#13#10'type'#13#10'TXIDEForm = cl'
+  +'ass(TXForm)'#13#10#13#10'  {$ifndef JScript}'#13#10'  // Lazarus-only Form '
+  +'components...'#13#10'  WebMenu: TMenuItem;'#13#10'  CompileToJS: TMenuItem;'
+  +#13#10'  CompilerShowLog: TMenuItem;'#13#10'  {$endif}'#13#10#13#10#13#10'  '
+  +'ToggleDesignRunMode: TXMenuItem;'#13#10'  CodeTreePascalUnitBtn: TXButton;'
+  +#13#10'  NavTreeUpBtn: TXButton;'#13#10'  NavTreeUpDownHBox: TXHBox;'#13#10
+  +'  NavTreeDownBtn: TXButton;'#13#10'  ResourceTreeButtonsHBox: TXHBox;'#13#10
+  +'  ResourceTreeDelBtn: TXButton;'#13#10'  ResourceTreeLoadBtn: TXButton;'#13
   +#10'  OIAddPropertyButton: TXButton;'#13#10'  DebugTree: TXButton;'#13#10'  '
   +'StyleTreeButtonHBox: TXHBox;'#13#10'  StyleTreeDelBtn: TXButton;'#13#10'  S'
   +'tyleTreeApplyBtn: TXButton;'#13#10'  StyleNodeQualifier: TXComboBox;'#13#10
