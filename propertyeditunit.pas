@@ -332,36 +332,6 @@ begin
     // on return...
     InputSelectForm.InputSelectClosed;
 end;
-(*
-procedure TPropertyEditForm.PropertyEditSourceTreeHandleTreeNodeClick(
-  e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  ObjName:String;
-  SelectedNode:TDataNode;
-begin
-  // value is the node label
-  //showmessage('value='+myValue);
-  ObjName:=TreeLabelToID( myValue);
-  //ObjName is  the screen object name (from the name within myvalue)
-  if ObjName<>'' then
-  begin
-    //showmessage('PropertyEditSourceTreeHandleTreeNodeClick.  Id='+ObjName);
-    // if name contains a '.' then it's a property.
-    // Functions have a node type of Function
-    if FoundString(ObjName,'.')>0 then
-    begin
-      PropertyEditSourceBox.ItemValue:=ObjName;
-    end
-    else
-    begin
-      SelectedNode:=FindDataNodeById(CodeRootNode,ObjName,'',false);
-      if SelectedNode<>nil then
-        if SelectedNode.NodeType='Function' then
-          PropertyEditSourceBox.ItemValue:=ObjName;
-    end;
-  end;
-end;
-*)
 
 procedure TPropertyEditForm.HandleTreeDataNodeSelect(
   e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);

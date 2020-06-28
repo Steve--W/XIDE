@@ -29,7 +29,7 @@ uses
   {$endif}
   webTranspilerUtils, UtilsJSCompile, WrapperPanel, XScrollBox, XVBox, XHBox, XTree, XMemo, XTabControl, XButton,
   XLabel, XEditBox, XCheckBox, XComboBox, XHyperLink, XRadioBtns, XCode, XForm, XGPUCanvas, XGPUEditor,
-  XMenu, InputSelectUnit, PopupMemo,EventsInterface;
+  XMenu, PopupMemo,EventsInterface;
 
 
 
@@ -38,23 +38,11 @@ type
   { TCodeEditForm }
 
   TCodeEditForm = class(TXForm)
-    CodeEditInputLabelsHBox: TXHBox;
-    CodeEditFormXHBox2: TXHBox;
     CodeEditSaveBtn: TXButton;
     CodeEditCancelBtn: TXButton;
     CodeEditFormXHBox1: TXHBox;
     CodeEditFormXVBox1: TXVBox;
     CodeEdit: TXCode;
-    CodeEditParamListScrollBox: TXScrollBox;
-    CodeEditListLbl: TXLabel;
-    CodeEditAddInputBtn: TXButton;
-    CodeEditDelInputBtn: TXButton;
-    CodeEditInputsVBox: TXVBox;
-    CodeEditInputsVBox1: TXVBox;
-    CodeEditColLabl1: TXLabel;
-    CodeEditColLbl2: TXLabel;
-    CodeEditColLbl3: TXLabel;
-    CodeEditFunctionResultType: TXComboBox;
     CodeEditHelpBtn: TXButton;
     CodeEditMainTabs: TXTabControl;
     CodeEditMainCodeTab: TXTabSheet;
@@ -71,23 +59,15 @@ type
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
     {$endif}
-    procedure AddInputBox(myInput:TCodeInputRec);
     procedure Initialise;
     procedure InitialiseOnShow(Context,NodeName,EvType:String);
-    procedure CodeEditAddInputBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-    procedure CodeEditDelInputBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditHandleClickMessage(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditInitHandleClickMessage(e: TEventStatus; nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditCancelBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditHelpBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;  myValue: AnsiString);
     procedure CodeEditSaveBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-    procedure EditInputSynonym(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-    procedure EditInputSource(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-    procedure ShowInputSelector(e:TEventStatus;nodeID: AnsiString;myValue: AnsiString);
-    procedure InputCheckBoxClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditFindBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditFindNextBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString; myValue: AnsiString);
-    function ValidateInputs:Boolean;
     procedure DoLocalSearch(TextToFind:String);
     procedure DoGlobalSearch(TextToFind:String);
     procedure NavigateToFirstError;
@@ -103,9 +83,6 @@ type
     TargetNameSpace:String;
     EventType:String;
 
-    NumInputs:integer;
-    MyInputs:TCodeInputs;
-    CheckedInputs:Array of Boolean;
     {$ifdef JScript}
     LastSearchIndex:integer;
     RegExp:TObject;
@@ -131,8 +108,6 @@ begin
   EventType:=EvType;
   self.CodeEditContextLabel.LabelCaption:=Context+' '+NodeName+' '+EvType;
   CodeEdit.LabelText:='';
-  NumInputs:=0;
-  DeleteNodeChildren(CodeEditParamListScrollBox.myNode);
 
   CodeEditFindGlobal.Checked:=false;
 
@@ -141,15 +116,11 @@ begin
     CodeEditFindTxt.ItemValue:='';
     CodeEdit.ContainerHeight:='100%';           // CodeEdit is % of the parent component (tabpage)
     CodeEditInitTab.IsVisible:=false;
-    CodeEditFunctionResultType.IsVisible:=false;
-    CodeEditInputsVBox.IsVisible:=false;
     CodeEdit.MessagesHeight:='30%';
   end
   else if (Mode='EventCode') then
   begin
     CodeEditFindTxt.ItemValue:='';
-    CodeEditFunctionResultType.IsVisible:=false;
-    CodeEditInputsVBox.IsVisible:=false;
     if CodeEdit.MessageLines='' then
       CodeEdit.MessagesHeight:='1'
     else
@@ -169,30 +140,10 @@ begin
     end;
   end
   else
-  if (Mode='FunctionCode') then
-  begin
-    CodeEdit.ContainerHeight:='60%';           // CodeEdit is % of the parent component (tabpage)
-    CodeEditInitTab.IsVisible:=false;
-    CodeEditFunctionResultType.IsVisible:=true;
-    if CodeEdit.MessageLines='' then
-      CodeEdit.MessagesHeight:='1'
-    else
-      CodeEdit.MessagesHeight:='10%';
-    CodeEditInputsVBox.IsVisible:=true;
-    CodeEditFindTxt.ItemValue:='';
-
-    InputSelectForm.ExclNodeName:=TargetNodeName;
-    InputSelectForm.ExclPropertyName:='';
-    InputSelectForm.PropType:='';
-    InputSelectForm.Initialise;
-  end
-  else
   if (Mode='SearchCode') then
   begin
     CodeEdit.ContainerHeight:='100%';           // CodeEdit is % of the parent component (tabpage)
     CodeEditInitTab.IsVisible:=false;
-    CodeEditFunctionResultType.IsVisible:=false;
-    CodeEditInputsVBox.IsVisible:=false;
     CodeEdit.MessagesHeight:='30%';
     CodeEditFindGlobal.Checked:=true;
     CodeEditFindCase.Checked:=true;
@@ -208,8 +159,6 @@ begin
   begin
     CodeEdit.ContainerHeight:='95%';            // CodeEdit is % of the parent component (tabpage)
     CodeEditInitTab.IsVisible:=false;
-    CodeEditFunctionResultType.IsVisible:=false;
-    CodeEditInputsVBox.IsVisible:=false;
     if CodeEdit.MessageLines='' then
       CodeEdit.MessagesHeight:='1'
     else
@@ -271,20 +220,13 @@ end;
 
 procedure TCodeEditForm.Initialise;
 begin
-  numInputs:=0;
-  SetLength(MyInputs,0);
-  SetLength(CheckedInputs,0);
   CodeFormRoot:=FindDataNodeById(myNode,'CodeEditFormXVBox1','',true);
-  CodeEditFunctionResultType.OptionList:=Attributetypes;
-  CodeEditFunctionResultType.ItemIndex:=0;
 
   TargetNodeName:='';
   TargetNameSpace:='';
   EventType:='';
   self.CodeEditContextLabel.LabelCaption:='';
   CodeEdit.LabelText:='';
-//  NumInputs:=0;
-  DeleteNodeChildren(CodeEditParamListScrollBox.myNode);
 
   {$ifndef JScript}
   TXForm(self).Height:=trunc(MainForm.Height*90/100);
@@ -306,179 +248,12 @@ begin
 
 end;
 
-procedure TCodeEditForm.AddInputBox(myInput:TCodeInputRec);
-var
-  HBoxNode:TDataNode;
-  NewHBox:TXHBox;
-  NewCheckBox:TXCheckBox;
-  NewEditBox1, NewEditBox2:TXEditBox;
-  NewButton:TXButton;
-  ParentNode:TDataNode;
-  BoxName,ItmValue:String;
-begin
-  numInputs:=numInputs+1;
-  SetLength(myInputs,numInputs);
-  myInputs[length(myInputs)-1]:=myInput;
-  SetLength(CheckedInputs,numInputs);
-
-  ParentNode:=CodeEditParamListScrollBox.myNode;
-  BoxName:='CodeEditInputCombo_'+intToStr(numInputs);
-
-  HBoxNode:=AddDynamicWidget('TXHBox',CodeEditForm,ParentNode,'HB'+BoxName,'','Left',-1);
-  NewHBox:=TXHBox(HBoxNode.ScreenObject);
-  NewCheckBox:=TXCheckBox(AddDynamicWidget('TXCheckBox',CodeEditForm,HBoxNode,'CB'+BoxName,'','Top',-1).ScreenObject);
-  NewEditBox1:=TXEditBox(AddDynamicWidget('TXEditBox',CodeEditForm,HBoxNode,'EB1'+BoxName,'','Top',-1).ScreenObject);
-  NewEditBox2:=TXEditBox(AddDynamicWidget('TXEditBox',CodeEditForm,HBoxNode,'EB2'+BoxName,'','Top',-1).ScreenObject);
-  NewButton:=TXButton(AddDynamicWidget('TXButton',CodeEditForm,HBoxNode,'Btn'+BoxName,'','Top',-1).ScreenObject);
-
-
-  {$ifndef JScript}
-  NewHBox.BgColor:=HexRGBToColor('#BFCDDB');
-  {$else}
-  NewHBox.BgColor:='#DBCDBF';
-  {$endif}
-
-  NewHBox.Border:=false;
-
-  NewCheckBox.LabelText:='';
-  NewCheckBox.myNode.registerEvent('Click',@CodeEditForm.InputCheckBoxClick);
-
-  NewEditBox1.ItemValue:=myInput.InputSynonym;
-  NewEditBox1.LabelText:='';
-
-  NewEditBox2.LabelText:='';
-  NewEditBox2.ContainerWidth:='50%';
-  NewEditBox2.BoxWidth:='100%';
-  NewEditBox2.ReadOnly:=true;
-
-  NewButton.Caption:='...';
-
-  if myInput.InputNodeName<>'' then
-    NewEditBox2.ItemValue:=myInput.InputNodeName+'.'+myInput.InputAttribName;
-
-  NewEditBox1.myNode.registerEvent('Change',@CodeEditForm.EditInputSynonym);
-  NewEditBox2.myNode.registerEvent('Change',@CodeEditForm.EditInputSource);
-  NewButton.myNode.registerEvent('ButtonClick',@CodeEditForm.ShowInputSelector);
-end;
-
-procedure TCodeEditForm.InputCheckBoxClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  numstr:string;
-  n:integer;
-  bits:TStringList;
-begin
-  bits:=stringsplit(nodeId,'_');
-  if bits.count>1 then
-  begin
-    numstr:=bits[1];
-    n:=strtoint(numstr);
-    CheckedInputs[n-1]:=MyStrToBool(myValue);
-  end;
-end;
-
-procedure TCodeEditForm.EditInputSynonym(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  numstr:string;
-  n:integer;
-  bits:TStringList;
-begin
-  // index for myInputs always matches the integer suffix of the combo box name (-1).
-  // Gaps due to deleted inputs are handled on form closure.
-  bits:=stringsplit(nodeId,'_');
-  if bits.count>1 then
-  begin
-    numstr:=bits[1];
-    n:=strtoint(numstr);
-    myInputs[n-1].InputSynonym:=myValue;
-  end;
-end;
-
-procedure TCodeEditForm.EditInputSource(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  numstr:string;
-  n:integer;
-  bits,SourceBits:TStringList;
-begin
-  // index for myInputs always matches the integer suffix of the combo box name (-1).
-  // Gaps due to deleted inputs are handled on form closure.
-  bits:=stringsplit(nodeId,'_');
-  if bits.count>1 then
-  begin
-    numstr:=bits[1];
-    n:=strtoint(numstr);
-    SourceBits:=StringSplit(myValue,'.');
-    if SourceBits.Count=2 then
-    begin
-      myInputs[n-1].InputNodeName:=SourceBits[0];
-      myInputs[n-1].InputAttribName:=SourceBits[1];
-    end
-    else
-    begin
-      myInputs[n-1].InputNodeName:=myValue;
-    end;
-  end;
-end;
-
-procedure TCodeEditForm.ShowInputSelector(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  numstr:string;
-  n:integer;
-  bits:TStringList;
-begin
-  // index for myInputs always matches the integer suffix of the combo box name (-1).
-  // Gaps due to deleted inputs are handled on form closure.
-  bits:=stringsplit(nodeId,'_');
-  if bits.count>1 then
-  begin
-    numstr:=bits[1];
-    n:=strtoint(numstr);
-    InputSelectForm.TargetEditBoxNode:=FindDataNodeById(UIRootNode,'EB2'+'CodeEditInputCombo_'+intToStr(n),'',true);
-
-    InputSelectForm.Initialise;
-    ShowXForm('InputSelectForm',true);
-
-    {$ifndef JScript}
-    // on return...
-    InputSelectForm.InputSelectClosed;
-    {$endif}
-  end;
-end;
-
 procedure TCodeEditForm.CodeEditHelpBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;
   myValue: AnsiString);
 begin
   ShowXForm('PopupMemoForm',false);
 end;
 
-
-procedure TCodeEditForm.CodeEditAddInputBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  emptyRec:TCodeInputRec;
-begin
-  // add an element to the CodeEditParamListScrollBox
-  // The element is a ComboBox with avaliable options listing all system properties, and eligible functions.
-  AddInputBox(emptyRec);
-end;
-
-procedure TCodeEditForm.CodeEditDelInputBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  i:integer;
-  delNode:TDataNode;
-begin
-  //showmessage('not yet implemented');
-  // delete all checked inputs
-  for i:=0 to length(CheckedInputs)-1 do
-  begin
-    if CheckedInputs[i]=true then
-    begin
-      delNode:=FindDataNodeById(CodeFormRoot,'HBCodeEditInputCombo_'+IntToStr(i+1),'',true);
-      DeleteNode(CodeEditParamListScrollBox.myNode,delNode);
-      CheckedInputs[i]:=false;
-      myInputs[i].InputNodeName:='';
-      myInputs[i].InputAttribName:='';
-    end;
-  end;
-end;
 
 {$ifdef JScript}
 Function GetErrorLineNum(ErrorString,Delimiter:string):integer;
@@ -593,7 +368,7 @@ begin
     begin
       if FStrings2[1]='inc' then
       begin
-        // could be a function or an event handler       !!!!namespace - separate with _ ?  !!!!disallow _ in element names????
+        // could be a function or an event handler       !!namespace - separate with _ ?  !!disallow _ in element names????
         FStrings:=StringSplit(FStrings2[0],'__');
         if FStrings.Count>=2 then
         begin
@@ -604,9 +379,18 @@ begin
           end
           else
           begin
-            self.TargetNameSpace:=FStrings[0];
-            self.TargetNodeName:=FStrings[1];
-            self.EventType:=FStrings[2];
+            if FStrings[2]='Init' then
+            begin
+              self.TargetNameSpace:='';
+              self.TargetNodeName:=FStrings[0];
+              self.EventType:=FStrings[1];
+            end
+            else
+            begin
+              self.TargetNameSpace:=FStrings[0];
+              self.TargetNodeName:=FStrings[1];
+              self.EventType:=FStrings[2];
+            end;
           end;
 
           if self.TargetNameSpace='' then
@@ -628,14 +412,6 @@ begin
                  CodeEditMainTabs.TabIndex:=1;
             end;
           end;
-        //end
-        //else
-        //begin
-        //  self.TargetNodeName:=FStrings[0];
-        //  self.Mode:='FunctionCode';
-        //  Context:='Function';
-        //  targetLine:=StrToInt(linenum);
-        //end;
         end;
 
         FreeAndNil(FStrings);
@@ -659,7 +435,7 @@ begin
     end
     else
     begin
-      showmessage('This code is within an encapsulated element - not available for edit');
+      showmessage('This code is within an encapsulated element ('+self.TargetNameSpace+') - not available for edit');
     end;
   end
   else
@@ -764,8 +540,6 @@ begin
          begin
            if targetNode.NodeType='PasUnit' then
              self.Mode:='PasUnitCode'
-           else if targetNode.NodeType='Function' then
-             self.Mode:='FunctionCode'
            else if targetNode.NodeType='PythonScript' then
              self.Mode:='PythonScriptCode';
            Context:=targetNode.NodeType;
@@ -902,7 +676,7 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
   begin
     if (ThisNode.NodeType='PasUnit')
     or (ThisNode.NodeType='PythonScript')
-    or (ThisNode.NodeType='Function') then
+    then
     begin
       SearchThisText(ThisNode.NodeName,ThisNode.NodeType,ThisNode.GetAttribute('Code',true).AttribValue);
     end;
@@ -1046,36 +820,11 @@ begin
 end;
 
 
-function TCodeEditForm.ValidateInputs:Boolean;
-var
-  ok:Boolean;
-  i:integer;
-begin
-  ok:=true;
-  for i:=0 to length(MyInputs)-1 do
-    if trim(myInputs[i].InputNodeName)<>'' then
-    begin
-      if trim(myInputs[i].InputSynonym)='' then
-        ok:=false;
-    end;
-  if ok=false then
-    showmessage('Please provide a Synonym for each declared input');
-
-  result:=ok;
-end;
-
 procedure TCodeEditForm.CodeEditSaveBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-    XFormNode:TDataNode;
-    ok:Boolean;
 begin
-  ok:=ValidateInputs;
-  if ok then
-  begin
     CodeEditStatus:='ok';
     TXForm(self).Showing:='No';
     CodeEditorClosed(OIEditBox);
-  end;
 end;
 
 procedure TCodeEditForm.CodeEditCancelBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);

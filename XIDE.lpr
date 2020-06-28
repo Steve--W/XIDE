@@ -15,13 +15,12 @@ uses
   {$endif}
   Interfaces, // this includes the LCL widgetset
   Forms, XIDEMain, XObjectInsp, LazsUtils, datetimectrls, lazmouseandkeyinput,
-  CodeEditor, CompileUserCode, PropertyEditUnit, InputSelectUnit, popupmemo,
-  AboutUnit, XIDEHelpUnit, DllInterface, SavedSystems, StylesUtils,
-  EventLogging, ReplayUserDialog, MacroComment,
+  CodeEditor, CompileUserCode, PropertyEditUnit, popupmemo, AboutUnit,
+  XIDEHelpUnit, DllInterface, SavedSystems, StylesUtils, InputSelectUnit,
   {$ifdef Python}
   PyXUtils,PythonEngine,
   {$endif}
-  CEFXUtils, FrameViewer09, XGPUEditor;
+  CEFXUtils, FrameViewer09, XGPUEditor, XIDESettings;
 
 {$R *.res}
 {$ifdef Chromium}
@@ -32,14 +31,10 @@ uses
 {$endif}
 const
   CEFLibDir:String = 'C:\cef4Master\FrameworkDir';
-  //PythonLibDir = 'python38.dll';
-  //PythonLibDir = 'C:\Python-for-Lazarus-master\python4lazarus\Runtime\python38.dll';
-  //PythonVersion = '3.8';
 
 begin
   {$ifdef Python}
-  // start the engine
-  //SetupPyEngine(PythonLibDir, PythonVersion);
+  // start the python engine
   SetupPyEngine('', '');
   {$endif}
   {$ifdef Chromium}
@@ -54,14 +49,13 @@ begin
     // In the process, they run constructors for class TForm (not TXForm), so TXForm constructor stuff has to be added.
     Application.CreateForm(TXIDEForm, XIDEForm);
     Application.CreateForm(TCodeEditForm, CodeEditForm);
-    Application.CreateForm(TPropertyEditForm, PropertyEditForm);
     Application.CreateForm(TInputSelectForm, InputSelectForm);
+    Application.CreateForm(TPropertyEditForm, PropertyEditForm);
     Application.CreateForm(TPopupMemoForm, PopupMemoForm);
     Application.CreateForm(TAboutXIDEForm, AboutXIDEForm);
     Application.CreateForm(TXIDEHelpForm, XIDEHelpForm);
     Application.CreateForm(TSavedSystemsForm, SavedSystemsForm);
-    Application.CreateForm(TReplayUserDialogForm, ReplayUserDialogForm);
-    Application.CreateForm(TMacroCommentForm, MacroCommentForm);
+    Application.CreateForm(TXIDESettingsForm, XIDESettingsForm);
     Application.ProcessMessages;
     Application.Run;
 

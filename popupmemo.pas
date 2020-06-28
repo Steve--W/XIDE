@@ -110,10 +110,6 @@ begin
   '          ''Init'' section of an event handler.         ' + LineEnding +
   'procedure HideBusy;'   + LineEnding +
   '                            Hides the busy cursor  '  + LineEnding +
-  'procedure MovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String);'  + LineEnding +
-  '                            Runs an animated pointer on screen between the two given UI components  '  + LineEnding +
-  'procedure HidePointer;'  + LineEnding +
-  '                            Hides the animated pointer (that was raised by MovePointerBetweenComponents)  '  + LineEnding +
   'procedure ProcessMessages;'  + LineEnding +
   '                            Functional in Desktop execution only.  Executes a pascal Application.ProcessMessages statement.  '  + LineEnding +
   'procedure DebugStart;'  + LineEnding +

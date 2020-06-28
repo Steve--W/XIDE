@@ -51,8 +51,6 @@ TStartMain=procedure(e:TEventStatus) of object;
 TShowBusy=procedure(e:TEventStatus) of object;
 THideBusy=procedure of object;
 TProcessMessages=procedure of object;
-TMovePointerBetweenComponents=procedure(NodeName1,NodeName2,Sub1,Sub2:String) of object;
-THidePointer=procedure of object;
 TUserSystemAsString=function():String of object;
 TLoadUserSystemString=procedure(SystemString:String) of object;
 TConsoleLog=procedure(txt:String) of object;
@@ -93,8 +91,6 @@ SetGPUConstIntValue:TSetGPUConstIntValue;
 ShowBusy:TShowBusy;
 HideBusy:THideBusy;
 ProcessMessages:TProcessMessages;
-MovePointerBetweenComponents:TMovePointerBetweenComponents;
-HidePointer:THidePointer;
 UserSystemAsString:TUserSystemAsString;
 LoadUserSystemString:TLoadUserSystemString;
 ConsoleLog:TConsoleLog;
@@ -143,8 +139,6 @@ type TMethodsClass = class(TObject)
  procedure mmiShowBusy(e:TEventStatus);
  procedure mmiHideBusy;
  procedure mmiProcessMessages;
- procedure mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String);
- procedure mmiHidePointer;
  function mmiUserSystemAsString():String;
  procedure mmiLoadUserSystemString(SystemString:String);
  procedure mmiConsoleLog(txt:String);
@@ -197,8 +191,6 @@ begin
   showbusy:=@appmethods.mmiShowBusy;
   hidebusy:=@appmethods.mmiHideBusy;
   processmessages:=@appmethods.mmiProcessMessages;
-  movepointerbetweencomponents:=@appmethods.mmimovepointerbetweencomponents;
-  hidepointer:=@appmethods.mmihidepointer;
   UserSystemAsString:=@appmethods.mmiUserSystemAsString;
   LoadUserSystemString:=@appmethods.mmiLoadUserSystemString;
   ConsoleLog:=@appmethods.mmiConsoleLog;
@@ -332,9 +324,7 @@ begin
   // 'Main' section of the event handler.
   str:='';
   asm
-    if (pas.EventLogging.MacroEventList.Replaying==false)
     {
-      //alert('CopyFromClip. not replaying');
       if (e!=null)
       {
         if (e.InitRunning==false) {
@@ -347,23 +337,6 @@ begin
       }
       else
         alert('CopyFromClip must be called with parameter "e"');
-    }
-    else
-    {
-      // replaying an event, so can't handle async stuff...
-      // Instead, pop the original pasted string off the eventlist.
-      var macroEvent=pas.EventLogging.AdvanceEventLog();
-      if (macroEvent.EventType!='MemoPaste')
-      {
-        alert('oops cannot retrieve original pasted input');
-        alert('found event '+macroEvent.EventType+' '+macroEvent.NodeId);
-      }
-      else
-      {
-        str=macroEvent.eventvalue;
-        e.ReturnString=str;
-        //alert('found MemoPaste.  str='+str);
-      }
     }
   end;
   result:=str;   // have to await user pressing ctrl-v to get pasted data
@@ -408,10 +381,10 @@ end;
 
 procedure TMethodsClass.mmiDoEvent(EventType,NodeId,myValue:String);
 begin
+  // timeout here basically (eg.) because TreeNodeClick opens the tree node on a timeout, and we want to see
+  // those changes on screen before continuing.
   asm
-  if (myValue==undefined) {myValue='';}
-  pas.EventLogging.ReplayEvent(null,EventType,NodeId,pas.InterfaceTypes.EventsNameSpace,myValue);
-
+    myTimeout(pas.Events.handleEvent,5,'handleEvent',0,null,EventType,NodeId,pas.InterfaceTypes.EventsNameSpace,myValue);
   end;
 end;
 
@@ -517,7 +490,6 @@ begin
   // ShowBusy is an async function (required for browser use), so it must be coded in the
   // 'Init' section of an event handler.
   asm
-    if (pas.EventLogging.MacroEventList.Replaying==false)
     {
       if (e!=null)
       {
@@ -546,21 +518,6 @@ procedure TMethodsClass.mmiProcessMessages;
 begin
   asm
     //!!!!
-  end;
-end;
-
-procedure TMethodsClass.mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String);      //!!!!namespace???
-begin
-  asm
-    pas.EventLogging.MovePointer(EventsNameSpace,NodeName1,NodeName2,Sub1,Sub2,false);
-  end;
-end;
-
-procedure TMethodsClass.mmiHidePointer;
-begin
-  asm
-    var ptr = document.getElementById("AutomatedCursor");
-    ptr.style.display = "none";
   end;
 end;
 

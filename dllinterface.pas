@@ -21,7 +21,7 @@ interface
 uses
   Classes, SysUtils, StringUtils, ExtCtrls, Dialogs, Clipbrd, Forms, Controls,
   NodeUtils, LazsUtils, EventsInterface, Events, XForm, XBitMap, XObjectInsp, XGPUCanvas, XTable,
-  XComposite, EventLogging, XIframe,
+  XComposite, XIframe,
   MouseAndKeyInput, LCLType, TypInfo;
 
 type
@@ -54,8 +54,6 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiShowBusy(e:TEventStatus);    stdcall;
     procedure mmiHideBusy;   stdcall;
     procedure mmiProcessMessages;   stdcall;
-    procedure mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String); stdcall;
-    procedure mmiHidePointer; stdcall;
     function mmiUserSystemAsString():String; stdcall;
     procedure mmiLoadUserSystemString(SystemString:String); stdcall;
     procedure mmiConsoleLog(txt:String);  stdcall;
@@ -100,8 +98,6 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiShowBusy(e:TEventStatus); stdcall;
       procedure mmiHideBusy; stdcall;
       procedure mmiProcessMessages; stdcall;
-      procedure mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String); stdcall;
-      procedure mmiHidePointer; stdcall;
       function mmiUserSystemAsString():String; stdcall;
       procedure mmiLoadUserSystemString(SystemString:String); stdcall;
       procedure mmiConsoleLog(txt:String);  stdcall;
@@ -280,9 +276,7 @@ end;
    var
      s:String;
      myTag:TEventTimerTag;
-     macroevent:TMacroEvent;
    begin
-     if  not EventLogging.MacroEventList.Replaying then
      begin
        //showmessage('CopyFromClip');
        if (e.InitRunning=false) then
@@ -300,23 +294,6 @@ end;
        DllEventTimer.Tag:=WinSizeDependentInt(myTag);
        DllEventTimer.Enabled:=true;
        result:='';
-     end
-     else
-     begin
-       // replaying an event, so can't handle async stuff...
-       // Instead, pop the original pasted string off the eventlist.
-       macroEvent:=EventLogging.AdvanceEventLog;
-       if (macroEvent.EventType<>'MemoPaste')
-       then
-       begin
-         showmessage('oops cannot retrieve original pasted input');
-         showmessage('found event '+macroevent.EventType+' '+macroevent.NodeId);
-       end
-       else
-       begin
-         e.ReturnString:=macroevent.eventvalue;
-         result:='';
-       end;
      end;
    end;
 
@@ -361,7 +338,7 @@ end;
    begin
      // !! Must not pass Strings from dll to main, if they need to persist (when the dll is unloaded) - use PChar instead.
      mv:=PChar(myValue);
-     ReplayEvent(nil,EventType,NodeId,EventsNameSpace,mv);
+     handleEvent(nil,EventType,nodeId,EventsNameSpace,mv);
    end;
 
    procedure TMyMethodObject.mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
@@ -475,16 +452,6 @@ end;
    procedure TMyMethodObject.mmiProcessMessages; stdcall;
    begin
      Application.ProcessMessages;
-   end;
-
-   procedure TMyMethodObject.mmiMovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2:String); stdcall;
-   begin
-     MovePointer(EventsNameSpace,NodeName1,NodeName2,Sub1,Sub2,false);
-   end;
-
-   procedure TMyMethodObject.mmiHidePointer; stdcall;
-   begin
-     // not relevant in the Lazarus/desktop environment
    end;
 
    function TMyMethodObject.mmiUserSystemAsString():String; stdcall;

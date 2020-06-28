@@ -22,7 +22,8 @@ uses
 
 
 type
-  TX3DTable = class(TXVBox)
+  //TX3DTable = class(TXVBox)
+  TX3DTable = class(TWrapperPanel)
   private
     { Private declarations }
     IsBuilt:Boolean;
@@ -39,6 +40,7 @@ type
     procedure SetZDimension(AValue:integer);
     procedure SetTable3DData(const AValue:string);
 
+    procedure SetMyEventTypes;
     procedure SetPropertyDefaults;
     procedure BuildWidget;
     procedure ReBuild3DTableData;
@@ -47,7 +49,7 @@ type
     procedure Resize3DData;
 
     {$ifndef JScript}
-    procedure DoConstructor;
+    procedure DoConstructor(TheOwner:TComponent;IsDynamic:Boolean);
     {$endif}
 
     procedure ZSelectorChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -56,6 +58,7 @@ type
     procedure YEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure ZEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure PasteData(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+    function BuildZeds:String;
 
   protected
     { Protected declarations }
@@ -73,7 +76,7 @@ type
     destructor Destroy; override;
     procedure ResequenceComponents;
     {$else}
-    constructor Create(MyForm:TForm;NodeName,NameSpace:String);  override;
+    constructor Create(MyForm:TForm;NodeName,NameSpace:String);  virtual;
     {$endif}
 
 published
@@ -94,50 +97,59 @@ const MyNodeType='TX3DTable';
 var
   myDefaultAttribs:TDefaultAttributesArray;
 
-//procedure TXGPUCanvas.SetMyEventTypes;
-//begin
-//  MyEventTypes.Add('Click');
-//end;
+procedure TX3DTable.SetMyEventTypes;
+begin
+  MyEventTypes.Add('Click');
+end;
 
 procedure TX3DTable.SetPropertyDefaults;
 begin
 end;
 
-procedure TX3DTable.BuildWidget;
+function TX3DTable.BuildZeds:String;
 var
-  TblNode,ZNumNode,XEditNode,YEditNode,ZEditNode,BtnNode:TDataNode;
   zeds:string;
-  i:integer;
+  i,numz:integer;
 begin
-
-//  ZNumNode:=AddDynamicWidget('TXNumberSpinner',self.myNode.MyForm,self.myNode,'ZSelector',self.myNode.NodeName,'Left',-1);
-//  ZSelector:=TXNumberSpinner(ZNumNode.ScreenObject);
-//  ZSelector.MinVal:=0;
-//  ZSelector.MaxVal:=self.ZDimension-1;
-//  ZSelector.ItemValue:=0;
-//  ZSelector.LabelPos:='Left';
-//  ZSelector.LabelText:='Select Z Index:';
-//  ZNumNode.IsDynamic:=false;
-//  ZSelector.myNode.registerEvent('Change',@self.ZSelectorChange);
-
   zeds:='[';
-  for i:=0 to self.ZDimension-1 do
+  if self.ZDimEdit<>nil then
+    numz:=StrToint(self.ZDimEdit.ItemValue)
+  else
+    numz:=self.ZDimension;
+  self.ZDimension:=numz;
+  for i:=0 to numz-1 do
   begin
     if i>0 then zeds:=zeds+',';
     zeds:=zeds + inttostr(i);
   end;
   zeds:=zeds+']';
+  result:=zeds;
+end;
 
-  ZNumNode:=AddDynamicWidget('TXComboBox',self.myNode.MyForm,self.myNode,'ZSelector',self.myNode.NodeName,'Left',-1);
+procedure TX3DTable.BuildWidget;
+var
+  VBNode,TblNode,ZNumNode,XEditNode,YEditNode,ZEditNode,BtnNode:TDataNode;
+  zeds:string;
+  vb:TXVBox;
+  i:integer;
+begin
+
+  VBNode:=AddDynamicWidget('TXVBox',self.myNode.MyForm,self.myNode,'VBox',self.myNode.NodeName,'Left',-1);
+  vb:=TXVBox(VBNode.ScreenObject);
+  VBNode.IsDynamic:=false;
+  vb.ContainerHeight:='100%';
+  vb.ContainerWidth:='100%';
+
+  ZNumNode:=AddDynamicWidget('TXComboBox',self.myNode.MyForm,VBNode,'ZSelector',self.myNode.NodeName,'Left',-1);
   ZSelector:=TXComboBox(ZNumNode.ScreenObject);
-  ZSelector.OptionList:=zeds;
+  ZSelector.OptionList:=BuildZeds;
   ZSelector.ItemValue:='0';
   ZSelector.LabelPos:='Left';
   ZSelector.LabelText:='Select Z Index:';
   ZNumNode.IsDynamic:=false;
   ZSelector.myNode.registerEvent('Change',@self.ZSelectorChange);
 
-  TblNode:=AddDynamicWidget('TXTable',self.myNode.MyForm,self.myNode,'Table',self.myNode.NodeName,'Left',-1);
+  TblNode:=AddDynamicWidget('TXTable',self.myNode.MyForm,VBNode,'Table',self.myNode.NodeName,'Left',-1);
   TblNode.IsDynamic:=false;
   myTableView:=TXTable(TblNode.ScreenObject);
   myTableView.TableHeight:='70%';
@@ -147,14 +159,14 @@ begin
   myTableView.IsNumeric:=true;
   TblNode.registerEvent('Change',@self.TableChange);
 
-  BtnNode:=AddDynamicWidget('TXButton',self.myNode.MyForm,self.myNode,'PasteBtn',self.myNode.NodeName,'Left',-1);
+  BtnNode:=AddDynamicWidget('TXButton',self.myNode.MyForm,VBNode,'PasteBtn',self.myNode.NodeName,'Left',-1);
   PasteBtn:=TXButton(BtnNode.ScreenObject);
   PasteBtn.Caption:='Paste Grid';
   PasteBtn.Hint:='Paste grid data from clipboard (eg. as copied from Excel)';
   PasteBtn.myNode.registerEvent('ButtonClick',@self.PasteData);
   BtnNode.IsDynamic:=false;
 
-  XEditNode:=AddDynamicWidget('TXEditBox',self.myNode.MyForm,self.myNode,'XNum',self.myNode.NodeName,'Left',-1);
+  XEditNode:=AddDynamicWidget('TXEditBox',self.myNode.MyForm,VBNode,'XNum',self.myNode.NodeName,'Left',-1);
   XDimEdit:=TXEditBox(XEditNode.ScreenObject);
   XDimEdit.LabelPos:='Left';
   XDimEdit.LabelText:='Set X Dimension (number of Columns):';
@@ -162,7 +174,7 @@ begin
   XDimEdit.ItemValue:='1';
   XDimEdit.myNode.registerEvent('Change',@self.XEditBoxChange);
 
-  YEditNode:=AddDynamicWidget('TXEditBox',self.myNode.MyForm,self.myNode,'YNum',self.myNode.NodeName,'Left',-1);
+  YEditNode:=AddDynamicWidget('TXEditBox',self.myNode.MyForm,VBNode,'YNum',self.myNode.NodeName,'Left',-1);
   YDimEdit:=TXEditBox(YEditNode.ScreenObject);
   YDimEdit.LabelPos:='Left';
   YDimEdit.LabelText:='Set Y Dimension (number of Rows):';
@@ -170,7 +182,7 @@ begin
   YDimEdit.ItemValue:='1';
   YDimEdit.myNode.registerEvent('Change',@self.YEditBoxChange);
 
-  ZEditNode:=AddDynamicWidget('TXEditBox',self.myNode.MyForm,self.myNode,'ZNum',self.myNode.NodeName,'Left',-1);
+  ZEditNode:=AddDynamicWidget('TXEditBox',self.myNode.MyForm,VBNode,'ZNum',self.myNode.NodeName,'Left',-1);
   ZDimEdit:=TXEditBox(ZEditNode.ScreenObject);
   ZDimEdit.LabelPos:='Left';
   ZDimEdit.LabelText:='Set Z Dimension (Z Depth):';
@@ -178,6 +190,10 @@ begin
   ZDimEdit.ItemValue:='1';
   ZDimEdit.myNode.registerEvent('Change',@self.ZEditBoxChange);
 
+  {$ifndef JScript}
+  myControl:=TControl(TXVBox(VBNode.ScreenObject));    //!!!! ????
+  AddLabel(myControl);
+  {$endif}
   IsBuilt:=true;
 end;
 
@@ -206,27 +222,29 @@ begin
   result:=NewNode;
 end;
 
-procedure TX3DTable.DoConstructor;
+procedure TX3DTable.DoConstructor(TheOwner:TComponent;IsDynamic:Boolean);
 begin
   IsBuilt:=false;
+  self.BorderSpacing.Around:=glbBorderSpacing;
 
+  self.SetMyEventTypes;
+  CreateComponentDataNode2(self,MyNodeType,myDefaultAttribs, self.myEventTypes, TheOwner,IsDynamic);
   self.IsContainer:=false;
-  self.myNode.NodeType:='TX3DTable';
-  AddDefaultAttribs(self,self.myNode,mydefaultAttribs);
 
-  SetPropertyDefaults;
+  self.ParentColor:=true;
+
 end;
 
 constructor TX3DTable.Create(TheOwner:TComponent);
 begin
   inherited Create(TheOwner,false);
-  DoConstructor;
+  DoConstructor(TheOwner,false);
 end;
 
 constructor TX3DTable.Create(TheOwner:TComponent;IsDynamic:Boolean);
 begin
   inherited Create(TheOwner,IsDynamic);
-  DoConstructor;
+  DoConstructor(TheOwner,IsDynamic);
 end;
 
 destructor TX3DTable.Destroy;
@@ -240,23 +258,25 @@ end;
 {$else}
 constructor TX3DTable.Create(MyForm:TForm;NodeName,NameSpace:String);
 begin
-  inherited Create(MyForm,NodeName,NameSpace);
-  self.NodeType:='TX3DTable';
+  inherited Create(NodeName,NameSpace);
+  self.NodeType:=MyNodeType;
+  self.MyForm:=MyForm;
   self.IsContainer:=false;
   IsBuilt:=false;
 
   SetNodePropDefaults(self,myDefaultAttribs);
-  SetPropertyDefaults;
+  //SetPropertyDefaults;
 end;
 
 function Create3DTableWidget(MyNode, ParentNode:TDataNode;ScreenObjectName,NameSpace:string;position:integer;Alignment:String):TDataNode;
 var
   ShowBorder:boolean;
   myObj:TX3DTable;
-  OnClickString:String;
+  OnClickString,LabelText:String;
 begin
 
   OnClickString:='onclick="event.stopPropagation();pas.Events.handleEvent(null,''Click'','''+ScreenObjectName+''','''+NameSpace+''', '''');" ';
+  LabelText:= MyNode.getAttribute('LabelText',true).AttribValue;
 
   asm
   try{
@@ -266,10 +286,14 @@ begin
       var wrapperid = NameSpace+ScreenObjectName;
       var MyObjectName=wrapperid+'Contents';
 
+
+      var labelstring='<label for="'+MyObjectName+'" id="'+MyObjectName+'Lbl'+'">'+LabelText+'</label>';
+
       HTMLString = '<div  id="'+MyObjectName+'" class="vboxNoStretch '+NameSpace+ScreenObjectName+'" '  +
                      ' style="height:100%;width:100%; "' +
                      OnClickString +
                      '></div>  ';
+      HTMLString = labelstring+HTMLString;
 
       var wrapper=document.getElementById(wrapperid);
       wrapper.insertAdjacentHTML('beforeend', HTMLString);
@@ -540,13 +564,7 @@ begin
  // {$ifdef JScript}showmessage('3d ZDim Change');{$endif}
   self.ZDimension:=strtoint(myValue);
 //  self.ZSelector.MaxVal:=strtoint(myValue)-1;
-  zeds:='[';
-  for i:=0 to self.ZDimension-1 do
-  begin
-    if i>0 then zeds:=zeds+',';
-    zeds:=zeds + inttostr(i);
-  end;
-  zeds:=zeds+']';
+  zeds:=BuildZeds;
   self.ZSelector.OptionList:=zeds;
   self.ReSize3DData;
 end;
@@ -662,7 +680,10 @@ procedure TX3DTable.SetTable3DData(const AValue:string);
 begin
   myNode.SetAttributeValue('Table3DData',AValue,'String');
   if self.ZSelector<>nil then
+  begin
     SetNew3DTableData;
+    ZSelector.OptionList:=BuildZeds;
+  end;
 
 end;
 
@@ -674,6 +695,8 @@ AddDefaultAttribute(myDefaultAttribs,'Border','Boolean','True','',false);
 AddDefaultAttribute(myDefaultAttribs,'SpacingAround','Integer','0','',false);
 AddDefaultAttribute(myDefaultAttribs,'BgColor','Color','#FFFFFF','',false);
 AddDefaultAttribute(myDefaultAttribs,'InheritColor','Boolean','False','',false);
+AddDefaultAttribute(myDefaultAttribs,'LabelPos','String','Top','',false);
+AddDefaultAttribute(myDefaultAttribs,'LabelText','String','3D Table','',false);
 AddDefaultAttribute(myDefaultAttribs,'Table3DData','String','[[["z"]]]','',false);
 AddDefaultAttribute(myDefaultAttribs,'XDimension','Integer','1','',false,false);
 AddDefaultAttribute(myDefaultAttribs,'YDimension','Integer','1','',false,false);
@@ -683,6 +706,7 @@ AddDefaultAttribute(myDefaultAttribs,'ZIndex','Integer','0','',false);
 AddDefaultsToTable(MyNodeType,myDefaultAttribs);
 
 AddAttribOptions(MyNodeType,'Alignment',AlignmentOptions);
+AddAttribOptions(MyNodeType,'LabelPos',LabelPosOptions);
 {$ifndef JScript}
 RegisterClass(TX3DTable);
 AddNodeFuncLookup(MyNodeType,@Create3DTableWidget);

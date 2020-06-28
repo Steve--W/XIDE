@@ -62,7 +62,6 @@ var
 
 function CompileEventCode(MyCodeEditor:TXCode;RunMode:String):Boolean;
 function   DfltUnitCode(UnitName,UnitType:String):string;
-function   DfltFunctionCode(FnName:String):string;
 function   DfltEventCode:string;
 function   DfltThreadEventCode(NodeName:String):string;
 function   DfltTreeNodeEventCode:string;
@@ -632,46 +631,6 @@ begin
 end;
 
 
-function BuildFuncHeaderWithParams(FuncNode:TDataNode;num:integer):String;
-var
-   k:integer;
-   tmp:string;
-   FuncInputs:TCodeInputs;
-begin
-  tmp:=FuncNode.GetAttribute('Inputs',true).AttribValue;
-  FuncInputs:=StringToCodeInputs(tmp);
-  if length(FuncInputs)>0 then
-  begin
-    tmp:='function '+FuncNode.NameSpace+FuncNode.NodeName+'(';
-    for k:=0 to length(FuncInputs)-1 do
-    begin
-      if k>0 then tmp:=tmp+';';
-      tmp:=tmp+FuncInputs[k].InputSynonym+':String';
-    end;
-    tmp:=tmp+'):String; ';
-    if (num=1) then
-      tmp:=tmp+' overload;';
-    result:=tmp;
-  end
-  else
-    result:='';
-end;
-function BuildFuncHeaderNoParams(FuncNode:TDataNode;num:integer):String;
-var
-   tmp:string;
-   FuncInputs:TCodeInputs;
-begin
-  tmp:=FuncNode.GetAttribute('Inputs',true).AttribValue;
-  FuncInputs:=StringToCodeInputs(tmp);
-
-  tmp:='';
-  tmp:='function '+FuncNode.NameSpace+FuncNode.NodeName+':String;';
-  if (num=1)
-  and (length(FuncInputs)>0) then
-    tmp:=tmp+' overload;';
-  result:=tmp;
-end;
-
 procedure BuildThreadEventsUnit(Compiler:TObject;RunMode:String);
 var
   UnitCode:TStringList;
@@ -842,94 +801,6 @@ begin
   end;
 
 end;
-
-(*
-procedure GatherUserFuncs(RunMode,NameSpace:String; Compiler:TObject; StartNode:TDataNode;UnitCode:TStringList;var n:integer);
-var
-    i,j,k:integer;
-    tmp,nm,ns:string;
-    lines, FuncCode:TStringList;
-    UnitNode, FuncNode:TdataNode;
-    FuncInputs:TCodeInputs;
-
-begin
-
-  // user-created units are held as data nodes (attribute 'Code')
-  // find the user-defined functions, and add them to the main unit
-  // in the implementation section (UnitCode)
-
-  if (StartNode=CodeRootNode) then
-  begin
-    Lines:=TStringList.Create;
-    FuncCode:=TStringList.Create;
-
-    UnitNode:=StartNode;
-
-    // Insert declared functions
-    for j:=0 to length(UnitNode.ChildNodes)-1 do
-      if (UnitNode.ChildNodes[j].NodeType='Function')
-      and (UnitNode.ChildNodes[j].NameSpace=NameSpace) then
-      begin
-        n:=n+1;
-        FuncNode:=UnitNode.ChildNodes[j];
-        tmp:=FuncNode.GetAttribute('Inputs',true).AttribValue;
-        FuncInputs:=StringToCodeInputs(tmp);
-        if length(FuncInputs)>0 then
-          tmp:=BuildFuncHeaderWithParams(FuncNode,2)
-        else
-          tmp:=BuildFuncHeaderNoParams(FuncNode,2);
-
-        UnitCode.Add(tmp);
-
-        FuncCode.Clear;
-        tmp:=FuncNode.GetAttribute('Code',true).AttribValue;
-        Lines:=StringSplit(tmp,LineEnding);
-        for k:=0 to Lines.Count-1 do
-          FuncCode.Add(Lines[k]);
-
-        // each function is held in its own inc file so that we can display the relevant code section
-        // when there are compiler errors
-        if Namespace='' then
-          ns:=''
-        else
-          ns:=FuncNode.Namespace+'__';
-        WriteIncFile(Compiler,ns+FuncNode.NodeName, '','tempinc/', UnitCode, FuncCode);
-
-        // add the overloaded function to fetch values of all declared inputs
-        if length(FuncInputs)>0 then
-        begin
-          tmp:=BuildFuncHeaderNoParams(FuncNode,2);
-          Lines.Clear;
-          Lines.Add(tmp);
-          Lines.Add('begin');
-               tmp:='result:='+FuncNode.NameSpace+FuncNode.NodeName+'(';
-          for k:=0 to length(FuncInputs)-1 do
-          begin
-            if k>0 then tmp:=tmp+',';
-            // either fetch an attribute value, or execute a function
-            if FuncInputs[k].InputAttribName<>'' then
-              tmp:=tmp+'GetPropertyValue('''+FuncInputs[k].InputNodeName+''','''+FuncInputs[k].InputAttribName+''')'
-            else
-              tmp:=tmp+FuncInputs[k].InputNodeName;
-          end;
-          tmp:=tmp+');';
-          Lines.Add(tmp);
-          Lines.Add('end;');
-          for k:=0 to Lines.Count-1 do
-            UnitCode.Add(Lines[k]);
-        end;
-      end;
-    FreeAndNil(FuncCode);
-    FreeAndNil(Lines);
-  end;
-
-
-  if (StartNode=CodeRootNode) then
-    for i:=0 to length(StartNode.ChildNodes)-1 do
-      GatherUserFuncs(RunMode,NameSpace,Compiler,StartNode.ChildNodes[i],UnitCode,n);
-
-end;
-*)
 
 procedure BuildNamespaceUnit(RunMode,NameSpace:String; ThisNode:TDataNode;Compiler:TObject);
 var
@@ -1210,7 +1081,6 @@ procedure GatherSourcedAttributes(StartNode:TDataNode);
 var
   i:integer;
   CompositeNode:TDataNode;
-  //TCodeInputRec
 begin
   if StartNode.IsDynamic then
   begin
@@ -1741,17 +1611,9 @@ begin
           + '// inside the unit initialization section.....errors will occur.' + LineEnding
           + 'end. '
   else  if UnitType='PythonScript' then
-    result:='#Python script'
-  else  if UnitType='Function' then
-    result:='// Declare variables and functions local to this unit...(within implementation section)';
+    result:='#Python script';
 end;
 
-function   DfltFunctionCode(FnName:String):string;
-begin
-  result:= 'begin ' + LineEnding +
-            '  result := '''';' + LineEnding +
-            'end;' + LineEnding;
-end;
 function   DfltEventCode:string;
 begin
   result:= 'begin' + LineEnding +

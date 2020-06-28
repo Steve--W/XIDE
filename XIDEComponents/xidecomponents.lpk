@@ -23,7 +23,7 @@ if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
    XComponents_cefPaths :=  &apos;&apos;;
  end;"/>
       <Other>
-        <CustomOptions Value="-dChromium"/>
+        <CustomOptions Value="//-dChromium"/>
       </Other>
     </CompilerOptions>
     <Files Count="8">

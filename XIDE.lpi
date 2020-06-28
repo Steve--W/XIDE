@@ -50,7 +50,7 @@
         <PackageName Value="FCL"/>
       </Item7>
     </RequiredPackages>
-    <Units Count="19">
+    <Units Count="17">
       <Unit0>
         <Filename Value="XIDE.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -149,31 +149,18 @@
         <UnitName Value="StylesUtils"/>
       </Unit14>
       <Unit15>
-        <Filename Value="eventlogging.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="EventLogging"/>
-      </Unit15>
-      <Unit16>
-        <Filename Value="replayuserdialog.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="ReplayUserDialogForm"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="ReplayUserDialog"/>
-      </Unit16>
-      <Unit17>
-        <Filename Value="macrocomment.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="MacroCommentForm"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="MacroComment"/>
-      </Unit17>
-      <Unit18>
         <Filename Value="pyxutils.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="PyXUtils"/>
-      </Unit18>
+      </Unit15>
+      <Unit16>
+        <Filename Value="xidesettings.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="XIDESettingsForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="XIDESettings"/>
+      </Unit16>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

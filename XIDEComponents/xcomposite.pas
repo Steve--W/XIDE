@@ -290,31 +290,34 @@ end;
 
 function FindCompositeContainer(StartNode:TDataNode):TdataNode;
 var
-  SearchNode, CompositeNode:TDataNode;
+  SearchNode, PNode, CompositeNode:TDataNode;
   ok:Boolean;
 begin
   // find the container of this composite namespace
+  // work up the parent nodes until the namespace changes
    ok:=false;
    SearchNode:=StartNode;
    while (ok=false) do
    begin
-     SearchNode:=FindParentOfnode(SystemNodeTree,SearchNode);
-     if SearchNode<>nil then
+     PNode:=FindParentOfnode(SystemNodeTree,SearchNode);
+     if PNode<>nil then
      begin
-       if (SearchNode.NodeType<>'TXComposite')
-       or (SearchNode.NameSpace<>'') then
-         ok:=false
+       //if (SearchNode.NodeType<>'TXComposite')
+       //or (SearchNode.NameSpace<>'') then
+       if (PNode.NameSpace=StartNode.NameSpace) then
+       begin
+         ok:=false;
+         SearchNode:=PNode;
+       end
        else
        begin
          ok:=true;
-         CompositeNode:=SearchNode;
+         CompositeNode:=PNode;
        end;
      end
      else
        ok:=true;  // will return nil
    end;
-   // find the container of this composite namespace
-   //CompositeNode:=FindDataNodeById(SystemNodeTree,EventNode.NameSpace,'',true);       //!!!!deeper levels??
    result:=CompositeNode;
 end;
 

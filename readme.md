@@ -80,12 +80,13 @@ Python
 If the compiler directive -dPython is set, there is also an option to create Python language scripts here.  
 Python code is executed on entry to run mode.
 
-Python code can also be called directly from a Pascal event handler, using the function RunPython('..txt..');
+Python code can also be called directly from a Pascal event handler, using the function RunPython('..script..');
 
 Desktop - uses the Lazarus embedded python engine - users must first download and install the Python4Lazarus_package 
 (https://github.com/Alexey-T/Python-for-Lazarus), and also install Python on their machine (https://www.python.org/downloads/).
 After installing Python, make sure that the system PATH variable is updated to include the installed location of Python.exe.
 If you want to use Python packages such as numpy or matplotlib, install these using the pip utility (https://pip.pypa.io/en/stable/installing/).
+Pip requires the PATH variable to include the installed location of pip.exe (generally the Python location, in subfolder /Scripts).
 
 Browser - Pyodide is included in XIDE to provide the Python interface.  
 (ref: https://pyodide.readthedocs.io/en/latest/using_pyodide_from_javascript.html)

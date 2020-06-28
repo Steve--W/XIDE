@@ -94,8 +94,6 @@ end;
 
 {$ifndef JScript}
 procedure TInputSelectForm.FormCreate(Sender: TObject);
-//var
-//  myNode:TDataNode;
 begin
   myNode:=DoXFormCreated(self);
 end;
@@ -122,8 +120,6 @@ begin
   if InputSelectStatus='ok' then
   begin
     TXEditBox(TargetEditBoxNode.ScreenObject).ItemValue:=self.SelectedItem;
-    CodeEditForm.EditInputSource(nil,TargetEditBoxNode.NodeName,self.SelectedItem);
-    //CodeEditForm.EditInputCombo(TargetEditBoxNode.NodeName,self.SelectedItem);
   end;
 end;
 

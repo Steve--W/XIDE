@@ -30,14 +30,15 @@ uses
   XHBox, XVBox, XCode,XColorPicker,
   XTree,  XButton, XScrollBox, XEditBox, XCheckBox, XComboBox, XTabControl,
   XForm, XTable, XMemo, XMenu, CodeEditor, PropertyEditUnit, EventsInterface,
-  XGPUCanvas, XGPUEditor, XCompositeIntf, StylesUtils, EventLogging;
+  XGPUCanvas, XGPUEditor, XCompositeIntf, StylesUtils;
 
 {$ifdef JScript}
+function CheckForSavedSystemOnLoad:Boolean;
 procedure ShowXFormForDesign(XFormName:String);
 procedure CompleteToggleToRunMode(ok:boolean);
 procedure BrowserSaveData(TheData:String);
 procedure ContinueToggleToRunMode;
-procedure CompleteDeploySystem(deployname:String);
+procedure CompleteDeployFromBrowser(deployname:String);
 procedure InitialiseComposites;
 {$endif}
 
@@ -66,7 +67,6 @@ type
 
 procedure DebugWriteNodeTree(StartNode:TdataNode;var txt:String;lvl:integer);
 procedure InitialiseXIDE;
-//procedure InitialiseComposites;
 function XIDEConfirm(promptString:String):boolean;
 procedure SetupAvailableResources;
 procedure RebuildNavigatorTree;
@@ -101,15 +101,13 @@ Procedure SaveSystemToClip;
 Procedure SaveSystemToFile;
 procedure ClearResourceInspector;
 procedure ClearInspectors;
-//procedure OILoadSavedSystem;
-procedure OILoadSavedSystem2(SysName:String);
+procedure OILoadSavedSystem(SysName:String);
 function DoSystemLoad(SystemDescription,SysName:string):Boolean;
 procedure CodeEditorClosed(EditBoxNode:TdataNode);
 procedure PropertyEditorClosed(EditBoxNode:TdataNode);
 function isValidSystemData(SystemDescription:string):boolean;
 procedure EditEventCode(NodeNameToEdit,EventToEdit,MainCode,InitCode:String);
 procedure OIAddCodeUnitNode(UnitType:String);
-procedure OIAddCodeFuncNode;
 procedure OIEditCodeUnit;
 procedure OIDeleteCodeUnit;
 procedure DoToggleDesignRunMode(Sender:TXMenuItem);
@@ -195,25 +193,8 @@ type
 function XIDEConfirm(promptString:String):boolean;
 var
   ok:boolean;
-  macroevent:TMacroEvent;
 begin
-  if not EventLogging.MacroEventList.Replaying then
-    ok:=confirm(promptString)
-  else
-  begin
-    macroevent:=EventLogging.AdvanceEventLog;
-    if macroevent.EventType<>'UserConfirm' then
-    begin
-      showmessage('unable to replay user confirmation...');
-      ok:=confirm(promptString);
-    end
-    else
-    begin
-      ok:=myStrToBool(macroevent.eventvalue);
-      if ok then showmessage('User confirmed OK to:'+LineEnding+promptString)
-      else showmessage('User confirmed Cancel to:'+LineEnding+promptString);
-    end;
-  end;
+  ok:=confirm(promptString);
 
   result:=ok;
 end;
@@ -1212,8 +1193,6 @@ function XIDEPrompt(PromptString,DefaultString:string):string;
 var
   str:string;
 begin
-  if MacroEventList.Replaying = false then
-  begin
     {$ifndef JScript}
     str:=DefaultString;
     if not InputQuery('XIDE', PromptString, str) then
@@ -1238,12 +1217,8 @@ begin
       }
     end;
     {$endif}
-  end
-  else
-  begin
-    str:=ReplayUserInput(PromptString);    //!!!! (browser) this will throw Timeouts, so any following stuff may occur out of sequence
-  end;
-  result:=str;
+
+    result:=str;
 end;
 
 function getname(PromptString:string):string;
@@ -1260,15 +1235,20 @@ begin
    while not ok do
    begin
      resultstring:= trim(XIDEPrompt(PromptString,DefaultString));
-     DefaultString:=resultstring;
-     if FoundString(resultstring,'.')>0 then
-       showmessage('Enter the name without dot characters ''.''')
-     else if FoundString(resultstring,' ')>0 then
-       showmessage('Enter the name without space characters')
-     else if not SysUtils.IsValidIdent(resultstring) then
-       showmessage('Name is not valid - Use Alphanumeric characters plus ''_''; first char non-numeric.')
+     if resultstring<>'' then
+     begin
+       DefaultString:=resultstring;
+       if FoundString(resultstring,'.')>0 then
+         showmessage('Enter the name without dot characters ''.''')
+       else if FoundString(resultstring,' ')>0 then
+         showmessage('Enter the name without space characters')
+       else if not SysUtils.IsValidIdent(resultstring) then
+         showmessage('Name is not valid - Use Alphanumeric characters plus ''_''; first char non-numeric.')
+       else
+         ok:=true;
+     end
      else
-       ok:=true;
+       ok:=true; // user cancelled the action
    end;
 
 
@@ -1604,12 +1584,6 @@ begin
        PopulateObjectInspector(CurrentNode);
        {$ifdef JScript}
        TXTree(NavTreeComponent).SelectedNodeText:=mynodeText;   // (Browser) this selects the node in the navtree component, if changed.
-//       if not EventLogging.MacroEventList.Replaying then
-//       begin
-//         asm
-//         setTimeout(function(){},10);              //alert('refresher timeout');
-//         end;
-//       end;
        {$endif}
 
        // Highlight the selected object (dotted border)
@@ -2269,7 +2243,6 @@ begin
    DoSystemLoad(SystemDescription,sysname);
    if UIRootNode.GetAttribute('SystemName',true).AttribValue='XIDESystem' then
      SetSystemName(sysname);
-//   UIRootNode.SetAttributeValue('SystemName',sysname);
 end;
 
 procedure LoadCompositeResource(CompNode:TdataNode);
@@ -2279,7 +2252,6 @@ begin
    SystemDescription:=CompNode.GetAttribute('SourceString',false).AttribValue;
 
    DoSystemLoad(SystemDescription,CompNode.NodeName);
- //  UIRootNode.SetAttributeValue('SystemName',CompNode.NodeName);
 
 end;
 
@@ -2633,11 +2605,19 @@ begin
   while not ok do
   begin
     sysname:= XIDEPrompt('Enter System Name',sysname);
-    if FoundString(sysname,'.')>0 then
-      showmessage('Enter the name without dot characters ''.''')
+    if sysname<>'' then
+    begin
+      if FoundString(sysname,'.')>0 then
+        showmessage('Enter the name without dot characters ''.''')
+      else
+        ok:=true;
+    end
     else
-      ok:=true;
+      ok:=true;  // user cancelled the action
   end;
+  if sysname='' then
+    EXIT;
+
   SetSystemName(sysname);
   sysname:=sysname+'.xide';
   {$ifndef JScript}
@@ -2667,6 +2647,25 @@ begin
   end;
   result:=MatchFound;
 end;
+
+{$ifndef Python}
+procedure CheckForPythonCode;
+var
+  i:integer;
+  found:Boolean;
+begin
+  found:=false;
+  for i:=0 to length(CodeRootNode.ChildNodes)-1 do
+  begin
+    if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
+    begin
+       found:=true;
+    end;
+  end;
+  if found then
+    showmessage('Warning: The loaded system contains Python code units.  These cannot be executed unless the XIDE framework is built with the ''Python'' option');
+end;
+{$endif}
 
 {$ifndef JScript}
 procedure TLoadTimerTag.DoXMLToNodeTree(sender:TObject);
@@ -2704,6 +2703,9 @@ begin
   //else
   //  UIRootItem.SetAttributeValue('ContainerWidth','80%');
 
+  {$ifndef Python}
+  CheckForPythonCode;
+  {$endif}
 
   GlobalSuppressFrameDisplay:=glb;
 
@@ -2778,7 +2780,9 @@ begin
     InitAutomatedCursor;
 
     SelectNavTreeNode(MainFormProjectRoot,true);
-
+    {$ifndef Python}
+    CheckForPythonCode;
+    {$endif}
 
    end
    else
@@ -3068,23 +3072,6 @@ begin
    OICopyToNewParent(nodeId,NameSpace,NewParentId,strPas(NewName));
 end;
 {$endif}
-//procedure DeleteCompositeResource(ResourceName:String);
-//var
-//  i,j:integer;
-//begin
-//  i:=0;
-//  while i<length(ListOfComposites) do
-//  begin
-//    if ListOfComposites[i].ResourceName=ResourceName then
-//    begin
-//      for j:=i+1 to length(ListOfComposites)-1 do
-//        ListOfComposites[j-1]:=ListOfComposites[j];
-//      SetLength(ListOfComposites,length(ListOfComposites)-1);
-//      i:=length(ListOfComposites)+1;
-//    end;
-//    i:=i+1;
-//  end;
-//end;
 
 procedure OICopySelectedItem;
 begin
@@ -3101,22 +3088,6 @@ begin
 
 end;
 
-//procedure OIDeleteSavedSystem;
-//var
-//  filename:string;
-//begin
-//  if (AvailableResourcesSelectedNode<>nil) and (AvailableResourcesSelectedNode.NodeClass='RSS') then
-//  begin
-//    filename:=myStringReplace(AvailableResourcesSelectedNode.NodeName,'_xide','.xide',1,-1);
-//    if confirm('OK to delete stored system '+filename+'?') then
-//    begin
-//      ClearLocalStore( filename);
-//      RebuildResourcesTree;
-//    end;
-//  end
-//  else
-//    ShowMessage('Select a saved system first');
-//end;
 procedure OIDeleteComposite;
 var
   filename:string;
@@ -3138,9 +3109,6 @@ begin
 end;
 procedure OIDeleteResource;
 begin
-//  if (AvailableResourcesSelectedNode<>nil) and (AvailableResourcesSelectedNode.NodeClass='RSS') then
-//    OIDeleteSavedSystem
-//  else
   if (AvailableResourcesSelectedNode<>nil)
     and (AvailableResourcesSelectedNode.NodeClass='RUI')
     and (AvailableResourcesSelectedNode.NodeType='TXComposite') then
@@ -3162,17 +3130,7 @@ begin
 end;
 
 
-//procedure OILoadSavedSystem;
-//begin
-//  if  (AvailableResourcesSelectedNode<>nil) and (AvailableResourcesSelectedNode.NodeClass='RSS') then
-//  begin
-//    if confirm('OK to load system '+AvailableResourcesSelectedNode.NodeName+'?') then
-//      LoadNamedSystem(AvailableResourcesSelectedNode.NodeName);
-//  end
-//  else
-//    ShowMessage('Select a saved system first');
-//end;
-procedure OILoadSavedSystem2(SysName:String);
+procedure OILoadSavedSystem(SysName:String);
 begin
     if XIDEConfirm('OK to load system '+SysName+'?') then
       LoadNamedSystem(SysName);
@@ -3181,9 +3139,6 @@ end;
 procedure OILoadResource;
 begin
 
-//  if (AvailableResourcesSelectedNode<>nil) and (AvailableResourcesSelectedNode.NodeClass='RSS') then
-//    OILoadSavedSystem
-//  else
   if (AvailableResourcesSelectedNode<>nil)
     and (AvailableResourcesSelectedNode.NodeClass='RUI')
     and (AvailableResourcesSelectedNode.NodeType='TXComposite') then
@@ -3247,12 +3202,7 @@ end;
 procedure OISystemLoad(e:TEventStatus;nodeId:string);
 var
   SystemDescription:String;
-  macroEvent:TMacroEvent;
 begin
-   {$ifdef JScript}
-   if not EventLogging.MacroEventList.Replaying then
-   begin
-   {$endif}
 
    if (e=nil)  or (e.InitRunning=false) then
    begin
@@ -3297,30 +3247,7 @@ begin
      end;
      {$endif}
    end;
-{$ifdef JScript}
-  end
-  else
-  begin
-    // replaying an event, so can't handle async stuff...
-    // Instead, pop the original pasted string off the eventlist.
-    macroEvent:=AdvanceEventLog;
-    if macroEvent.EventType<>'MemoPaste' then
-    begin
-      showmessage('oops cannot retrieve original pasted input');
-      showmessage('found event '+macroEvent.EventType+' '+macroevent.NodeId);
-    end
-    else
-    begin
-      SystemDescription:=macroEvent.eventvalue;
-      asm
-        pas.NodeUtils.StartingUp=false;
-        alert('Pasted string = >'+SystemDescription+'<' );
-        pas.XObjectInsp.DoSystemLoad(SystemDescription,'');
-      end;
-    end;
-  end;
-{$endif}
- end;
+end;
 
 procedure OIClearSystem;
 var
@@ -3369,7 +3296,7 @@ begin
 end;
 
 {$ifdef JScript}
-procedure CompleteDeploySystem(deployname:String);
+procedure CompleteDeployFromBrowserOld(deployname:String);
 var
   wholesystem,currentNodeTree,dm2,sysname,dpstr:String;
   ok:boolean;
@@ -3395,6 +3322,32 @@ begin
     // 3) Set the variable myDeployedMode (Run, or Design).
 
     asm
+
+      // delete the block of user event code that has been locally compiled
+      var eventcode = document.getElementById("UserEventCodeContainer");
+      if (eventcode != null) {
+        eventcode.parentNode.removeChild(eventcode);
+        }
+
+      // delete any pyodide scripts (these will be reloaded on startup)
+      var myHead = document.getElementsByTagName("HEAD")[0];
+      var saveHead = myHead.innerHTML;
+      var sc = myHead.getElementsByTagName("SCRIPT");
+
+      function isPyodide(src) {
+        return src.includes("pyodide-cdn2")
+      }
+      console.log('remove pyodide scripts....');
+      for (var i = sc.length-1; i >= 0; i--) {
+        if (sc[i].hasAttribute("src")) {
+          if ( isPyodide(sc[i].getAttribute("src"))) {
+            console.log('removing '+sc[i].getAttribute("src"));
+            sc[i].parentNode.removeChild(sc[i]);
+          }
+        }
+      }
+      console.log('remove pyodide scripts done');
+
       var htmlElement = document.getElementsByTagName("HTML")[0];
       if (htmlElement!=null) {
         var myBody = document.getElementsByTagName("BODY")[0];
@@ -3407,13 +3360,78 @@ begin
           wholesystem = wholesystem+'<HTML lang="en">'+htmlElement.innerHTML+'</HTML>';
           myBody.innerHTML = saveme;
           }
-        else {alert('CompleteDeploySystem. body element not found');}
+        else {alert('CompleteDeployFromBrowser. body element not found');}
         }
-      else {alert('CompleteDeploySystem. html element not found');}
+      else {alert('CompleteDeployFromBrowser. html element not found');}
+      console.log('put back original header');
+      myHead.innerHTML=saveHead;
+      console.log('done');
     end;
 
     // set myDeployedMode...
     wholesystem:=SetMyDeployedMode(wholesystem,dm2);
+
+    // set LoadedSystemString...
+    currentNodeTree := NodeTreeToXML(SystemNodeTree,nil,false,true);
+    // look for the string 'pas.NodeUtils.LoadedSystemString ='
+    dp1 := 0;
+    dp1 := FoundString(wholesystem,chr(112)+'as.NodeUtils.LoadedSystemString = "*";');  // length 39
+    if dp1>0 then
+    begin
+      dp1 := dp1 + 39;
+      dp2 := FoundString(wholesystem,'<\/Root>";');   // length 10
+      if dp2>0 then
+      begin
+        dp2 := dp2 + 10;
+        Delete(wholesystem,dp1,(dp2-dp1));
+        Insert('pas.NodeUtils.LoadedSystemString = '''+currentNodeTree+''';',wholesystem,dp1);
+      end;
+    end;
+
+    PasteDialogUnit.PasteTarget.ItemValue:=wholesystem;
+    PasteDialogUnit.PasteDoneBtn.IsVisible:=true;
+    PasteDialogUnit.PasteLabel.LabelCaption:='Press Done to complete the copy to clipboard action';
+    PasteDialogUnit.PasteTarget.IsVisible:=false;
+
+    showmessage('open dialog...');
+    OpenModal('PasteDialog');
+
+  end;
+  UIRootNode.SetAttributeValue('SystemName',sysname);
+end;
+
+procedure CompleteDeployFromBrowser(deployname:String);
+var
+  htmlHead,htmlBody,wholesystem,projectJS,currentNodeTree,dm2,sysname,dpstr:String;
+  ok:boolean;
+  dp1,dp2:integer;
+begin
+  // make temporary changes to root node attributes
+  sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
+  dm2:=UIRootNode.GetAttribute('DeploymentMode',false).AttribValue;
+  UIRootNode.SetAttributeValue('SystemName',deployname);
+
+  ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
+  DeleteGreyOverlay('Grey1');
+  if ok then
+  begin
+    wholesystem:='<!DOCTYPE HTML>'  +LineEnding
+        + '<html  lang="en">' +LineEnding;
+    projectJS:='';
+    asm
+      console.log('finding core js code');
+      // find the block of JS code that defines the XIDE framework
+      //!! this needs to be the JS for running the framework, is NOT the compiled user code
+      var corecode = document.getElementById("ProjectCodeContainer");
+      if (corecode != null) {
+        projectJS=corecode.innerHTML;
+        }
+    end;
+    htmlHead:=BuildHTMLHead('XIDEMain',sysname,dm2,projectJS);
+    wholesystem:=wholesystem + htmlHead;
+    htmlBody:=BuildHTMLBody;
+    wholesystem:=wholesystem + htmlBody;
+
 
     // set LoadedSystemString...
     currentNodeTree := NodeTreeToXML(SystemNodeTree,nil,false,true);
@@ -3442,10 +3460,11 @@ begin
   end;
   UIRootNode.SetAttributeValue('SystemName',sysname);
 end;
+
 {$endif}
 
 procedure OIDeploySystem;
-// Save a web-ready copy of the whole system (including XIDE framework) to the clipboard
+// Save a browser-ready html copy of the whole system (including XIDE framework) to the clipboard
 var
   wholesystem,jsText,sysname,deployname:String;
   lines,ExtraLines,ExtraDirectives:TStringList;
@@ -3457,6 +3476,8 @@ begin
 
   sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
   deployname:=XIDEPrompt('Name of Deployed System',sysname);
+  if deployname='' then  // user has cancelled
+    EXIT;
 
   ExtraDirectives:=TStringList.Create;
 
@@ -3496,6 +3517,7 @@ begin
 
   {$ifdef Python}
   ExtraLines:=PyodideScript;
+  ExtraLines.Add('<script>');
   ExtraLines.AddStrings(lines);
   lines.Text:=ExtraLines.Text;
   {$else}
@@ -3514,7 +3536,7 @@ begin
   ShowGreyOverlay('UIRootNode','Grey1');
   // timeout here so the grey overlay appears
   asm
-    myTimeout(pas.XObjectInsp.CompleteDeploySystem,20,'CompleteDeploySystem',0,deployname);
+    myTimeout(pas.XObjectInsp.CompleteDeployFromBrowser,20,'CompleteDeployFromBrowser',0,deployname);
   end;
 
   {$endif}
@@ -3530,6 +3552,7 @@ end;
 procedure ShowHideObjectInspector(show:Boolean);
 var
   aNode:TdataNode;
+  lr:String;
 begin
    if not show then
    begin
@@ -3542,16 +3565,17 @@ begin
      ShowHideNode(aNode,show);
 
    aNode:=FindDataNodeById(SystemNodeTree,'ResourceInspectorTabs','',true);
+   lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
    if aNode<>nil then
-     //if ShowResourceTree<>'Hide' then
+     if lr<>'Hide' then
        ShowHideNode(aNode,show);
 
    if show then
    begin
-     //if ShowResourceTree<>'Hide' then
+     if lr<>'Hide' then
        TXScrollBox(UIRootItem.ScreenObject).ContainerWidth:='60%'
-     //else
-     //  TXScrollBox(UIRootItem.ScreenObject).ContainerWidth:='80%';
+     else
+       TXScrollBox(UIRootItem.ScreenObject).ContainerWidth:='80%';
    end
    else
    begin
@@ -3572,11 +3596,12 @@ begin
   hbox:=TWinControl(aNode.ScreenObject);
   aNode:=FindDataNodeById(SystemNodeTree,'ResourceInspectorTabs','',true);
   ob1:=TControl(aNode.ScreenObject);
-  //if ShowResourceTree='Hide' then
-  //begin
-  //  TXTabControl(ob1).IsVisible:=false;
-  //end
-  //else
+  lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
+  if lr='Hide' then
+  begin
+    TXTabControl(ob1).IsVisible:=false;
+  end
+  else
   begin
     aNode:=FindDataNodeById(SystemNodeTree,'InnerRootVBox','',true);
     ob2:=TControl(aNode.ScreenObject);
@@ -3587,7 +3612,6 @@ begin
     hbox.RemoveControl(ob2);
     hbox.RemoveControl(ob3);
 
-    lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
     //if ShowResourceTree='Left' then
     if lr='Left' then
     begin
@@ -3606,6 +3630,7 @@ begin
   end;
   if DesignMode then
     ShowHideObjectInspector(true);
+  DoFormResize(MainForm, MainFormTopControl);
 end;
 {$else}
 procedure RedisplayResourceTree;
@@ -3616,14 +3641,14 @@ var
 begin
   aNode:=FindDataNodeById(SystemNodeTree,'ResourceInspectorTabs','',true);
   ob1:=aNode.ScreenObject;
-//  if ShowResourceTree='Hide' then
-//  begin
-//    TXTabControl(ob1).IsVisible:=false;
-//  end
-//  else
+  lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
+  if lr='Hide' then
+  begin
+    TXTabControl(ob1).IsVisible:=false;
+  end
+  else
   begin
     TXTabControl(ob1).IsVisible:=true;
-    lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
     asm
     var hbox=document.getElementById('RootHBoxContents');
     ob1=document.getElementById('ResourceInspectorTabs');
@@ -3813,12 +3838,14 @@ begin
         CloseXFormForDesign(OpenXForms[i].NodeName);
     end;
 
+    {$ifdef Python}
     asm
       if (pyodideReady!="yes") {
         alert('pyodide is not ready');
         ok = false;
       }
     end;
+    {$endif}
     if ok then
     begin
       ShowGreyOverlay('UIRootNode','Grey1');
@@ -3885,33 +3912,6 @@ begin
        myNode.SetAttributeValue(AttrName,NewValue);
      end;
    end;
-end;
-
-procedure SaveEditedInputs(targetNode:TDataNode;myInputs:TCodeInputs);
-var
-  //j,k:integer;
-  InputStr:String;
-begin
-  //if EventNum>-1 then
-  //begin
-  //  k:=0;
-  //  for j:=0 to length(myInputs)-1 do
-  //    if trim(myInputs[j].InputNodeName)<>'' then
-  //    begin
-  //        setlength(targetNode.myEventHandlers[EventNum].TheInputs,k+1);
-  //        targetNode.myEventHandlers[EventNum].TheInputs[k].InputSynonym:=myInputs[j].InputSynonym;
-  //        targetNode.myEventHandlers[EventNum].TheInputs[k].InputNodeName:=myInputs[j].InputNodeName;
-  //        targetNode.myEventHandlers[EventNum].TheInputs[k].InputAttribName:=myInputs[j].InputAttribName;
-  //        targetNode.myEventHandlers[EventNum].TheInputs[k].InputValue:='';
-  //        k:=k+1;
-  //    end;
-  //end
-  //else
-  begin
-    InputStr:=CodeInputsToString(myInputs);
-    targetNode.SetAttributeValue('Inputs',InputStr);
-  end;
-
 end;
 
 procedure EditEventCode(NodeNameToEdit,EventToEdit,MainCode,InitCode:String);
@@ -4084,26 +4084,15 @@ begin
     else if (CodeEditForm.Mode='UnitCode')
       or (CodeEditForm.Mode='PasUnitCode')
       or (CodeEditForm.Mode='PythonScriptCode')
-      or (CodeEditForm.Mode='FunctionCode') then
+    then
     begin
       tmp:=CodeEditForm.TargetNodeName;
       // name of unit is in TargetNodeName
       CodeNode:=FindDataNodeById(CodeRootNode,CodeEditForm.TargetNodeName,'',true);
-      if (CodeNode.NodeType='PasUnit')
-      and (CodeEditForm.Mode='FunctionCode') then
-      begin
-        // we are displaying compiler errors in the unit...
-        // !! needs sorting out. Unit code is partly auto-generated so cannot allow edits here !!
-        showmessage('oops - see CodeEditorClosed');
-      end
-      else
-      begin
-        tmp:=CodeEditForm.CodeEdit.ItemValue;
-        CodeNode.SetAttributeValue('Code',tmp,'String');
-        tmp:=CodeEditForm.codeeditFunctionResultType.ItemValue;
-        CodeNode.SetAttributeValue('Type',tmp,'String');
-        SaveEditedInputs(CodeNode,CodeEditForm.MyInputs);
-      end;
+      tmp:=CodeEditForm.CodeEdit.ItemValue;
+      CodeNode.SetAttributeValue('Code',tmp,'String');
+      //tmp:=CodeEditForm.codeeditFunctionResultType.ItemValue;
+      //CodeNode.SetAttributeValue('Type',tmp,'String');
     end
     else if (CodeEditForm.Mode='SearchCode')  then
     begin
@@ -4544,6 +4533,7 @@ begin
 
         myAttribs:=CurrentNode.NodeAttributes;
         for i:=0 to length(myAttribs)-1 do
+        if CurrentNode.NodeAttributes[i].AttribName <> '' then
         begin
           dfltAttrib:=GetDefaultAttrib(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName);
           ro:=CurrentNode.NodeAttributes[i].AttribReadOnly;
@@ -4715,84 +4705,33 @@ begin
   end;
 end;
 
-
-procedure OIAddCodeFuncNode;
-var
-  NewName,FnCode:String;
-  NewNode:TDataNode;
-begin
-  if (ObjectInspectorSelectedCodeTreeNode=nil)
-  or (ObjectInspectorSelectedCodeTreeNode.NodeName<>'CodeUnits') then
-    showmessage('Please select the parent node ''CodeUnits'' first')
-  else
-  begin
-  // create a data node for the new function, and add under the selected Unit node.
-    // Dialog for name entry
-    NewName:=getname('Enter Function Name:');
-
-     // Is the function node named uniquely?
-    if (NewName<>'') and (ComponentNameIsUnique(NewName,'')) then
-    begin
-      NewNode:=TDataNode.Create('Code',NewName,'','Function',true);
-      NewNode.NodeName:=NewName;
-      FnCode:= DfltFunctionCode(NewName);
-      NewNode.SetAttributeValue('Code',FnCode,'String');
-
-      ObjectInspectorSelectedCodeTreeNode:=InsertSystemNode(ObjectInspectorSelectedCodeTreeNode,NewNode,-1);
-      ObjectInspectorSelectedCodeNodeText:='';
-      OISelectedCodeProcName:='';
-      // rebuild the code tree
-      RebuildCodeTree;
-
-    end;
-  end;
-end;
-
-
-
-
 procedure OIEditCodeUnit;
 var
-  UnitCode, Inputs, EventType:string;
+  UnitCode, EventType:string;
   tmp,NodeNameToEdit:String;
-  FuncInputs:TCodeInputs;
-  i:integer;
   bits:TStringList;
-  AllKernels:TAnimCodeArray;
+  //AllKernels:TAnimCodeArray;
 begin
   if ObjectInspectorSelectedCodeTreeNode<>nil then
   begin
     if (ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit')
     or (ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript')
-    or (ObjectInspectorSelectedCodeTreeNode.NodeType='Function') then
+    then
     begin
       NodeNameToEdit:=ObjectInspectorSelectedCodeTreeNode.NodeName;
 
       // pop up the syntax editor.
-      //CodeEditForm.Initialise('Unit',NodeNameToEdit,'');
       UnitCode:=ObjectInspectorSelectedCodeTreeNode.GetAttribute('Code',true).AttribValue;
       if UnitCode='' then
       begin
-        // provide a template unit or function
+        // provide a template unit
         if ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit' then
           UnitCode:= DfltUnitCode(NodeNameToEdit,'PasUnit')
-        else if ObjectInspectorSelectedCodeTreeNode.NodeType='Function' then
-          UnitCode:= DfltFunctionCode(NodeNameToEdit)
         else if ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript' then
           UnitCode:= DfltPythonCode;
       end;
       CodeEditForm.CodeEdit.ItemValue := UnitCode;
       CodeEditForm.CodeEdit.MessageLines:='';
-
-//      if ObjectInspectorSelectedCodeTreeNode.NodeType<>'PasUnit' then
-//      begin
-//        Inputs:=ObjectInspectorSelectedCodeTreeNode.GetAttribute('Inputs',true).AttribValue;
-//        FuncInputs:=StringToCodeInputs(Inputs);
-//        for i:=0 to length(FuncInputs)-1 do
-//        begin
-//          CodeEditForm.AddInputBox(FuncInputs[i]);
-//        end;
-//      end;
 
       CodeEditForm.Mode:=ObjectInspectorSelectedCodeTreeNode.NodeType+'Code';
       CodeEditForm.InitialiseOnShow(ObjectInspectorSelectedCodeTreeNode.NodeType,NodeNameToEdit,'');
@@ -4801,7 +4740,6 @@ begin
       {$endif}
       if ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit' then
       begin
-        //showmessage('OIEditCodeUnit '+ObjectInspectorSelectedCodeTreeNode.NodeType+' '+ObjectInspectorSelectedCodeTreeNode.NodeName+' '+inttostr(OISelectedCodeLineNum));
         CodeEditForm.SetCursorPosition(OISelectedCodeLineNum,1);
       end;
       {$ifndef JScript}
@@ -4877,7 +4815,7 @@ begin
   begin
     if  (ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit')
     or  (ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript')
-    or  (ObjectInspectorSelectedCodeTreeNode.NodeType='Function') then
+    then
     begin
       if XIDEConfirm('OK to delete '+ObjectInspectorSelectedCodeTreeNode.NodeName+'?') then
       begin
@@ -4974,7 +4912,7 @@ begin
          // Is the event named uniquely?
         if (NewName<>'') then
         begin
-        if (myIntf.EventNameIsUnique(NewName)) then
+          if (myIntf.EventNameIsUnique(NewName)) then
           begin
             ObjectInspectorSelectedNavTreeNode.AddEvent(NewName,'','');
             PopulateObjectInspector(ObjectInspectorSelectedNavTreeNode);
@@ -5015,13 +4953,45 @@ begin
       }
   end;
 end;
+
+function CheckForSavedSystemOnLoad:Boolean;
+var
+  ok:boolean;
+  sysname,tempstr:String;
+begin
+//   showmessage('not running from Laz, so loading last system description');
+   //look for a system description with the same name as the one we just loaded.
+   sysname:=UIRootNode.getAttribute('SystemName',false).AttribValue;
+//    showmessage('looking for saved system XIDESavedData'+sysname);
+   tempstr:=trim(ReadFromLocalStore('XIDESavedData'+sysname));
+   //showmessage(tempstr);
+   if tempstr<>'' then
+   begin
+     //showmessage('found '+sysname);
+     ok:=StringUtils.confirm('Press OK to resume your previous "'+sysname+'" session, or Cancel to continue with the basic load');
+     if ok then
+     begin
+       ok:=DoSystemLoad(tempstr,sysname);
+       if ok then
+       begin
+         RebuildNavigatorTree;
+         RebuildCodeTree;
+       end
+       else
+       begin
+         //showmessage('load failed');
+         OIClearSystem;
+       end;
+     end
+     else ok:=true;
+   end;
+   result:=ok;
+end;
 {$endif}
 
 
 
 begin
-//  setlength(ListOfComposites,0);
-
   AddAttribOptions('Root','DeploymentMode',DeploymentModeOptions);
   AddAttribOptions('Root','ShowResources',ShowResourcesOptions);
 
@@ -5036,6 +5006,49 @@ begin
   {$ifndef JScript}
   GlobalSuppressFrameDisplay:=true;
   {$endif}
+  AdditionalScript:=
+     '<script> ' +LineEnding
+
+     +'var glbTimeoutWaiting=false;  '  +LineEnding
+     +'var jobId=0;     '  +LineEnding
+     +'var JobsWaiting=[];  '  +LineEnding
+
+     +'function runFn(fn,ms,fname,job,...args) {  '  +LineEnding
+     +'  var ars='''';  '  +LineEnding
+     +'  for (var i = 2; i < arguments.length; i++) {ars=ars+'' ''+arguments[i];} '  +LineEnding
+  //   +'  console.log(''running ''+fname+'' : ''+ars); '  +LineEnding
+     +'  fn(...args);  '  +LineEnding
+     +'  glbTimeoutWaiting=false;  '  +LineEnding
+     +'  tryNextJob();  '  +LineEnding
+     +'}                           '  +LineEnding
+     +'function tryNextJob() { '  +LineEnding
+     +'  if (JobsWaiting.length==0) return; '  +LineEnding
+     +'  if (glbTimeoutWaiting==false) '+LineEnding
+     +'    {  '  +LineEnding
+     +'    var nextjob=JobsWaiting.shift();  '  +LineEnding
+     +'    job=nextjob.jobid;  '  +LineEnding
+     +'    glbTimeoutWaiting=true;  '  +LineEnding
+  //   +'    console.log(''Queueing ''+nextjob.fname);  '  +LineEnding
+  //   +'    console.log(nextjob); '  +LineEnding
+     +'    setTimeout(runFn,nextjob.msec,   ...nextjob.args);    //args===[fn,msec,fname,job,...args]   '  +LineEnding
+     +'    }   '  +LineEnding
+     +'  else {   '  +LineEnding
+     +'    setTimeout(tryNextJob,100);  '  +LineEnding
+     +'    }  '  +LineEnding
+     +'}  '  +LineEnding
+     +'function myTimeout(fn,msec,fname,job,...args) {  '  +LineEnding
+     +'  var ars='''';   '  +LineEnding
+     +'  for (var i = 3; i < arguments.length; i++) {ars=ars+'' ''+arguments[i];}   '  +LineEnding
+     +'    jobId=jobId+1;  '  +LineEnding
+     +'    if (jobId>30000) jobId=1;  '  +LineEnding
+     +'    job=jobId;  '  +LineEnding
+  //   +'    console.log(''myTimeout ***** new job ''+job+'' ''+fname);   '  +LineEnding
+     +'    JobsWaiting.push({jobid:job, func:fn, msec:msec, fname:fname, args:arguments});  '  +LineEnding
+     +'    tryNextJob();  '  +LineEnding
+     +'  return job;     '  +LineEnding
+     +'}  '  +LineEnding
+
+     +'</script>';
 
 end.
 

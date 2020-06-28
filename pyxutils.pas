@@ -220,10 +220,6 @@ begin
     mmo.mmiHideBusy
   else if fname='ProcessMessages' then
     mmo.mmiProcessMessages
-  else if fname='MovePointerBetweenComponents' then
-    mmo.mmiMovePointerBetweenComponents(fnArgs[0], fnArgs[1], fnArgs[2], fnArgs[3])
-  else if fname='HidePointer' then
-    mmo.mmiHidePointer
   else if fname='UserSystemAsString' then
     v:=mmo.mmiUserSystemAsString()
   else if fname='LoadUserSystemString' then
@@ -515,7 +511,16 @@ begin
   script.add('              noLocalPyodide(); ');
   script.add('            }');
   script.add('</script>');
+
   script.add('<script type="text/javascript" > ');
+  script.add('function DoFinalInits(){');
+  script.add('  if (myDeployedMode!="FromLaz") { ');
+  // script.add('  alert("python DoFinalInits - checking for saved system now"); ');
+  script.add('    var ok=pas.XObjectInsp.CheckForSavedSystemOnLoad();');
+  script.add('  } ');
+  script.add('  if (pas.XObjectInsp.RunningDeployedRuntime==true) {');
+  script.add('  pas.XObjectInsp.ContinueToggleToRunMode();  }');
+  script.add('}');
   script.add('function pysrcLoaded() { ');
   script.add('    // pyodide is now ready to use...  ' );
   script.add('    console.log("python: "+pyodide.runPython("import sys\nsys.version"));' );
@@ -524,11 +529,13 @@ begin
   script.add('    });');
   script.add('    pyodide.loadPackage("matplotlib").then(() => {');
   script.add('      console.log("matplotlib is now available"); ' );
-  script.add('      pyodideReady = "yes";');
+  script.add('      pyodideReady = "yes";' );
+  script.add('      DoFinalInits();');
   script.add('    }); ' );
   script.add('  pas.XIDEMain.StartupPython(); ');
   script.add(' } ');
   script.add('</script> ');
+
   script.add('<script> ');
   script.add('        window.addEventListener(''DOMContentLoaded'', function() { ');
   script.add('             languagePluginLoader.then(() => { pysrcLoaded();}); ');
@@ -617,10 +624,6 @@ begin
   InitScript.add('  RunXIDEFunc(''HideBusy'',(0,0))');
   InitScript.add('def ProcessMessages():');
   InitScript.add('  RunXIDEFunc(''ProcessMessages'',(0,0))');
-  InitScript.add('def MovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2):');
-  InitScript.add('  RunXIDEFunc(''MovePointerBetweenComponents'',(NodeName1,NodeName2,Sub1,Sub2))');
-  InitScript.add('def HidePointer():');
-  InitScript.add('  RunXIDEFunc(''HidePointer'',(0,0))');
   InitScript.add('def UserSystemAsString():');
   InitScript.add('  return RunXIDEFunc(''UserSystemAsString'',(0,0)).decode(''utf-8'')');
   InitScript.add('def LoadUserSystemString(SystemString):');
@@ -637,7 +640,7 @@ begin
   InitScript.add('  return RunXIDEFunc(''GetGPUStageArray'',(GPUName,0))');
   InitScript.add('def GetGPUStageArrayAsString(GPUName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUStageArrayAsString'',(GPUName,0))');
-  InitScript.add('def ShowPythonPlot(ImgName,fig):');            //!!!! how to do this with string var instead of file ????
+  InitScript.add('def ShowPythonPlot(ImgName,fig):');            //!!!! do this with string var instead of file ????
   InitScript.add('  fig.savefig(ImgName+''.png'')');
   InitScript.add('  SetPropertyValue(ImgName,''Source'',ImgName+''.png'')');
   InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
@@ -732,10 +735,6 @@ begin
   InitScript.add('  pas.InterfaceTypes.HideBusy()');
   InitScript.add('def ProcessMessages():');
   InitScript.add('  pas.InterfaceTypes.ProcessMessages()');
-  InitScript.add('def MovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2):');
-  InitScript.add('  pas.InterfaceTypes.MovePointerBetweenComponents(NodeName1,NodeName2,Sub1,Sub2)');
-  InitScript.add('def HidePointer():');
-  InitScript.add('  pas.InterfaceTypes.HidePointer()');
   InitScript.add('def UserSystemAsString():');
   InitScript.add('  return pas.InterfaceTypes.UserSystemAsString()');
   InitScript.add('def LoadUserSystemString(SystemString):');

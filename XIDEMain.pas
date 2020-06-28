@@ -16,6 +16,7 @@ unit XIDEMain;
 {$INTERFACES CORBA}
 {$endif}
 
+
 interface
 
 uses
@@ -39,10 +40,9 @@ uses
   // XIDEComponents units...
   XGPUCanvas, XGPUEditor, X3DTable, XThreads, XComposite,
   // XIDE project units...
-  CompileUserCode, XObjectInsp,EventLogging,
-  CodeEditor, PropertyEditUnit, InputSelectUnit,
-  PopupMemo, AboutUnit, SavedSystems, StylesUtils, ReplayUserDialog,
-  MacroComment;
+  CompileUserCode, XObjectInsp,XIDESettings,
+  CodeEditor, InputSelectUnit, PropertyEditUnit,
+  PopupMemo, AboutUnit, SavedSystems, StylesUtils;
 
 {$ifdef JScript}
 procedure InitialisePage(dummy:string);
@@ -61,7 +61,6 @@ TXIDEForm = class(TXForm)
   WebMenu: TMenuItem;
   CompileToJS: TMenuItem;
   CompilerShowLog: TMenuItem;
-  RunSettings: TXMenuItem;
   {$endif}
 
 
@@ -108,11 +107,9 @@ TXIDEForm = class(TXForm)
   ResourceEditorScrollbox: TXScrollBox;
   CodeTreeEditBtn: TXButton;
   CodeTreeDelBtn: TXButton;
-  CodeTreeFuncBtn: TXButton;
   OIClear: TXButton;
 
   CodeTreeButtonHBox: TXHBox;
-  EventLoggingLabel: TXLabel;
   XLabel3: TXLabel;
   EventsEditorScrollBox: TXScrollBox;
   SystemMenu: TXMenuItem;
@@ -140,14 +137,6 @@ TXIDEForm = class(TXForm)
   StyleTreeScrollBox: TXScrollBox;
   StyleResourcesPage: TXTabSheet;
   StyleResources: TXTree;
-  EventsMacroMenu: TXMenuItem;
-  EventsMacroStartRecording: TXMenuItem;
-  EventsMacroStopRecording: TXMenuItem;
-  EventsMacroStartReplay: TXMenuItem;
-  EventsMacroInsertComment: TXMenuItem;
-  EventsMacroSaveToClip: TXMenuItem;
-  EventsMacroLoadFromClip: TXMenuItem;
-  EventsMacroResumeRecording: TXMenuItem;
   XMemo1: TXMemo;
 
   procedure CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
@@ -166,14 +155,11 @@ TXIDEForm = class(TXForm)
   //procedure RITabsMouseUp(Sender: TObject;Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   //procedure RITabsMouseMove(Sender: TObject;Shift: TShiftState; X, Y: Integer);
   //procedure RITabsPaint;
-  procedure RunSettingsHandleClick(e: TEventStatus; nodeID: AnsiString;
-    myValue: AnsiString);
   procedure LoadIframes(dum:integer);
   {$endif}
 
   // Common Event Handlers - created at design time along with X components...
   function HandleGenericEvent(MyEventType,myValue:string;EventNode:TDataNode):Boolean;
-  procedure CodeTreeFuncBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure CodeTreeHandleTreeNodeClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure HelpAboutHandleClick(e: TEventStatus; nodeID: AnsiString;
     myValue: AnsiString);
@@ -246,20 +232,6 @@ TXIDEForm = class(TXForm)
   procedure CodeTreeSearchBtnHandleButtonClick(e: TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure DebugTreeHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
     myValue: AnsiString);
-  procedure EventsMacroStartRecordingHandleClick(e: TEventStatus;
-    nodeID: AnsiString; myValue: AnsiString);
-  procedure EventsMacroStartReplayHandleClick(e: TEventStatus;
-    nodeID: AnsiString; myValue: AnsiString);
-  procedure EventsMacroStopRecordingHandleClick(e: TEventStatus;
-    nodeID: AnsiString; myValue: AnsiString);
-  procedure EventsMacroInsertCommentHandleClick(e: TEventStatus;
-    nodeID: AnsiString; myValue: AnsiString);
-  procedure EventsMacroSaveToClipHandleClick(e: TEventStatus;
-    nodeID: AnsiString; myValue: AnsiString);
-  procedure EventsMacroLoadFromClipHandleClick(e: TEventStatus;
-    nodeID: AnsiString; myValue: AnsiString);
-  procedure EventsMacroResumeRecordingHandleClick(e: TEventStatus;
-    nodeID: AnsiString; myValue: AnsiString);
 
   procedure UIRootClick(Sender: TObject);
 
@@ -279,6 +251,7 @@ XIDEForm: TXIDEForm;
 implementation
 
 {$R *.lfm}
+
 
 {$ifdef Python}
 procedure StartupPython;
@@ -698,7 +671,6 @@ var
 begin
   eventNode:=FindDataNodeById(SystemNodeTree,e.NodeId,e.NameSpace,true);
   doContinue:=HandleGenericEvent(e.eventtype,myValue,eventNode);
-  TrapEventForMacro(e);
   e.ContinueAfterTrappers:=doContinue;
 end;
 
@@ -725,10 +697,6 @@ procedure TXIDEForm.MyRootDivClick(Sender: TObject);
 begin
 end;
 
-procedure TXIDEForm.CodeTreeFuncBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-begin
-  OIAddCodeFuncNode;
-end;
 procedure TXIDEForm.CodeTreePascalUnitBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;
   myValue: AnsiString);
 begin
@@ -760,18 +728,22 @@ end;
 
 procedure TXIDEForm.SystemSettingsHandleClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
-var
-  Reply:Boolean;
-  ShowResourceTree:String;
+//var
+//  Reply:Boolean;
+//  ShowResourceTree:String;
 begin
-  Reply:=XIDEConfirm('Show Resources on the Left?');
-  if Reply=true then
-    ShowResourceTree:='Left'
-  else
-    ShowResourceTree:='Right';
-  UIRootNode.SetAttributeValue('ShowResources',ShowResourceTree);
-  if DesignMode then
-    RedisplayResourceTree;
+//  Reply:=XIDEConfirm('Show Resources on the Left?');
+//  if Reply=true then
+//    ShowResourceTree:='Left'
+//  else
+//    ShowResourceTree:='Right';
+//  UIRootNode.SetAttributeValue('ShowResources',ShowResourceTree);
+//  if DesignMode then
+//    RedisplayResourceTree;
+
+  XIDESettingsForm.InitialiseOnShow;
+  ShowXForm('XIDESettingsForm',true);
+
 end;
 
 procedure TXIDEForm.OIAddPropertyButtonHandleButtonClick(e: TEventStatus;
@@ -813,65 +785,8 @@ begin
   OICodeSearch;
 end;
 
-procedure TXIDEForm.EventsMacroStartRecordingHandleClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-begin
-  StartRecording;
-end;
-
-procedure TXIDEForm.EventsMacroStartReplayHandleClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-begin
-  StartReplay;
-end;
-
-procedure TXIDEForm.EventsMacroStopRecordingHandleClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-begin
-  StopRecording;
-end;
-
-procedure TXIDEForm.EventsMacroInsertCommentHandleClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-begin
-  InsertComment;
-end;
-
-procedure TXIDEForm.EventsMacroSaveToClipHandleClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-begin
-  SaveMacroToClip;
-end;
-
-procedure TXIDEForm.EventsMacroLoadFromClipHandleClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-begin
-  LoadMacroFromClip(e,nodeId);
-end;
-
-procedure TXIDEForm.EventsMacroResumeRecordingHandleClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-begin
-  ResumeMacroRecording;
-end;
 
 {$ifndef JScript}
-procedure TXIDEForm.RunSettingsHandleClick(e: TEventStatus; nodeID: AnsiString;
-  myValue: AnsiString);
-var
-  Lines:TStringList;
-  NewPath:String;
-begin
-  NewPath:= XIDEPrompt('Location of fpc compiler (fpc.exe)',ConfigFPCPath);
-  if NewPath<>'' then
-  begin
-    ConfigFPCPath := NewPath;
-    Lines:=TStringList.Create;
-    Lines.Add(ConfigFPCPath);
-    Lines.SaveToFile('XIDERunSettings.dta');
-    Lines.Free;
-  end;
-end;
 
 procedure InitialiseResources;
 // define project-specific resources.
@@ -894,8 +809,8 @@ begin
   AddRequiredFile('xobjectinsp','resources/project/xobjectinsp.pas');
   AddRequiredFile('codeeditor','resources/project/codeeditor.pas');
   AddRequiredFile('compileusercode','resources/project/compileusercode.pas');
-  AddRequiredFile('propertyeditunit','resources/project/propertyeditunit.pas');
   AddRequiredFile('inputselectunit','resources/project/inputselectunit.pas');
+  AddRequiredFile('propertyeditunit','resources/project/propertyeditunit.pas');
   AddRequiredFile('popupmemo','resources/project/popupmemo.pas');
   AddRequiredFile('interfacetypes','resources/project/interfacetypes.pas');
   AddRequiredFile('interfacetypesdll','resources/project/interfacetypesdll.pas');
@@ -903,11 +818,8 @@ begin
   AddRequiredFile('xidehelpunit','resources/project/xidehelpunit.pas');
   AddRequiredFile('savedsystems','resources/project/savedsystems.pas');
   AddRequiredFile('stylesutils','resources/project/stylesutils.pas');
-  AddRequiredFile('eventlogging','resources/project/eventlogging.pas');
-  AddRequiredFile('replayuserdialog','resources/project/replayuserdialog.pas');
-  AddRequiredFile('macrocomment','resources/project/macrocomment.pas');
   AddRequiredFile('pyxutils','resources/project/pyxutils.pas');
-
+  AddRequiredFile('xidesettings','resources/project/xidesettings.pas');
 
   // files needed for web-pas2jscompiler to be compilable by pas2js, and built into the project JS file...
   AddRequiredFile('fppas2js','resources/pas2jstranspiler/fppas2js.pp');
@@ -951,7 +863,6 @@ end;
 procedure TXIDEForm.FormCreate(Sender: TObject);
 var
   SystemDescription:String;
-  RunSettingsNode:TDataNode;
 begin
   MainForm:=self;
   MainFormTopControl:=MyRootDiv;
@@ -961,17 +872,12 @@ begin
   NavTreeComponent:=self.NavTree.myNode;
   ResourceTreeComponent:=self.ResourceTree.myNode;
   CodeTreeComponent:=self.CodeTree.myNode;
-  LoggingLabelNode:=self.EventLoggingLabel.myNode;
 
   myNode:=DoXFormCreated(self);
 
   MainFormProjectRoot:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
   UIRootitem:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
   XIDESetupUIRootNode;
-
-  // special case - don't want the menu item 'RunSettings' to be included in system saves & will not go to browser
-  RunSettingsNode:=FindDataNodeById(SystemNodeTree,'RunSettings','',true);
-  RunSettingsNode.NodeClass:='xxx';
 
   InitialiseResources;
   InitialiseXIDE;
@@ -984,7 +890,6 @@ begin
   StyleResourcesPage.IsVisible:=false;      // this is browser/HTML only
   ObjectInspectorTabs.TabIndex:=0;
   ResourceInspectorTabs.TabIndex:=0;
-  MacroEventList.SetMenuVisibility;
 
   // is there a saved system from a previous session?
   SystemDescription:=trim(ReadFromLocalStore('XIDESavedData.txt'));
@@ -1076,7 +981,6 @@ begin
   ExtraHTML.Free;
 end;
 
-
 procedure TXIDEForm.CompilerShowLogClick(Sender: TObject);
 begin
   ShowCompilerLog;
@@ -1118,7 +1022,7 @@ end;
 
 procedure InitialisePage(dummy:string);
 var
-  tempstr,dm,sysname:string;
+  tempstr,dm:string;
   i:integer;
   s:string;
   ok:Boolean;
@@ -1140,7 +1044,6 @@ begin
   NavTreeComponent:=XIDEForm.NavTree.myNode;
   ResourceTreeComponent:=XIDEForm.ResourceTree.myNode;
   CodeTreeComponent:=XIDEForm.CodeTree.myNode;
-  LoggingLabelNode:=XIDEForm.EventLoggingLabel.myNode;
 
   MainFormProjectRoot:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
   UIRootitem:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
@@ -1156,10 +1059,8 @@ begin
 //  showmessage('after XMLToNodeTree. Node '+SystemRootName+' has '+inttostr(length(systemnodetree.childnodes))+' children');
   InitialiseXIDE;
 
-
   PopupMemoForm.InitialiseMemo;
   CodeEditForm.Initialise;
-  MacroEventList.SetMenuVisibility;
 
   RedisplayResourceTree;
   InitialiseStyleResources;
@@ -1169,7 +1070,7 @@ begin
 
   //systempas:='1' + LineEnding
   //+ '2' + LineEnding
-  //+ '3';   // this construct was causing pas2js to producs a stack overflow.  Using \n instead.
+  //+ '3';   // this construct was causing pas2js to produce a stack overflow.  Using \n instead.
 
   {$I eventsinterfacepas.inc}
   {$I interfacetypespas.inc}
@@ -1218,43 +1119,21 @@ begin
   //showmessage('dm='+dm);
   if dm<>'FromLaz' then
   begin
-
     if dm='Run' then
     begin
       // hide the XIDE framework
       ShowHideObjectInspector(false);
     end;
 
- //   showmessage('not running from Laz, so loading last system description');
-    //look for a system description with the same name as the one we just loaded.
-    sysname:=UIRootNode.getAttribute('SystemName',false).AttribValue;
-//    showmessage('looking for saved system XIDESavedData'+sysname);
-    tempstr:=trim(ReadFromLocalStore('XIDESavedData'+sysname));
-    //showmessage(tempstr);
-    if tempstr<>'' then
-    begin
-      //showmessage('found '+sysname);
-      ok:=StringUtils.confirm('Press OK to resume your previous "'+sysname+'" session, or Cancel to continue with the basic load');
-      if ok then
-      begin
-        ok:=DoSystemLoad(tempstr,sysname);
-        if ok then
-        begin
-          RebuildNavigatorTree;
-          RebuildCodeTree;
-        end
-        else
-        begin
-          //showmessage('load failed');
-          OIClearSystem;
-        end;
-      end
-      else ok:=true;
-    end;
+    {$ifndef Python}
+    //showmessage('NOT python - checking for saved system');
+    ok:=CheckForSavedSystemOnLoad;
+    // when using python, we have to wait until pyodide is ready, so this step
+    // is handled in the python load scripts.
+    {$endif}
   end;
 
   StartingUp:=false;// suppress event handlers while starting up
-
   SelectNavTreeNode(MainFormProjectRoot,true);
 
   if ok then
@@ -1269,17 +1148,24 @@ begin
         XIDEForm.SystemClear.IsVisible:=false;
         XIDEForm.SystemDeploy.IsVisible:=false;
         XIDEForm.SystemLoad.IsVisible:=false;
+        XIDEForm.SystemLoadFromStore.IsVisible:=false;
+        XIDEForm.SystemEncapsulate.IsVisible:=false;
+        XIDEForm.SystemSettings.IsVisible:=false;
         ShowGreyOverlay('UIRootNode','Grey1');
         // timeout here so the grey overlay appears
+        {$ifndef Python}
         asm
         myTimeout(pas.XObjectInsp.ContinueToggleToRunMode,5,'ContinueToggleToRunMode',0);
         end;
+        // when using python, we have to wait until pyodide is ready, so this step
+        // is handled in the python load scripts.
+        {$endif}
       end;
   end;
+
 end;
 
 {$endif}
-
 
 begin
 //    {$macro on}

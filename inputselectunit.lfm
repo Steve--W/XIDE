@@ -3,7 +3,7 @@ object InputSelectForm: TInputSelectForm
   Height = 240
   Top = 239
   Width = 320
-  Caption = 'XIDE Function Inputs'
+  Caption = 'XIDE Source Properties'
   ClientHeight = 240
   ClientWidth = 320
   OnCreate = FormCreate
@@ -11,7 +11,7 @@ object InputSelectForm: TInputSelectForm
   LCLVersion = '2.1.0.0'
   object InputSelectVBox1: TXVBox
     Name = 'InputSelectVBox1'
-    Tag = 436554448
+    Tag = 425452560
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -38,7 +38,7 @@ object InputSelectForm: TInputSelectForm
       Width = 314
       Align = alTop
       AutoSize = True
-      myControl.Tag = 436554512
+      myControl.Tag = 425452624
       myControl.AnchorSideLeft.Control = InputSelectTree
       myControl.AnchorSideTop.Side = asrBottom
       myControl.Left = 0

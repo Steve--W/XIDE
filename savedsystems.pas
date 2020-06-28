@@ -139,7 +139,7 @@ begin
   SysName:=RemoveDate(SavedSystemsList.SelectedNodeText);
   if SysName<>'' then
   begin
-    OILoadSavedSystem2(SysName);
+    OILoadSavedSystem(SysName);
     TXForm(self).Showing:='No';
   end;
 end;

@@ -19,7 +19,7 @@ interface
 uses
   Classes, SysUtils, StringUtils, NodeUtils, XForm,
   {$ifndef JScript}
-  Forms, Controls, Dialogs,LazsUtils, Events, framView,
+  Forms, Controls, Dialogs,LazsUtils, Events, {framView,}
   {$else}
   HTMLUtils,
   {$endif}

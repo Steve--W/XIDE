@@ -1,0 +1,188 @@
+object XIDESettingsForm: TXIDESettingsForm
+  Left = 604
+  Height = 183
+  Top = 181
+  Width = 530
+  Caption = 'Settings'
+  ClientHeight = 183
+  ClientWidth = 530
+  Color = 14077611
+  OnCreate = FormCreate
+  OnResize = FormResize
+  OnShow = FormShow
+  LCLVersion = '2.1.0.0'
+  object XsettingsVBox: TXVBox
+    Name = 'XsettingsVBox'
+    Tag = 437687192
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrCenter
+    Left = 10
+    Height = 114
+    Top = 10
+    Width = 491
+    Align = alTop
+    AutoSize = True
+    IsContainer = True
+    AlignChildrenVertical = True
+    Alignment = 'Left'
+    IsVisible = True
+    ContainerWidth = '95%'
+    BgColor = 14077611
+    SpacingAround = 10
+    Border = False
+    InheritColor = False
+    object DeployModeCombo: TXComboBox
+      Name = 'DeployModeCombo'
+      Tag = -1
+      Left = 0
+      Height = 23
+      Top = 0
+      Width = 491
+      Align = alTop
+      AutoSize = True
+      myControl.Tag = -1
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrCenter
+      myControl.AnchorSideRight.Control = DeployModeCombo
+      myControl.AnchorSideRight.Side = asrBottom
+      myControl.Left = 191
+      myControl.Height = 23
+      myControl.Top = 0
+      myControl.Width = 300
+      myControl.Anchors = [akTop, akRight]
+      myControl.Constraints.MaxWidth = 300
+      myControl.Constraints.MinWidth = 300
+      myControl.ItemHeight = 15
+      myControl.ItemIndex = 0
+      myControl.Items.Strings = (
+        'Run'
+        'Design'
+      )
+      myControl.TabOrder = 0
+      myControl.Text = 'Run'
+      IsContainer = False
+      AlignChildrenVertical = True
+      Alignment = 'Right'
+      LabelText = 'Deployment Mode'
+      LabelPos = 'Left'
+      IsVisible = True
+      BgColor = clNone
+      SpacingAround = 0
+      Border = False
+      ItemIndex = -1
+      BoxWidth = '300'
+      OptionList = '["Run","Design"]'
+      PriorIndex = 0
+    end
+    object ResourcesPosCombo: TXComboBox
+      Name = 'ResourcesPosCombo'
+      Tag = -1
+      Left = 0
+      Height = 23
+      Top = 23
+      Width = 491
+      Align = alTop
+      AutoSize = True
+      myControl.Tag = -1
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrCenter
+      myControl.AnchorSideRight.Control = ResourcesPosCombo
+      myControl.AnchorSideRight.Side = asrBottom
+      myControl.Left = 191
+      myControl.Height = 23
+      myControl.Top = 0
+      myControl.Width = 300
+      myControl.Anchors = [akTop, akRight]
+      myControl.Constraints.MaxWidth = 300
+      myControl.Constraints.MinWidth = 300
+      myControl.ItemHeight = 15
+      myControl.ItemIndex = 0
+      myControl.Items.Strings = (
+        'Left'
+        'Right'
+        'Hide'
+      )
+      myControl.TabOrder = 0
+      myControl.Text = 'Left'
+      IsContainer = False
+      AlignChildrenVertical = True
+      Alignment = 'Right'
+      LabelText = 'Resources Panel'
+      LabelPos = 'Left'
+      IsVisible = True
+      BgColor = clNone
+      SpacingAround = 0
+      Border = False
+      ItemIndex = -1
+      BoxWidth = '300'
+      OptionList = '["Left","Right","Hide"]'
+      PriorIndex = 0
+    end
+    object FPCLocationEditBox: TXEditBox
+      Name = 'FPCLocationEditBox'
+      Tag = -1
+      Left = 0
+      Height = 23
+      Top = 46
+      Width = 491
+      Align = alTop
+      AutoSize = True
+      myControl.Tag = -1
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrCenter
+      myControl.AnchorSideRight.Control = FPCLocationEditBox
+      myControl.AnchorSideRight.Side = asrBottom
+      myControl.Left = 191
+      myControl.Height = 23
+      myControl.Top = 0
+      myControl.Width = 300
+      myControl.Anchors = [akTop, akRight]
+      myControl.Constraints.MaxWidth = 300
+      myControl.Constraints.MinWidth = 300
+      myControl.TabOrder = 0
+      IsContainer = False
+      AlignChildrenVertical = True
+      Alignment = 'Right'
+      LabelText = 'Location of fpc compiler (fpc.exe)'
+      LabelPos = 'Left'
+      IsVisible = True
+      BgColor = clNone
+      SpacingAround = 0
+      Border = False
+      ReadOnly = False
+      BoxWidth = '300'
+      PasswordBox = False
+      HasFocus = False
+    end
+    object SettingsDoneButton: TXButton
+      Name = 'SettingsDoneButton'
+      Tag = -1
+      Left = 10
+      Height = 25
+      Top = 79
+      Width = 471
+      Align = alTop
+      AutoSize = True
+      myControl.Tag = -1
+      myControl.AnchorSideLeft.Control = SettingsDoneButton
+      myControl.AnchorSideTop.Side = asrCenter
+      myControl.Left = 0
+      myControl.Height = 25
+      myControl.Top = 0
+      myControl.Width = 54
+      myControl.AutoSize = True
+      myControl.Caption = 'Done'
+      myControl.TabOrder = 0
+      IsContainer = False
+      AlignChildrenVertical = True
+      Alignment = 'Left'
+      IsVisible = True
+      BgColor = clNone
+      SpacingAround = 10
+      Border = False
+      Caption = 'Done'
+      Enabled = True
+      HandleButtonClick = SettingsDoneButtonHandleButtonClick
+    end
+  end
+end
