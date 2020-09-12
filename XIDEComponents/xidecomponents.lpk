@@ -26,7 +26,7 @@ if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
         <CustomOptions Value="//-dChromium"/>
       </Other>
     </CompilerOptions>
-    <Files Count="8">
+    <Files Count="7">
       <Item1>
         <Filename Value="xgpucanvas.pas"/>
         <UnitName Value="XGPUCanvas"/>
@@ -40,25 +40,21 @@ if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
         <UnitName Value="WebTranspilerUtils"/>
       </Item3>
       <Item4>
-        <Filename Value="gpu.js"/>
-        <Type Value="Text"/>
-      </Item4>
-      <Item5>
         <Filename Value="xcomposite.pas"/>
         <UnitName Value="XComposite"/>
-      </Item5>
-      <Item6>
+      </Item4>
+      <Item5>
         <Filename Value="xcompositeintf.pas"/>
         <UnitName Value="XCompositeIntf"/>
-      </Item6>
-      <Item7>
+      </Item5>
+      <Item6>
         <Filename Value="xgpueditor.pas"/>
         <UnitName Value="xgpueditor"/>
-      </Item7>
-      <Item8>
+      </Item6>
+      <Item7>
         <Filename Value="x3dtable.pas"/>
         <UnitName Value="x3dtable"/>
-      </Item8>
+      </Item7>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

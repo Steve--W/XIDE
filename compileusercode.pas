@@ -26,7 +26,7 @@ Equivalent compilation to JS, for use in the HTML runtime, is done using pas2js 
 interface
 
 uses
-  Classes, SysUtils, StringUtils, NodeUtils,  UtilsJSCompile,
+  Classes, SysUtils, StringUtils, StrUtils, NodeUtils,  UtilsJSCompile,
   webTranspilerUtils,
   XComposite,
 {$ifndef JScript}
@@ -68,9 +68,10 @@ function   DfltTreeNodeEventCode:string;
 function   DfltPythonCode:string;
 procedure GatherSourcedAttributes(StartNode:TDataNode);
 {$ifdef Python}
-{$ifndef JScript}
-procedure GatherAndRunPythonScriptsLater;
+{$ifdef JScript}
+procedure GatherAndRunPythonScriptsFromJS;
 {$endif}
+procedure GatherAndRunPythonScriptsLater;
 {$endif}
 
 var
@@ -91,25 +92,12 @@ var
     jspas:String;
     mathpas:String;
     rtlconstspas:String;
-//    rttipas:String;
     strutilspas:String;
     systempas:String;
     sysutilspas:String;
     typespas:String;
     typinfopas:String;
 
-//      browserconsolepas:String;
-//      class2paspas:String;
-//      hotreloadclientpas:String;
-//      libjquerypas:String;
-//      nodejspas:String;
-//      objpaspas:String;
-//      timerpas:String;
-//      webpas:String;
-//      webaudiopas:String;
-//      webbluetoothpas:String;
-//      webglpas:String;
-//      webrouterpas:String;
 {$endif}
 
 
@@ -199,7 +187,8 @@ begin
   else
   begin
       // Substitute single-quotes in the text to be copied
-      TxtLines.Text:=MyStringReplace(TxtLines.Text,'''','&myapos;',-1,-1);
+      //TxtLines.Text:=MyStringReplace(TxtLines.Text,'''','&myapos;',-1,-1);
+      TxtLines.Text:=ReplaceStr(TxtLines.Text,'''','&myapos;');
       for i:=0 to TxtLines.Count-1 do
       begin
         TxtLines[i]:='+ '''+TxtLines[i]+'\n'' ' ;
@@ -227,7 +216,8 @@ begin
   end
   else
   begin
-    TxtLines.Add(filename+suffix+':=MyStringReplace('+filename+suffix+',''&myapos;'','''''''',-1,-1);');
+    //TxtLines.Add(filename+suffix+':=MyStringReplace('+filename+suffix+',''&myapos;'','''''''',-1,-1);');
+    TxtLines.Add(filename+suffix+':=ReplaceStr('+filename+suffix+',''&myapos;'','''''''');');
   end;
 
   // Save the new .inc file
@@ -706,7 +696,6 @@ begin
 
   // add user-written unit code block
   tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
-  //UnitCode:=StringSplit(tmp,LineEnding);
   UnitCode.Append(tmp);
 
   {$ifndef JScript}
@@ -725,26 +714,22 @@ begin
   result:=nm;
 end;
 
-function AddPyScript(UnitNode:TDataNode; PythonCode:TStringList):String;
+procedure AddPyScript(UnitNode:TDataNode; PythonCode:TStringList);
 var
     i:integer;
     tmp,nm:string;
-    UnitCode:TStringList;
 begin
-  //UnitCode:=TStringList.Create;
-  // Pascal Unit code is all in attribute attribute : Code
-  //UnitCode.Clear;
+  // Python Script code is all in attribute : Code
   nm:=UnitNode.NodeName;
   if UnitNode.NameSpace<>'' then
     nm:=UnitNode.NameSpace+'__'+nm;
 
+  PythonCode.add('print(''running script '+nm+''')');
+
   // add user-written unit code block
   tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
-  //UnitCode:=StringSplit(tmp,LineEnding);
   PythonCode.Append(tmp);
 
-  //FreeAndNil(UnitCode);
-  result:=nm;
 end;
 
 
@@ -783,8 +768,8 @@ end;
 
 procedure GatherUserUnitsInComposites(RunMode,NameSpace:String;StartNode:TDataNode;MainUnitCode:TStringList;Compiler:TObject);
 var
-    i,j:integer;
-    tmp,Dflt:string;
+    i:integer;
+    tmp:string;
 begin
   if (StartNode.NodeType='TXComposite') then
   begin
@@ -795,7 +780,6 @@ begin
       end
       else if StartNode.ChildNodes[i].NodeType='PythonScript' then
       begin
-        PyCodeFromComposites.add('print(''running script '+StartNode.ChildNodes[i].NodeName+''')');
         AddPyScript(StartNode.ChildNodes[i],PyCodeFromComposites);
       end;
   end;
@@ -934,6 +918,10 @@ var
     end;
 
 begin
+  {$ifndef JScript}
+  Screen.Cursor := crHourglass;
+  {$endif}
+
   ok:=true;
   // user-created scripts are held as data nodes (class 'Code', type 'PythonScript')
   Lines:=TStringList.Create;
@@ -968,8 +956,12 @@ begin
     end;
   end;
 
+
   FreeAndNil(PyCode);
   FreeAndNil(Lines);
+  {$ifndef JScript}
+  Screen.Cursor := crDefault;
+  {$endif}
 end;
 {$ifndef JScript}
 procedure GatherAndRunPythonScriptsLater;
@@ -979,8 +971,31 @@ begin
   New(QueueRecToSend);
   Application.QueueAsyncCall(@PyProcs.GatherAndRunPythonScripts,PtrInt(QueueRecToSend)); // put msg into queue that will be processed from the main thread after all other messages
 end;
+{$else}
+procedure GatherAndRunPythonScriptsFromJS;
+begin
+  try
+  PyProcs.GatherAndRunPythonScripts(0);
+  except
+    on E: Exception do
+    begin
+      showmessage('Error executing Python script: '+e.Message);
+    end;
+  end;
+  DeleteGreyOverlay('Grey1');
+end;
+procedure GatherAndRunPythonScriptsLater;
+begin
+  UpdateWaitMessage('Grey1','Running Python Scripts...');
+  // timeout here so the grey overlay gets updated
+  asm
+  myTimeout(pas.CompileUserCode.GatherAndRunPythonScriptsFromJS,5,'GatherAndRunPythonScriptsFromJS',0,0);
+  end;
+end;
 {$endif}
+
 {$endif}
+
 
 {$ifndef JScript}
 
@@ -1018,7 +1033,7 @@ begin
    PascalCode.Add('    ' );
    PascalCode.Add('uses');
    PascalCode.Add('  Classes, SysUtils, Math, EventsInterface, InterfaceTypes, ');  //!!!! make uses clause editable ??
-   PascalCode.Add('  contnrs, dateutils, rtlconsts, {rtti,} strutils, types, typinfo');
+   PascalCode.Add('  contnrs, dateutils, rtlconsts, strutils, types, typinfo');
 
    FirstUnitName:=GatherUserUnits(RunMode,Compiler);
    ConstructNamespaceUnits(RunMode,'',Compiler,UIRootItem);
@@ -1030,7 +1045,6 @@ begin
    PascalCode.Add('');
    PascalCode.Add('implementation' );
    PascalCode.Add('');
-   //GatherUserFuncs(RunMode,'',Compiler,CodeRootNode,PascalCode,n);
 
    GatherEventCode(RunMode,'',Compiler,SystemNodeTree,PascalCode);
 
@@ -1049,14 +1063,12 @@ begin
    {$ifdef linux}
    PascalCode.Add('  cthreads,');
    {$endif}
-   PascalCode.Add('  Classes, SysUtils, Math, {initc,} EventsInterface, InterfaceTypesDll ');
+   PascalCode.Add('  Classes, SysUtils, strutils, Math, EventsInterface, InterfaceTypesDll ');
    FirstUnitName:=GatherUserUnits(RunMode,nil);
    ConstructNamespaceUnits(RunMode,'',nil,SystemNodeTree);
    PascalCode.Add(';');
    PascalCode.Add('');
    PascalCode.Add('');
-
-   //GatherUserFuncs(RunMode,'',nil,CodeRootNode,PascalCode,n);
 
    GatherEventCode(RunMode,'',nil,SystemNodeTree,PascalCode);
 
@@ -1150,7 +1162,6 @@ var
   cfg:String;
 begin
 
-  //cfg.Add('resources/xcomponents');       // Location of the units of the XComponents package
   {$ifdef windows}
   cfg:='C:/fpcupdeluxe/fpc/bin/i386-win32';   // Location of Lazarus installation (needed for Free Pascal compilation of user events dll)
   {$endif}
@@ -1352,7 +1363,6 @@ var
 begin
   result:=-1;
   tmp:=inLines.Text;
-  //asm alert('start of locate...'+tmp); end;
   i:=0;
   j:=0;
   while i < inLines.Count do
@@ -1360,7 +1370,6 @@ begin
     j:=FoundString(inLines[i],'rtl.module("');
     if j > 0 then
     begin
-      //showmessage('found '+inLines[i]);
       result:=i;
       i:=inLines.Count;
     end;
@@ -1383,20 +1392,16 @@ begin
 
   MyWebCompiler.mycodeeditor:=MyCodeEditor;
   DllName:=MainUnitName+'Events';
-  //showmessage('CompileEventCode '+RunMode);
   // clean up from previous runs
   MyCodeEditor.MessageLines:='';
 
   //.....Run the compiler .......
-
-  //showmessage('CompileEventCode. starting compile section...');
 
     MyWebCompiler.Compiler.Log.OnLog:=@MyWebCompiler.DoLog;
 
     MyWebCompiler.Compiler.WebFS.LoadBaseURL:='';
 
     FirstUnitName:=InitialiseCodeToBeCompiled(RunMode,MyWebCompiler.Compiler); // populates PascalCode stringlist, and builds user units
-    //showmessage('FirstUnitName='+FirstUnitName);
     MyCodeEditor.ItemValue:=PascalCode.Text;
 
     Res:=False;
@@ -1491,7 +1496,6 @@ begin
 
     // Delete from the JS file all units that already exist in the main page...
     if FirstUnitName='' then FirstUnitName:=DllName;
-    //showmessage('FirstUnitName='+DllName);
 
     // pas2js has produced a JS output file including all referenced rtl units.
     // Chop up the output into separate modules, and retain only those rtl modules
@@ -1533,7 +1537,6 @@ begin
         end;
         JSOutputLines.Delete(0);
       end;
-      //tmp:=CopyThisModule(JSOutputLines);
     end;
 
     //tmp:=JSKeep.Text;
@@ -1661,6 +1664,7 @@ begin
   {$else}
   NamespaceUnits:=TStringList.Create;
   {$endif}
+
 end.
 
 

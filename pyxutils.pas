@@ -376,33 +376,11 @@ begin
     ok:=true;
     // First time in, Create python engine and interfaces...
 
-//  if Assigned(PyInterfaceVar) then
-//    PyInterfaceVar.Destroy;
-//  if Assigned(PyInterfaceE) then
-//    PyInterfaceE.Destroy;
-//  if Assigned(PythonEngine1) then
-//  begin
-//    PythonEngine1.Finalize;
-//    PythonEngine1.UnloadDll;
-//    PythonEngine1.Destroy;
-//  end;
-
     PythonEngine1:=TPythonEngine.Create(nil);
     PythonEngine1.Name:='PythonEngine1';
     PythonEngine1.PyFlags:=[pfUseClassExceptionsFlag];
     PythonEngine1.RedirectIO:=true;
     PythonEngine1.IO:=PythonIO;
-
-  //  pth:=ExtractFileDir(PythonLibDir);
-  //  if pth<>'' then
-  //    if pth[length(pth)]<>'\' then
-  //      pth:=pth+'\';
-  //  PythonEngine1.DllPath:= pth;
-  //  PythonEngine1.DllName:= ExtractFileName(PythonLibDir);
-  //  PythonEngine1.RegVersion:=PythonVersion;
-  //  PythonEngine1.SetPythonHome(pth);
-  //  MaskFPUExceptions(True);
-  //  PythonEngine1.AutoLoad:=true;
 
     PythonEngine1.UseLastKnownVersion:=true;     // use the Python version installed on the machine
     PythonEngine1.AutoLoad:=false;
@@ -519,8 +497,8 @@ begin
   script.add('    var ok=pas.XObjectInsp.CheckForSavedSystemOnLoad();');
   script.add('  } ');
   script.add('  if (pas.XObjectInsp.RunningDeployedRuntime==true) {');
-  script.add('  pas.XObjectInsp.ContinueToggleToRunMode();  }');
-  script.add('}');
+  script.add('    pas.XObjectInsp.ContinueToggleToRunMode();  }');
+  script.add('  }');
   script.add('function pysrcLoaded() { ');
   script.add('    // pyodide is now ready to use...  ' );
   script.add('    console.log("python: "+pyodide.runPython("import sys\nsys.version"));' );
@@ -557,6 +535,7 @@ begin
   // Sets up an internal library of XIDE Interface functions, available to the user.
   InitScript.Clear;
   InitScript.add('import sys');
+  InitScript.add('import json');
   InitScript.add('print(sys.version)');
   InitScript.add('class MyMessage:');
   InitScript.add('  fname = ''xxx''');
@@ -689,6 +668,7 @@ begin
   InitScript.add('from js import pas');
   InitScript.add('import io');
   InitScript.add('import base64');
+  InitScript.add('import json');
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
   InitScript.add('  return pas.InterfaceTypes.GetPropertyValue(NodeName,PropName)');
   InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');

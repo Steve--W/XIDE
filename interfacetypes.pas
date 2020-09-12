@@ -500,7 +500,7 @@ begin
 //        pas.PasteDialogUnit.CompletionEvent=e;
         var ob=document.getElementById('Grey99');
         if (ob==null) {
-          pas.HTMLUtils.ShowGreyOverlay('UIRoot','Grey99');
+          pas.HTMLUtils.ShowGreyOverlay('UIRoot','Grey99','Please Wait...');
         }
       }
       else

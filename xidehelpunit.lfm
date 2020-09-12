@@ -13,7 +13,7 @@ object XIDEHelpForm: TXIDEHelpForm
   LCLVersion = '2.1.0.0'
   object HelpFormVBox1: TXVBox
     Name = 'HelpFormVBox1'
-    Tag = 415070136
+    Tag = 423516064
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -30,23 +30,24 @@ object XIDEHelpForm: TXIDEHelpForm
     ContainerHeight = '100%'
     BgColor = clWhite
     SpacingAround = 0
-    Border = True
+    Border = False
     InheritColor = False
     object HelpHTMLText: TXHTMLText
       Name = 'HelpHTMLText'
       Tag = -1
-      Left = 2
-      Height = 687
-      Top = 2
-      Width = 967
+      Left = 0
+      Height = 5
+      Top = 0
+      Width = 971
       Align = alTop
       AutoSize = True
-      myControl.Tag = 415070216
+      myControl.Tag = 423516144
       myControl.AnchorSideLeft.Control = HelpHTMLText
-      myControl.AnchorSideTop.Side = asrBottom
-      myControl.Left = 2
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrCenter
+      myControl.Left = 4
       myControl.Height = 679
-      myControl.Top = 6
+      myControl.Top = -336
       myControl.Width = 959
       myControl.CodePage = 0
       myControl.DefBackground = 15658723
@@ -58,6 +59,7 @@ object XIDEHelpForm: TXIDEHelpForm
       myControl.PrintMarginRight = 2
       myControl.PrintMarginTop = 2
       myControl.PrintScale = 1
+      myControl.Anchors = []
       myControl.TabOrder = 0
       IsContainer = False
       AlignChildrenVertical = True

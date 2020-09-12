@@ -21,7 +21,7 @@ uses Classes, Sysutils, StringUtils, NodeUtils, EventsInterface
  , Dialogs,XTree
  {$else}
  ,Math, contnrs, dateutils, rtlconsts, strutils, types, typinfo,
- XTree, InterfaceTypes
+ XTree, XComboBox, InterfaceTypes
  {$endif}
  ;
 
@@ -45,16 +45,9 @@ type
 
   TCSSTreeNodes = (All,Priority,Group,StyleResources,StyleSheet,StyleRule,StyleTargets,TargetGrouping,_And_,_Or_,Not_And_,Not_Or_,TargetTypes,WidgetType,Numeric,ProgressBar,NumericSlider,NumberSpinner,Text,LabelText,Hyperlink,EditBox,Memo,Table,Selectors,Button,CheckBox,RadioButtons,ComboBox,Tree,DatePicker,ColorPicker,MainMenu,MenuItem,LayoutWidgets,HBox,VBox,GroupBox,ScrollBox,TabControl,TabSheet,Form,Identifier,ClassName,WidgetID,Relationship,ChildrenOf,DescendentsOf,SiblingsOf,State,Hover,Visited,Focused,StyleProperties,Widget,WidgetCorners,WidgetPadding,WidgetMargin,WidgetBorder,WidgetBackground,Font,FontFamily,FontSize,FontColor,FontBackgroundColor,FontWeight,FontStyle,Transformations,Rotate,Scale,Skew,States,Selectable,Cursor,Visibility,Effects,Transition,Filter,NotFound);
 
-//  TStyleTreeNode = record
-//    SNodeName,SNodeType,qualifier,QualifierType : string;
-//    NodeTypeSetID:TCSSTreeNodes;
-//    children: Array of  TStyleTreeNode;
-//  end;
-
   TCSSTermList = Array of TStringList;
 
 
-// Function RecursivelyGenerateTheTreeDescriptionString(SelectedNode:TStyleTreeNode):string;
  procedure InitStyleTreeDisplay;
  Procedure SetCSSNodeTypes;
  Procedure SetStyleOptions;
@@ -192,8 +185,6 @@ begin
   slist.LineBreak:='.';
   slist.SkipLastLineBreak:=true;
   slist.Text:=instring;
-//  for i:=0 to slist.count-1 do
-//    showmessage('i='+inttostr(i)+' '+slist[i]);
 
   // if the list has only 2 elements, then those are the type, and the name.
   // otherwise, the first element is the type, and the last is the name.
@@ -213,7 +204,7 @@ begin
   begin
     slist.Delete(0);
     str:=slist.Text;
-//    showmessage('str=>'+str+'<');
+    //asm console.log('str=>'+str+'<'); end;
     if (length(str)>0) then
     begin
       // remove trailing delimiter (.)
@@ -225,7 +216,6 @@ begin
       if str[length(str)]=')' then
         Delete(str,length(str),1);
     end;
-//    showmessage('modified str=>'+str+'<');
 
   end;
 
@@ -655,19 +645,21 @@ end;
   Procedure UpdateNodeQualifierField;
   var  SelectedStyleSheetNodeText,SelectedStyleSheetNodeType,CurrentOptionValue,CurrentOptionType:string;
        itemIndex,i,j:integer;
-       nodeid:String;
+       nodeid,s:String;
+       MyCombo:TDataNode;
   begin
-      // get the node type and text string
+    // get the node type and text string
     SelectedStyleSheetNodeText:=trim(getPropertyValue('StyleSheet','SelectedNodeText'));
     SelectedStyleSheetNodeType:=GetTypeFromString(SelectedStyleSheetNodeText);
     CurrentOptionType:=GetOptionType(SelectedStyleSheetNodeType);
     if SelectedStyleSheetNodeType<>'' then
     begin
-      //showmessage('drop down visible ? ='+getPropertyValue('StyleNodeQualifier','IsVisible') );
+      s:=GetPropertyValue('StyleNodeQualifier','IsVisible');
       if getPropertyValue('StyleNodeQualifier','IsVisible') = 'True'
       then
       begin
-         CurrentOptionValue := getPropertyValue('StyleNodeQualifier','ItemValue')
+         MyCombo:=FindDataNodeById(SystemNodeTree,'StyleNodeQualifier','',true);
+         CurrentOptionValue := TXComboBox(MyCombo).ItemValue;       //getPropertyValue('StyleNodeQualifier','ItemValue');
       end
       else
       begin
@@ -804,20 +796,19 @@ var i,numchildren:integer;
     props:TStringArray;
 Begin
   CSSText:= '';
- // showmessage('GetStyleProperties '+PropertiesNodeId);
   // style properties are the children of this node.
   props:=TXTree(StylesNode).GetChildNodes(PropertiesNodeId);
   asm
     for (var i=0; i<props.length; i++) {
       var propid=props[i];
-      //alert('propid='+propid);
+      //console.log('propid='+propid);
       var ob=document.getElementById(propid+'Summary');
       if (ob!=null) {
         var txt=ob.innerHTML;   }
-      //alert('txt='+txt);
+      //console.log('txt='+txt);
       var qt=pas.StylesUtils.GetOptionType(pas.StylesUtils.GetTypeFromString(txt));
       var qv=pas.StylesUtils.GetQualifierValue(txt);
-      //alert('qt='+qt+' qv='+qv);
+      //console.log('qt='+qt+' qv='+qv);
       CSSText=CSSText + qt + qv ;
 
       if ((StylePriority == '1;') || (StylePriority=='2;'))
@@ -832,7 +823,7 @@ Begin
 
       }
   end;
-  //showmessage('props='+CSSText);
+  //asm console.log('props='+CSSText); end;
   result:=CSSText;
 end;
 
@@ -994,17 +985,15 @@ var i:integer;
     str:string;
     TopNode:TDataNode;
 begin
-  //showmessage('GenerateStyleRule '+RuleNodeId);
+
+
   setlength(ruleNodes,0);
   ruleNodes:=TXTree(StylesNode).GetChildNodes(RuleNodeId);
 
   StyleTargets:=GetStyleTargets(ruleNodes[0]);
   Stylepriority:=trim(GetQualifierValue(TXTree(StylesNode).TextOfNode(RuleNodes[2])));
   StyleProperties:=GetStyleProperties(ruleNodes[1],Stylepriority);
-  //showmessage('priority='+Stylepriority);
-//  StyleState:=trim(RuleNode.children[3].Qualifier);
   StyleState:=trim(GetQualifierValue(TXTree(StylesNode).TextOfNode(RuleNodes[3])));
-//  StyleGroup:=trim(RuleNode.children[4].Qualifier);
   StyleGroup:=trim(GetQualifierValue(TXTree(StylesNode).TextOfNode(RuleNodes[4])));
 
 
@@ -1018,7 +1007,6 @@ begin
     if StyleGroup ='ChildrenOf;' then StyleTargets:=StyleTargets+'>*' ;
     if StyleGroup ='DescendentsOf;' then StyleTargets:=StyleTargets+ ' *' ;
   end;
-
 
   TargetString:='#UIRootContents'+StyleTargets;
   //!!!! other forms.....!!!!
@@ -1053,7 +1041,6 @@ end;
   begin
     //!!!! change this use JSON parser on the underlying treedata????
 
- //   showmessage('GenerateStyleSheets');
     PriorityOneStyleRules:='';
     PriorityTwoStyleRules:='';
     PriorityThreeStyleRules:='';
@@ -1066,7 +1053,6 @@ end;
     rules:=TXTree(StylesNode).GetChildNodes('StyleSheetNode0');
 
     numchildren:= length(rules);
-//    showmessage('numchildren='+inttostr(numchildren));
     if numchildren >0 then
     for i := 0 to  numchildren - 1
     do
@@ -1255,7 +1241,7 @@ var
     // padding is the space around the widget and inside the border
     AddToOptionList( 'WidgetPadding|Some options for the width of the padding between widget border and other components|padding:|0.1em;|0.3em;|0.5em;|0.7em;|0.9em;|inherit;');
     AddToOptionList( 'WidgetCorners|choose one of the first four options to have one corner rounded or the finally one to round them all |border-radius:|20px 0 0 0;|0 20px 0 0;|0 0 20px0 ;|0 0 0 20px;|20px 20px 20px 20px;|inherit;') ;
-    AddToOptionList('WidgetBackground||background:|white;|silver;|gray;|black;|red;|maroon;|yellow;|olive;|lime;|green;|aqua;|teal;|blue;|navy;|fuchsia;|purple;|inherit;');
+    AddToOptionList('WidgetBackground||background-color:|white;|silver;|gray;|black;|red;|maroon;|yellow;|olive;|lime;|green;|aqua;|teal;|blue;|navy;|fuchsia;|purple;|inherit;');
 
     AddToOptionList('Scale||transform:|scale(0.5);|scale(0.7);|scale(1.0);|scale(1.3);|scale(1.6);|scale(2.0);|inherit;');
     AddToOptionList('Rotate||transform:|rotate(45deg);|rotate(90deg);|rotate(135deg);|rotate(180deg);|rotate(225deg);|rotate(270deg);|rotate(315deg);|inherit;');

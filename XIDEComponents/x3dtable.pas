@@ -33,12 +33,15 @@ type
     function GetYDimension:integer;
     function GetZDimension:integer;
     function GetTable3DData:string;
+    function GetIncludeDataInSave:Boolean;
 
     procedure SetZIndex(AValue:integer);
     procedure SetXDimension(AValue:integer);
     procedure SetYDimension(AValue:integer);
     procedure SetZDimension(AValue:integer);
     procedure SetTable3DData(const AValue:string);
+    procedure SetIncludeDataInSave(AValue:Boolean);
+    procedure SetContainerHeight(AValue:string);  override;
 
     procedure SetMyEventTypes;
     procedure SetPropertyDefaults;
@@ -88,6 +91,7 @@ published
     property YDimension: integer read GetYDimension write SetYDimension;
     property ZDimension: integer read GetZDimension write SetZDimension;
     property Table3DData:string read GetTable3DData write SetTable3DData;
+    property IncludeDataInSave:Boolean read GetIncludeDataInSave write SetIncludeDataInSave;
 
   end;
 
@@ -137,8 +141,8 @@ begin
   VBNode:=AddDynamicWidget('TXVBox',self.myNode.MyForm,self.myNode,'VBox',self.myNode.NodeName,'Left',-1);
   vb:=TXVBox(VBNode.ScreenObject);
   VBNode.IsDynamic:=false;
-  vb.ContainerHeight:='100%';
-  vb.ContainerWidth:='100%';
+//  vb.ContainerHeight:='100%';
+//  vb.ContainerWidth:='100%';
 
   ZNumNode:=AddDynamicWidget('TXComboBox',self.myNode.MyForm,VBNode,'ZSelector',self.myNode.NodeName,'Left',-1);
   ZSelector:=TXComboBox(ZNumNode.ScreenObject);
@@ -210,6 +214,7 @@ begin      // fix for Lazarus 'feature'....
   self.InsertControl(PasteBtn,0);
   self.InsertControl(myTableView,0);
   self.InsertControl(ZSelector,0);
+  CascadeResize(myControl)
 end;
 
 function Create3DTableWidget(ParentNode:TDataNode;ScreenObjectName,NameSpace:string;position:integer;Alignment:String):TDataNode;
@@ -433,30 +438,6 @@ begin
     self.YDimEdit.ItemValue:='';
     self.XDimEdit.ItemValue:='';
   end;
-(*  {$ifdef JScript}
-  asm
-  console.log('ZDIM='+arr.length);
-  console.log('YDIM='+arr[0].length);
-  console.log('XDIM='+arr[0][0].length);
-  var s='';
-  for (var i=0; i<arr.length; i++) {
-    console.log('i='+i);
-    for (var j=0; j<arr[i].length; j++) {
-      console.log('s=>'+s+'<');
-      console.log('j='+j);
-      s='';
-      for (var k=0; k<arr[i][j].length; k++) {
-        if (k>0) {s=s+',';}
-        s=s+arr[i][j][k];
-      }
-    }
-    console.log('s=>'+s+'<');
-  }
-  console.log('calling ConstructTableStringFromArray. z='+z);
-  console.log('arr[z]='+arr[z]);
-  end;
-  {$endif}
-  *)
 
   if length(arr)>0 then
   begin
@@ -659,6 +640,10 @@ function TX3DTable.GetTable3DData:string;
 begin
   result:=myNode.getAttribute('Table3DData',true).AttribValue;
 end;
+function TX3DTable.GetIncludeDataInSave:Boolean;
+begin
+  result:=MyStrToBool(MyNode.getAttribute('IncludeDataInSave',true).AttribValue);
+end;
 
 procedure TX3DTable.SetZIndex(AValue:integer);
 begin
@@ -686,6 +671,17 @@ begin
   end;
 
 end;
+procedure TX3DTable.SetIncludeDataInSave(AValue:Boolean);
+begin
+  myNode.SetAttributeValue('IncludeDataInSave',MyBoolToStr(AValue),'Boolean');
+end;
+procedure TX3DTable.SetContainerHeight(AValue:string);
+begin
+  inherited;
+  {$ifndef JScript}
+  CascadeResize(TWinControl(self));   //.....making no difference!!!!
+  {$endif}
+end;
 
 begin
 AddWrapperDefaultAttribs(myDefaultAttribs);
@@ -702,8 +698,10 @@ AddDefaultAttribute(myDefaultAttribs,'XDimension','Integer','1','',false,false);
 AddDefaultAttribute(myDefaultAttribs,'YDimension','Integer','1','',false,false);
 AddDefaultAttribute(myDefaultAttribs,'ZDimension','Integer','1','',false,false);
 AddDefaultAttribute(myDefaultAttribs,'ZIndex','Integer','0','',false);
-
+AddDefaultAttribute(myDefaultAttribs,'IncludeDataInSave','Boolean','True','If false, the table contents will be excluded from saved system data',false);
 AddDefaultsToTable(MyNodeType,myDefaultAttribs);
+
+AddExclusionAttribToTable(MyNodeType,'IncludeDataInSave','Table3DData');
 
 AddAttribOptions(MyNodeType,'Alignment',AlignmentOptions);
 AddAttribOptions(MyNodeType,'LabelPos',LabelPosOptions);

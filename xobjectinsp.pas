@@ -18,7 +18,7 @@ unit XObjectInsp;
 interface
 
 uses
-  Classes, SysUtils, TypInfo, Stringutils, NodeUtils, Events, PopupMemo,
+  Classes, SysUtils, TypInfo, Stringutils, StrUtils, NodeUtils, Events, PopupMemo,
 {$ifndef JScript}
   LazsUtils, Menus, DynLibs,
   Controls, ComCtrls, PropEdits, ExtCtrls, Dialogs,Forms,CompilerLogUnit, xpparser,
@@ -122,8 +122,6 @@ procedure OICopyToNewParent(nodeId,NameSpace:string;NewParentId:string;NewName:S
 {$ifndef JScript}
 procedure SaveCompositesToIncFile;
 procedure OICopyToNewParent(nodeId,NameSpace:string;NewParentId:string;NewName:PChar);  overload;
-{$else}
-procedure InitAutomatedCursor;
 {$endif}
 procedure OIMoveNavSiblingUpDown(UpDown:String);
 procedure DoSelectNavTreeNode(CurrentNode:TDataNode; refresh:boolean);
@@ -420,7 +418,8 @@ begin
   begin
     newstring:=TreeLabelStr;
   end;
-  newstring:=myStringReplace( newstring,'Contents','',999,999);
+  //newstring:=myStringReplace( newstring,'Contents','',999,999);
+  newstring:=ReplaceStr( newstring,'Contents','');
   result :=  trim(newstring);
 end;
 
@@ -636,12 +635,13 @@ begin
   RebuildNavigatorTree;
   RebuildCodeTree;
 
-  {$ifdef JScript}
+  {$ifndef JScript}
+  ConsoleNode:=FindDataNodeById(SystemNodeTree,'XMemo1','',true);
+  {$else}
   AboutXIDEForm.BuildText;
   PasteDialogUnit.SetupPasteDialogForm;
   PasteDialogUnit.PasteTarget.myNode.registerEvent('MemoPaste',@OIEventWrapper.OIPasteTarget);
   XGPUEditor.CreateGPUEditForm;
-
   {$endif}
 end;
 
@@ -739,6 +739,7 @@ begin
       asm
       if (suffix!='xcmp') {
       // find the timestamp...
+      try {
       var object = JSON.parse(localStorage.getItem(namesArray[n]));
       ts = '';
       if ((object!=null)&&(suffix!='xcmp')) {
@@ -747,6 +748,8 @@ begin
         ts = '      '+tsd.toLocaleDateString()+' '+tsd.toLocaleTimeString();
         }
       }
+      } catch(err) {ts='';  // skip the un-parseable item.
+                   }
       }
       end;
       NamesList.Add(nm+ts);
@@ -902,6 +905,11 @@ begin
      AddAttrib(AttrParams,'Hint','String','',false);
      RegisterResource('RUI','TXTable','TXTable','Text',-1,AttrParams);
 
+     {$ifdef Python}
+     ClearAttribs(AttrParams);
+     AddAttrib(AttrParams,'Language','String','Python',false);
+     RegisterResource('RUI','TXCode','TXCode','Text',-1,AttrParams);
+     {$endif}
 
      ClearAttribs(AttrParams);
      AddAttrib(AttrParams,'Hint','String','',false);
@@ -1188,7 +1196,6 @@ begin
 end;
 
 
-//function MyInputBox(PromptString,DefaultString:string):string;
 function XIDEPrompt(PromptString,DefaultString:string):string;
 var
   str:string;
@@ -1226,10 +1233,14 @@ var resultstring,DefaultString:string;
   ok:Boolean;
 begin
    DefaultString := 'Created_'+DateTimeToStr(Now);
-   DefaultString :=myStringReplace( DefaultString,' ','_',999,999);
-   DefaultString :=myStringReplace( DefaultString,':','_',999,999);
-   DefaultString :=myStringReplace( DefaultString,'-','_',999,999);
-   DefaultString :=myStringReplace( DefaultString,'/','_',999,999);
+   //DefaultString :=myStringReplace( DefaultString,' ','_',999,999);
+   //DefaultString :=myStringReplace( DefaultString,':','_',999,999);
+   //DefaultString :=myStringReplace( DefaultString,'-','_',999,999);
+   //DefaultString :=myStringReplace( DefaultString,'/','_',999,999);
+   DefaultString :=ReplaceStr( DefaultString,' ','_');
+   DefaultString :=ReplaceStr( DefaultString,':','_');
+   DefaultString :=ReplaceStr( DefaultString,'-','_');
+   DefaultString :=ReplaceStr( DefaultString,'/','_');
 
    ok:=false;
    while not ok do
@@ -1431,7 +1442,7 @@ begin
       {$ifndef JScript}
       TXTabControl(ParentNode.ScreenObject).ActivePage:=TabPage;
       {$else}
-      ChangeTabPage(TabPage.NodeName,ParentNode.NodeName,'');
+      ChangeTabPage(TabPage.NodeName,ParentNode.NodeName,'',TabPage);
       {$endif}
     end;
     ParentNode:=FindParentOfNode(SystemNodeTree,ParentNode);
@@ -1533,6 +1544,9 @@ var
   okToContinue:Boolean;
   i:integer;
 begin
+  if CurrentNode.NameSpace<>'' then
+    EXIT;
+
   okToContinue:=true;
   {$ifdef JScript}
   asm
@@ -1545,10 +1559,8 @@ begin
   end;
   if length(OpenXForms)>0 then
     okToContinue:=false;
-//  asm
-//    console.log('DoSelectNavTreeNode '+CurrentNode.NodeName+' ok='+okToContinue);
-//  end;
   {$endif}
+
    //!! Should to operate this by node id, not text  :: HOWEVER, in the nav tree, node texts are all unique.
   //showmessage('DoSelectNavTreeNode '+CurrentNode.NodeClass+' '+CurrentNode.NodeType+' '+CurrentNode.NodeName+' ');
   if (DesignMode) and (okToContinue) then
@@ -1601,15 +1613,16 @@ end;
 
 procedure  SelectNavTreeNode(CurrentNode:TDataNode; refresh:boolean);
 begin
-  {$ifndef JScript}
-  DoSelectNavTreeNode(CurrentNode,refresh);
-  {$else}
-  asm
-  //console.log('SelectNavTreeNode '+CurrentNode.NodeName);
-  myTimeout(pas.XObjectInsp.DoSelectNavTreeNode,5,'DoSelectNavTreeNode',0,CurrentNode,refresh);
+  if CurrentNode.NameSpace='' then
+  begin
+    {$ifndef JScript}
+    DoSelectNavTreeNode(CurrentNode,refresh);
+    {$else}
+    asm
+    myTimeout(pas.XObjectInsp.DoSelectNavTreeNode,5,'DoSelectNavTreeNode',0,CurrentNode,refresh);
+    end;
+    {$endif}
   end;
-  {$endif}
-
 end;
 
 
@@ -1871,6 +1884,7 @@ begin
      ObjectInspectorSourceNode:=CopyNode(NodeToCopy,true);
      ObjectInspectorSourceCut:=false;
      //ShowMessage('CopyNavNode.  Source node is '+NodeToCopy.NodeName);
+     XIDEForm.OIPaste.Hint:='Ready to paste UI node '+ObjectInspectorSourceNode.NodeName;
    end
    else ShowMessage('Select an item (from the Navigation Tree) to copy before calling this action');
 end;
@@ -1884,6 +1898,7 @@ begin
    begin
       ObjectInspectorSourceNode:=CopyNode(SelectedResourcesTreeNode,true);
       ObjectInspectorSourceCut:=false;
+      XIDEForm.OIPaste.Hint:='Ready to paste Resource node '+ObjectInspectorSourceNode.NodeName;
    end;
 //   else
 //     ShowMessage('Select an item (from the Resource Tree) to copy before calling this action');
@@ -1998,6 +2013,7 @@ begin
   ObjectInspectorSourceCut:=true;
   DeleteItemQuietly(InTree,SelectedNode);
   //ShowMessage('finished cutting.  oi node is '+ObjectInspectorSourceNode.NodeName);
+  XIDEForm.OIPaste.Hint:='Ready to paste UI node '+ObjectInspectorSourceNode.NodeName;
 end;
 
 function CutItem(InTree,SelectedNode:TDataNode):string;
@@ -2423,6 +2439,9 @@ thisnode:TDataNode;
 begin
   if NavTreeComponent.ScreenObject <>nil then
   begin
+    ObjectInspectorSourceNode:=nil;
+    XIDEForm.OIPaste.Hint:='Nothing to paste. Select a Resource, or Copy/Cut a Designer node first.';
+
     TXTree(NavTreeComponent.ScreenObject).DeSelectNode;
     DeHighlightObject(ObjectInspectorSelectedNavTreeNode);
     PopulateObjectInspector(nil);
@@ -2489,7 +2508,6 @@ begin
   // Save just the user-design portions of the system node tree.
   // Mainform Menu items, Mainform centre section, PLUS dynamic XForms added.
 
-//  showmessage('2');
   UINode:=UIRootItem;
   TopType:=UINode.NodeType;
   TopClass:=UINode.NodeClass;
@@ -2498,8 +2516,6 @@ begin
   UINode.IsDynamic:=true;
 
   MenuNode:=FindDataNodeById(SystemNodeTree,'XIDEMainMenu','',true);
-
-//  showmessage('3');
 
   // Create a temporary root node to enclose the project nodes (copy from UIRootNode)
   StartNode:= CopyNode(UIRootNode,false);
@@ -2520,10 +2536,8 @@ begin
     StartNode.ChildNodes[0]:=UINode;        // give it one child node for the user interface section
   end;
 
-//  showmessage('4');
   systemstring:= NodeTreeToXML(StartNode,nil,true,false);
 
-//  showmessage('5');
   UINode.NodeType:=TopType;
   UINode.NodeClass:=TopClass;
   UINode.IsDynamic:=false;
@@ -2777,7 +2791,7 @@ begin
     RebuildCodeTree;
 
     GenerateStyleSheets;
-    InitAutomatedCursor;
+    //InitAutomatedCursor;
 
     SelectNavTreeNode(MainFormProjectRoot,true);
     {$ifndef Python}
@@ -2909,7 +2923,10 @@ begin
     if (TreeInFocus=nil) then
        ShowMessage('Select Paste destination first')
     else if ObjectInspectorSourceNode=nil then
-         ShowMessage('Copy an item first');
+    begin
+      ShowMessage('Copy an item first');
+      XIDEForm.OIPaste.Hint:='Nothing to paste. Select a Resource, or Copy/Cut a Designer node first.';
+    end;
   result:=ok;
 end;
 
@@ -3259,7 +3276,6 @@ begin
       CloseXForm(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
     end;
     SetSystemName('XIDESystem');
-    //UIRootNode.SetAttributeValue('SystemName','XIDESystem');
 
     ClearInspectors;
     ClearAllDynamicNodes(SystemNodeTree); // clear any existing dynamic screen components under Root
@@ -3296,110 +3312,6 @@ begin
 end;
 
 {$ifdef JScript}
-procedure CompleteDeployFromBrowserOld(deployname:String);
-var
-  wholesystem,currentNodeTree,dm2,sysname,dpstr:String;
-  ok:boolean;
-  dp1,dp2:integer;
-begin
-  // make temporary changes to root node attributes
-  sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
-  dm2:=UIRootNode.GetAttribute('DeploymentMode',false).AttribValue;
-  UIRootNode.SetAttributeValue('SystemName',deployname);
-
-  ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
-  DeleteGreyOverlay('Grey1');
-  if ok then
-  begin
-    wholesystem:='<!DOCTYPE HTML>'  +LineEnding;
-    // the resulting javascript will have been inserted in the HTML page.
-    // dump the contents of the page onto the clipboard
-    // However, for deployed startup, this needs to be amended in 3 places:
-    // wholesystem is a snapshot of the current page.  It also includes the javascript initialisation code which
-    // loads up the user's system description on startup....
-    // 1) Delete the contents of <body>. (is rebuilt on startup).
-    // 2) Set the variable LoadedSystemString instead to supply the current system state.
-    // 3) Set the variable myDeployedMode (Run, or Design).
-
-    asm
-
-      // delete the block of user event code that has been locally compiled
-      var eventcode = document.getElementById("UserEventCodeContainer");
-      if (eventcode != null) {
-        eventcode.parentNode.removeChild(eventcode);
-        }
-
-      // delete any pyodide scripts (these will be reloaded on startup)
-      var myHead = document.getElementsByTagName("HEAD")[0];
-      var saveHead = myHead.innerHTML;
-      var sc = myHead.getElementsByTagName("SCRIPT");
-
-      function isPyodide(src) {
-        return src.includes("pyodide-cdn2")
-      }
-      console.log('remove pyodide scripts....');
-      for (var i = sc.length-1; i >= 0; i--) {
-        if (sc[i].hasAttribute("src")) {
-          if ( isPyodide(sc[i].getAttribute("src"))) {
-            console.log('removing '+sc[i].getAttribute("src"));
-            sc[i].parentNode.removeChild(sc[i]);
-          }
-        }
-      }
-      console.log('remove pyodide scripts done');
-
-      var htmlElement = document.getElementsByTagName("HTML")[0];
-      if (htmlElement!=null) {
-        var myBody = document.getElementsByTagName("BODY")[0];
-        if (myBody!=null) {
-          var saveme = myBody.innerHTML;
-          myBody.innerHTML = '<div  id = "UIRootNode" class="vbox" style="height:100%; width:100%;top:0px;left:0px; position:relative; z-index:0;">'
-            +'<div  id = "XIDEForm" class="vbox" style="height:100%; width:100%;top:0px;left:0px">'
-            +'</div>'
-          +'</div>';
-          wholesystem = wholesystem+'<HTML lang="en">'+htmlElement.innerHTML+'</HTML>';
-          myBody.innerHTML = saveme;
-          }
-        else {alert('CompleteDeployFromBrowser. body element not found');}
-        }
-      else {alert('CompleteDeployFromBrowser. html element not found');}
-      console.log('put back original header');
-      myHead.innerHTML=saveHead;
-      console.log('done');
-    end;
-
-    // set myDeployedMode...
-    wholesystem:=SetMyDeployedMode(wholesystem,dm2);
-
-    // set LoadedSystemString...
-    currentNodeTree := NodeTreeToXML(SystemNodeTree,nil,false,true);
-    // look for the string 'pas.NodeUtils.LoadedSystemString ='
-    dp1 := 0;
-    dp1 := FoundString(wholesystem,chr(112)+'as.NodeUtils.LoadedSystemString = "*";');  // length 39
-    if dp1>0 then
-    begin
-      dp1 := dp1 + 39;
-      dp2 := FoundString(wholesystem,'<\/Root>";');   // length 10
-      if dp2>0 then
-      begin
-        dp2 := dp2 + 10;
-        Delete(wholesystem,dp1,(dp2-dp1));
-        Insert('pas.NodeUtils.LoadedSystemString = '''+currentNodeTree+''';',wholesystem,dp1);
-      end;
-    end;
-
-    PasteDialogUnit.PasteTarget.ItemValue:=wholesystem;
-    PasteDialogUnit.PasteDoneBtn.IsVisible:=true;
-    PasteDialogUnit.PasteLabel.LabelCaption:='Press Done to complete the copy to clipboard action';
-    PasteDialogUnit.PasteTarget.IsVisible:=false;
-
-    showmessage('open dialog...');
-    OpenModal('PasteDialog');
-
-  end;
-  UIRootNode.SetAttributeValue('SystemName',sysname);
-end;
-
 procedure CompleteDeployFromBrowser(deployname:String);
 var
   htmlHead,htmlBody,wholesystem,projectJS,currentNodeTree,dm2,sysname,dpstr:String;
@@ -3533,7 +3445,7 @@ begin
   myCopyToClip('HTML System',wholesystem );
 
   {$else}
-  ShowGreyOverlay('UIRootNode','Grey1');
+  ShowGreyOverlay('UIRootNode','Grey1','Completing Deployment. Please Wait...');
   // timeout here so the grey overlay appears
   asm
     myTimeout(pas.XObjectInsp.CompleteDeployFromBrowser,20,'CompleteDeployFromBrowser',0,deployname);
@@ -3703,12 +3615,9 @@ procedure CompleteToggleToRunMode(ok:boolean);
 var
   MenuItemNode:TDataNode;
   MenuItem:TXMenuItem;
-//  Messages:TStringList;
   dm:String;
   i:integer;
 begin
-  //showmessage('CompleteToggleToRunMode');
-
   MenuItemNode:=FindDataNodeById(SystemNodeTree,'ToggleDesignRunMode','',true);
   MenuItem:=TXMenuItem(MenuItemNode.ScreenObject);
   if ok then
@@ -3734,6 +3643,8 @@ begin
     GatherSourcedAttributes(SystemNodeTree);
     PushAllSourcesToAttributes;
 
+    SuppressUserEvents:=false;
+
     HandleEventLater(nil,'OnEnterRunMode','UIRootNode','','');
     {$ifdef Python}
     //Clear the python engine and re-initialise
@@ -3746,25 +3657,21 @@ begin
     GatherSourcedAttributes(SystemNodeTree);
     PushAllSourcesToAttributes;
 
+    SuppressUserEvents:=false;
+    {$ifdef JScript} asm console.log('SuppressUserEvents set to false'); end; {$endif}
+
     HandleEvent(nil,'OnEnterRunMode','UIRootNode','','');
     {$ifdef Python}
     //exec all defined python scripts
-    try
-    PyProcs.GatherAndRunPythonScripts(0);
-    except
-      on E: Exception do
-      begin
-        showmessage('Error executing Python script: '+e.Message);
-      end;
-    end;
+    GatherAndRunPythonScriptsLater;
     {$endif}
     {$endif}
-    SuppressUserEvents:=false;
   end
   else
   begin
     // Pascal compilation of event code has failed
     SuppressUserEvents:=true;
+    {$ifdef JScript} asm console.log('SuppressUserEvents set to true'); end; {$endif}
     {$ifndef JScript}
     DisplayDllCompileErrors;
     {$else}
@@ -3776,8 +3683,7 @@ begin
     end
     else
     begin
- //     Messages:=TStringList.Create;
- //     Messages.Text:=CodeEditForm.CodeEdit.MessageLines;
+      DeleteGreyOverlay('Grey1');
       DisplayDllCompileErrors;
       CodeEditForm.NavigateToFirstError;
 
@@ -3795,7 +3701,9 @@ begin
     // and generate js
     ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
     CompleteToggleToRunMode(ok);
+    {$ifndef Python}
     DeleteGreyOverlay('Grey1');
+    {$endif}
 end;
 {$endif}
 
@@ -3810,7 +3718,6 @@ var
   i:integer;
 begin
   ok:=true;
-//  showmessage('DoToggleDesignRunMode 1');
 
   if (DesignMode=true)
   then
@@ -3841,14 +3748,14 @@ begin
     {$ifdef Python}
     asm
       if (pyodideReady!="yes") {
-        alert('pyodide is not ready');
+        alert('pyodide is not ready. Please try again, or check console.');
         ok = false;
       }
     end;
     {$endif}
     if ok then
     begin
-      ShowGreyOverlay('UIRootNode','Grey1');
+      ShowGreyOverlay('UIRootNode','Grey1','Compiling System. Please Wait...');
       // timeout here so the grey overlay appears
       asm
         myTimeout(pas.XObjectInsp.ContinueToggleToRunMode,5,'ContinueToggleToRunMode',0);
@@ -3880,8 +3787,11 @@ begin
     end;
     {$endif}
 
+    HandleEvent(nil,'OnExitRunMode','UIRootNode','','');
+
     DesignMode:=true;
     SuppressUserEvents:=true;
+    {$ifdef JScript} asm console.log('SuppressUserEvents set to true'); end; {$endif}
     SetLength(SourcedAttribs,0);        // keep these during design mode !!!!????
     TXMenuItem(Sender).Caption:='Run Mode';
     // Show Object Inspector
@@ -4171,9 +4081,6 @@ var
   EventNum,i:integer;
 begin
   // pop up the syntax editor.
-//  CodeEditForm.Initialise('Event Handler',NodeNameToEdit,EventToEdit);
-//  EditBoxName:=myStringReplace(nodeId,'Btn','',1,9999);
-//  OIEditBox:=FindDataNodeById(SystemNodeTree,EditBoxName,'',true);
   OIEditBox:=nil;
   targetNode:=FindDataNodeById(SystemNodeTree,NodeNameToEdit,'',true);
   EventCode:=targetNode.GetEventCode(EventToEdit);
@@ -4524,7 +4431,7 @@ begin
       begin
       //showmessage('show properties');
         {$ifdef JScript}
-        TXTabControl(OITabs.ScreenObject).TabIndex:=0;   //fudge. (browser)...make sure tab is still visible //   openTab(TabName,TabControlName,NameSpace:string);
+        TXTabControl(OITabs.ScreenObject).TabIndex:=0;   //fudge. (browser)...make sure tab is still visible
         {$endif}
         AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
         AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
@@ -4582,7 +4489,7 @@ begin
         if TabIndex='1' then
         begin
           {$ifdef JScript}
-          TXTabControl(OITabs.ScreenObject).TabIndex:=1;   //fudge. (browser)...make sure tab is still visible //   openTab(TabName,TabControlName,NameSpace:string);
+          TXTabControl(OITabs.ScreenObject).TabIndex:=1;   //fudge. (browser)...make sure tab is still visible
           {$endif}
 
           if CurrentNode<>nil then
@@ -4930,29 +4837,29 @@ begin
 end;
 
 {$ifdef JScript}
-procedure InitAutomatedCursor;
-begin
-  asm
-  // Find the animation rule by name
-   var ss = document.styleSheets[0];
-   var anim;
-     for (var i=0; i<ss.cssRules.length; i++) {
-          //alert('i='+i+' name='+ss.cssRules[i].name);
-   	if (ss.cssRules[i].name === 'anim') {
-   	  anim = ss.cssRules[i];
-   	  break;
-           }
-         }
-      if (anim==null) {
-        //alert('did not find anim');
-        // Dynamically create a keyframe animation..... Initalise to top left corner
-        document.styleSheets[0].insertRule("@keyframes anim {from {top: 0px;  left: 0px;} to {top: 0px;  left: 0px;}}");
-        var AutomatedCursorDiv = document.getElementById("AutomatedCursor");
-        AutomatedCursorDiv.style.animation = "anim 1s linear forwards";
-        //AutomatedCursorDiv.style.animation = "anim 1s linear";
-      }
-  end;
-end;
+//procedure InitAutomatedCursor;
+//begin
+//  asm
+//  // Find the animation rule by name
+//   var ss = document.styleSheets[0];
+//   var anim;
+//     for (var i=0; i<ss.cssRules.length; i++) {
+//          //alert('i='+i+' name='+ss.cssRules[i].name);
+//   	if (ss.cssRules[i].name === 'anim') {
+//   	  anim = ss.cssRules[i];
+//   	  break;
+//           }
+//         }
+//      if (anim==null) {
+//        //alert('did not find anim');
+//        // Dynamically create a keyframe animation..... Initalise to top left corner
+//        document.styleSheets[0].insertRule("@keyframes anim {from {top: 0px;  left: 0px;} to {top: 0px;  left: 0px;}}");
+//        var AutomatedCursorDiv = document.getElementById("AutomatedCursor");
+//        AutomatedCursorDiv.style.animation = "anim 1s linear forwards";
+//        //AutomatedCursorDiv.style.animation = "anim 1s linear";
+//      }
+//  end;
+//end;
 
 function CheckForSavedSystemOnLoad:Boolean;
 var

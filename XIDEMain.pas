@@ -10,17 +10,17 @@
  **********************************************************************
  *)
 
+
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
 {$INTERFACES CORBA}
 {$endif}
 
-
 interface
 
 uses
-  Classes, SysUtils,
+  Classes, SysUtils, strutils,
 {$ifndef JScript}
   FileUtil, Forms, Controls, Graphics, Dialogs, LCLIntf,
   ExtCtrls, Menus, ComCtrls, StdCtrls, TypInfo, LazIDEIntf, LResources,
@@ -252,7 +252,6 @@ implementation
 
 {$R *.lfm}
 
-
 {$ifdef Python}
 procedure StartupPython;
 begin
@@ -261,6 +260,7 @@ begin
   RunInitialScript;
 end;
 {$endif}
+
 
 function TXIDEForm.HandleGenericEvent(MyEventType,myValue:string;EventNode:TDataNode):Boolean;
 var
@@ -295,7 +295,7 @@ begin
     end
     else if (MyEventType='Change') then
     begin
-      SelectNavTreeNode(EventNode,true);   //refresh
+      SelectNavTreeNode(EventNode,true);    //refresh
     end
     else if MyEventType='HTMLEditorBrowserClosed' then
     begin
@@ -646,6 +646,7 @@ begin
   SaveSystemToFile;
 end;
 
+
 procedure TXIDEForm.ToggleDesignRunModeHandleClick(e:TEventStatus;nodeID: AnsiString;
   myValue: AnsiString);
 begin
@@ -722,24 +723,14 @@ begin
 
   // Add root node events
   UIRootNode.myeventTypes.Add('OnEnterRunMode');
+  UIRootNode.myeventTypes.Add('OnExitRunMode');
   SetLength(UIRootNode.myEventHandlers,1);
 end;
 
 
 procedure TXIDEForm.SystemSettingsHandleClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
-//var
-//  Reply:Boolean;
-//  ShowResourceTree:String;
 begin
-//  Reply:=XIDEConfirm('Show Resources on the Left?');
-//  if Reply=true then
-//    ShowResourceTree:='Left'
-//  else
-//    ShowResourceTree:='Right';
-//  UIRootNode.SetAttributeValue('ShowResources',ShowResourceTree);
-//  if DesignMode then
-//    RedisplayResourceTree;
 
   XIDESettingsForm.InitialiseOnShow;
   ShowXForm('XIDESettingsForm',true);
@@ -784,7 +775,6 @@ procedure TXIDEForm.CodeTreeSearchBtnHandleButtonClick(e: TEventStatus;
 begin
   OICodeSearch;
 end;
-
 
 {$ifndef JScript}
 
@@ -864,6 +854,7 @@ procedure TXIDEForm.FormCreate(Sender: TObject);
 var
   SystemDescription:String;
 begin
+
   MainForm:=self;
   MainFormTopControl:=MyRootDiv;
   UITopControl:=UIRoot;
@@ -933,6 +924,7 @@ begin
   {$endif}
 end;
 
+
 procedure TXIDEForm.CompileToJSClick(Sender: TObject);
 var
   ok:Boolean;
@@ -993,38 +985,11 @@ end;
 
 {$else}
 
-procedure SetupAnimatedPointer;
-var
-  PointerStyleHTML:string;
-begin
-  PointerStyleHTML:='     <style> ' +LineEnding
-  +'       #AutomatedCursor { '  +LineEnding
-  +'       position: fixed; '  +LineEnding             // fixed = relative to viewport
-  +'       font-size: 40px;  ' +LineEnding
-  +'       -ms-transform: rotate(40deg); /* IE 9 */ '  +LineEnding
-  +'       -webkit-transform: rotate(40deg); /* Safari */ '  +LineEnding
-  +'       transform: rotate(40deg); '  +LineEnding
-  +'    } ' +LineEnding
-  +'    </style>  ' +LineEnding;
-
-  asm
-     var elem = document.createElement('div');
-     elem.id = "AutomatedCursor";
-     elem.innerHTML = "&#9756;";
-     elem.style.display = "none";
-     elem.style.animationFillMode="forwards";
-     document.body.appendChild(elem);
-
-     document.head.innerHTML = document.head.innerHTML+PointerStyleHTML;
-  end;
-  InitAutomatedCursor;
-end;
-
 procedure InitialisePage(dummy:string);
 var
   tempstr,dm:string;
   i:integer;
-  s:string;
+  s,str:string;
   ok:Boolean;
 begin
   ok:=true;
@@ -1036,6 +1001,14 @@ begin
   {$I systemintface.inc}
   MainForm:=XIDEForm;
   //showmessage('mainform node is '+MainForm.myNode.NodeName+' class='+MainForm.myNode.NodeClass+' type='+MainForm.myNode.NodeType);
+
+  asm
+  try{
+     // now do Javascript specific start up code
+     pas.HTMLUtils.addHandVBoxStyles();
+     pas.HTMLUtils.addWidgetInnerStyles();
+     }catch(err) { alert(err.message+' in XIDEMain');}
+  end;
 
   UIRootNode.MyForm:=nil;
   //showmessage('DONE INTFACE LOAD................');
@@ -1099,7 +1072,7 @@ begin
 
   {$I gpu-browserjs.inc}
 
-  SetupAnimatedPointer;
+  //SetupAnimatedPointer;
 
   // If this JS startup was NOT initiated from the Lazarus/Desktop runtime, then load up
   // the last stored system description. This replaces the user interface area being designed by the user, but not
@@ -1151,7 +1124,7 @@ begin
         XIDEForm.SystemLoadFromStore.IsVisible:=false;
         XIDEForm.SystemEncapsulate.IsVisible:=false;
         XIDEForm.SystemSettings.IsVisible:=false;
-        ShowGreyOverlay('UIRootNode','Grey1');
+        ShowGreyOverlay('UIRootNode','Grey1','Compiling Deployed System. Please Wait...');
         // timeout here so the grey overlay appears
         {$ifndef Python}
         asm
@@ -1162,30 +1135,16 @@ begin
         {$endif}
       end;
   end;
-
 end;
-
 {$endif}
 
 begin
-//    {$macro on}
-//    {$define mmm :=showmessage('hello')  }
-//    mmm;
-
   MainUnitName:='XIDEMain';
 
   {$ifndef JScript}
     Application.ShowHint:=true;
     {$I rtl.lrs}
     {$I xide.lrs}
-  {$Else}
-     asm
-     try{
-        // now do any Javascript specific start up code
-        pas.HTMLUtils.addHandVBoxStyles();
-        pas.HTMLUtils.addWidgetInnerStyles();
-        }catch(err) { alert(err.message+' in XIDEMain');}
-     end;
   {$endif}
 
 end.

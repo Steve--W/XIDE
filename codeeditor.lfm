@@ -14,7 +14,7 @@ object CodeEditForm: TCodeEditForm
   LCLVersion = '2.1.0.0'
   object CodeEditFormXVBox1: TXVBox
     Name = 'CodeEditFormXVBox1'
-    Tag = 428185896
+    Tag = 411728656
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 1
@@ -61,7 +61,7 @@ object CodeEditForm: TCodeEditForm
     end
     object CodeEditMainTabs: TXTabControl
       Name = 'CodeEditMainTabs'
-      Tag = 428184984
+      Tag = 411727744
       Left = 2
       Height = 536
       Top = 17
@@ -92,7 +92,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEdit: TXCode
           Name = 'CodeEdit'
-          Tag = 428184888
+          Tag = 411727648
           Left = 0
           Height = 488
           Top = 0
@@ -141,23 +141,18 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEditInit: TXCode
           Name = 'CodeEditInit'
-          Tag = 428185880
+          Tag = 411728640
           Left = 0
-          Height = 515
+          Height = 488
           Top = 0
           Width = 766
           Align = alTop
           AutoSize = True
           myControl.Tag = -1
-          myControl.AnchorSideLeft.Control = CodeEditInit
-          myControl.AnchorSideLeft.Side = asrCenter
-          myControl.AnchorSideTop.Side = asrCenter
-          myControl.Left = 7
+          myControl.Left = 12
           myControl.Height = 484
-          myControl.Top = 4
+          myControl.Top = 6
           myControl.Width = 762
-          myControl.Align = alClient
-          myControl.Anchors = []
           myControl.ClientHeight = 484
           myControl.ClientWidth = 762
           myControl.TabOrder = 0

@@ -418,7 +418,6 @@ end;
      myNode:TDataNode;
    begin
      result:=0;
-    //showmessage('mmiSetGPUConstIntValue GPUName='+GPUName);
      myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
@@ -427,15 +426,8 @@ end;
    end;
 
    procedure TMyMethodObject.mmiStartMain(e:TEventStatus); stdcall;
-   //var
-   //  myTag:TEventTimerTag;
    begin
      HandleEvent(e,e.EventType,e.NodeId,e.NameSpace,'');
-     //myTag:=TEventTimerTag.Create;
-     //myTag.ProcName:='CopyFromClip';
-     //myTag.e:=e;
-     //DllEventTimer.Tag:=WinSizeDependentInt(myTag);
-     //DllEventTimer.Enabled:=true;
    end;
 
    procedure TMyMethodObject.mmiShowBusy(e:TEventStatus); stdcall;
@@ -477,13 +469,12 @@ end;
    end;
 
    procedure TMyMethodObject.mmiConsoleLog(txt:String); stdcall;
-   var
-     oldtxt:String;
+   //var
+   //  oldtxt:String;
    begin
-     //showmessage(txt);
-     oldtxt:=mmiGetPropertyValue('XMemo1','ItemValue');
-     mmiSetPropertyValue('XMemo1','ItemValue',oldtxt+LineEnding+txt);
-     //showmessage(txt);
+   //  oldtxt:=mmiGetPropertyValue('XMemo1','ItemValue');
+   //  mmiSetPropertyValue('XMemo1','ItemValue',oldtxt+LineEnding+txt);
+     ConsoleString:=ConsoleString + txt + LineEnding;
    end;
 
    function TMyMethodObject.mmiArray2DToString(arr:T2DNumArray):String;    stdcall;
@@ -499,7 +490,6 @@ end;
      myNode:TDataNode;
    begin
      result:=nil;
-    //showmessage('mmiGetGPUPixelArray GPUName='+GPUName);
      myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
@@ -515,7 +505,6 @@ end;
      myNode:TDataNode;
    begin
      result:='';
-    //showmessage('mmiGetGPUPixelArray GPUName='+GPUName);
      myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
@@ -531,7 +520,6 @@ end;
      myNode:TDataNode;
    begin
      result:=nil;
-    //showmessage('mmiGetGPUStageArray GPUName='+GPUName);
      myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
