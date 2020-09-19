@@ -84,7 +84,7 @@ procedure OICutItem(nodeId:string;myValue:string);
 procedure CopyNavNode( NodeToCopy:TDataNode);
 procedure OICopySelectedItem;
 procedure OIDeleteSelectedItem;
-function OIDeleteItem(NodeId,NameSpace:String;ShowNotFoundMsg:Boolean=true):Boolean;
+function OIDeleteItem(NodeId,NameSpace:String;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;
 procedure OIComponentCopy(nodeId:string;myValue:string);
 procedure OISystemLoad(e:TEventStatus;nodeId:string);
 procedure OIClearSystem;
@@ -135,6 +135,7 @@ procedure OILoadResource;
 procedure OIAddInterfaceElement;
 procedure DiscoverSavedSystems(var NamesList:TStringList);
 procedure OICodeSearch;
+function PythonScriptsExist:Boolean;
 
 
 const
@@ -3203,16 +3204,28 @@ begin
   end;
 end;
 
-function OIDeleteItem(NodeId,NameSpace:String;ShowNotFoundMsg:Boolean=true):Boolean;
+function OIDeleteItem(NodeId,NameSpace:String;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;
 var
   NodeToDelete:TdataNode;
-  Deleted:Boolean;
+  ok,Deleted:Boolean;
 begin
   Deleted:=false;
+  ok:=false;
   NodeToDelete:=FindDataNodeById(UIRootNode,NodeId,NameSpace,ShowNotFoundMsg);
   if NodeToDelete<>nil then
-    if XIDEConfirm('OK to delete component '+NodeToDelete.NodeName+'?') then
+  begin
+    if ShowConfirm=false then
+    begin
+      ok:=true ;
+    end
+    else
+    begin
+      if XIDEConfirm('OK to delete component '+NodeToDelete.NodeName+'?') then
+        ok:=true;
+    end;
+    if ok then
       Deleted:=DeleteItem(UIRootNode,NodeToDelete);
+  end;
   result:=Deleted;
 end;
 
@@ -3291,6 +3304,21 @@ begin
     InitialiseStyleDesigner;
 
  end;
+
+function PythonScriptsExist:Boolean;
+var
+  i:integer;
+  found:Boolean;
+begin
+  found:=false;
+  for i:=0 to length(CodeRootNode.ChildNodes)-1 do
+    if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
+      found:=true;
+  // also check ALL event code for 'RunPython' calls...
+
+  result:=found;
+end;
+
 
 function SetMyDeployedMode(wholesystem,dm2:String):String;
 var

@@ -10,7 +10,6 @@
  **********************************************************************
  *)
 
-
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -43,6 +42,7 @@ uses
   CompileUserCode, XObjectInsp,XIDESettings,
   CodeEditor, InputSelectUnit, PropertyEditUnit,
   PopupMemo, AboutUnit, SavedSystems, StylesUtils;
+
 
 {$ifdef JScript}
 procedure InitialisePage(dummy:string);
@@ -483,7 +483,6 @@ begin
   // values.myNode is of type TTreeNode, and contains data with a unique id.
 
   {$ifdef JScript}
-  //EditAttributeValue('StyleSheet','','SelectedNodeText',DropTarget);
   values:=TNodeEventValue(e.ValueObject);
   asm
     TreeNodeId=values.myNode.id;
@@ -995,6 +994,8 @@ begin
   ok:=true;
 
   StartingUp:=true;// suppress event handlers while starting up
+
+  CheckBrowser;
 
   // this include file contains create statements for all the interface objects in main form and other forms
   // XForm nodes are added as children of UIRootNode.

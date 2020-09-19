@@ -44,7 +44,7 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
-    function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
+    function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
@@ -88,7 +88,7 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
       procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
       procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
-      function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
+      function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
       function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
       function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
       procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
@@ -355,11 +355,11 @@ end;
      OICopyToNewParent(nodeId,EventsNameSpace,NewParentId,nm);
    end;
 
-   function TMyMethodObject.mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
+   function TMyMethodObject.mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
    var
      Deleted:Boolean;
    begin
-     Deleted:=OIDeleteItem(nodeId,EventsNameSpace,ShowNotFoundMsg);
+     Deleted:=OIDeleteItem(nodeId,EventsNameSpace,ShowNotFoundMsg,ShowConfirm);
      result:=Deleted;
    end;
 

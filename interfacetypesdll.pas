@@ -42,7 +42,7 @@ TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray 
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;                                      stdcall;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;                                stdcall;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;                                stdcall;
-TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean of object;             stdcall;
+TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean of object;             stdcall;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;                                stdcall;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;                                stdcall;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;                        stdcall;
@@ -86,7 +86,7 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
-    function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;  stdcall;
+    function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;

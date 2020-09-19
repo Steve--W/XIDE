@@ -98,7 +98,7 @@ begin
   '                            re-parents the given UI component '  + LineEnding +
   'procedure CopyComponent(nodeId,NewParentId,NewName:string); '  + LineEnding +
   '                            copies the given UI component and places the clone under the given parent '  + LineEnding +
-  'function  DeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean; '  + LineEnding +
+  'function  DeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean; '  + LineEnding +
   '                            deletes the given UI component. Returns false if not done. '   + LineEnding +
   'function  UserSystemAsString():String;'  + LineEnding +
   '                            Returns the string representation of the current user system (can be imported to XIDE via System>Load)  '  + LineEnding +

@@ -18,14 +18,12 @@ unit StylesUtils;
 interface
 uses Classes, Sysutils, StringUtils, NodeUtils, EventsInterface
  {$ifndef JScript}
- , Dialogs,XTree
+ , Dialogs//,XTree
  {$else}
  ,Math, contnrs, dateutils, rtlconsts, strutils, types, typinfo,
  XTree, XComboBox, InterfaceTypes
  {$endif}
  ;
-
-//["StyleResources","StyleRule",["StyleTargets",["TargetTypes",["WidgetType",["All"],["Numeric","ProgressBar","NumericSlider","NumberSpinner"],["Text","LabelText","Hyperlink","EditBox","Memo","Table"],["Selectors","Button","CheckBox","RadioButtons","ComboBox","Tree","DatePicker","ColorPicker","MainMenu","MenuItem"],["LayoutWidgets","HBox","VBox","GroupBox","ScrollBox","TabControl","TabSheet","Form"]],["Identifier","ClassName","WidgetID"]],["TargetGrouping","(And)","(Or)","Not(And)","Not(Or)"]],["StyleProperties",["Widget","WidgetPadding","WidgetBorder","WidgetCorners","WidgetMargin","WidgetBackground"],["Font","FontFamily","FontSize","FontColor","FontBackgroundColor","FontWeight","FontStyle"],["Transformations","Rotate","Scale","Skew"],["States","Selectable","Cursor","Visibility"],["Effects","Transition","Filter"]]]
 
 // Priority has four levels
 //   1) !important external rule
@@ -41,13 +39,6 @@ uses Classes, Sysutils, StringUtils, NodeUtils, EventsInterface
 //   nand........  :not(A), :not(B), :not(C) {}
 
 // <sup>.....</sup>  and  <sub>.....</sub> tags define superscript and subscript text - it is not done in style markup
-type
-
-  TCSSTreeNodes = (All,Priority,Group,StyleResources,StyleSheet,StyleRule,StyleTargets,TargetGrouping,_And_,_Or_,Not_And_,Not_Or_,TargetTypes,WidgetType,Numeric,ProgressBar,NumericSlider,NumberSpinner,Text,LabelText,Hyperlink,EditBox,Memo,Table,Selectors,Button,CheckBox,RadioButtons,ComboBox,Tree,DatePicker,ColorPicker,MainMenu,MenuItem,LayoutWidgets,HBox,VBox,GroupBox,ScrollBox,TabControl,TabSheet,Form,Identifier,ClassName,WidgetID,Relationship,ChildrenOf,DescendentsOf,SiblingsOf,State,Hover,Visited,Focused,StyleProperties,Widget,WidgetCorners,WidgetPadding,WidgetMargin,WidgetBorder,WidgetBackground,Font,FontFamily,FontSize,FontColor,FontBackgroundColor,FontWeight,FontStyle,Transformations,Rotate,Scale,Skew,States,Selectable,Cursor,Visibility,Effects,Transition,Filter,NotFound);
-
-  TCSSTermList = Array of TStringList;
-
-
  procedure InitStyleTreeDisplay;
  Procedure SetCSSNodeTypes;
  Procedure SetStyleOptions;
@@ -55,18 +46,6 @@ type
  Procedure SetCSSEditorStyles;
  procedure  UpdateOrCreateStyleSheet(StyleText,myStyleSheetTitle:string;pos:integer);
 
-var
-  AllowChildren            : Set of TCSSTreeNodes;
-  StyleSheetNodes          : Set of TCSSTreeNodes;
-  StyleRuleNodes           : Set of TCSSTreeNodes;
-  ClassificationNodes      : Set of TCSSTreeNodes;
-  TargetGroupingNodes      : Set of TCSSTreeNodes;
-  RelationshipNodes        : Set of TCSSTreeNodes;
-  StyletargetNodes         : Set of TCSSTreeNodes;
-  StylePropertyNodes       : Set of TCSSTreeNodes;
-  EditableTargetNodes      : Set of TCSSTreeNodes;
-  TargetNodesWithOptions   : Set of TCSSTreeNodes;
-  StyleRuleSelectors       : Set of TCSSTreeNodes;
 
 {$ifndef JScript}
 {$else}
@@ -95,21 +74,39 @@ Var
   Function GetTypeFromString(instring:string):string;
   function GetOptionType(SNodeType:String):String;
   function GetQualifierValue(instring:String):string;
-  Function ResourceNodeSetIDOf(snodename:string;quiet:boolean):TCSSTreeNodes;
-  Function stripOutQualifierInfo(instring:string):string;
-  Function GetName1(instring:string):string;
   Procedure UpdateNodeQualifierField;
 
 {$endif}
 
 var
-  StyleOptions:Array of TStringList;
   StylesNode:TDataNode;
-  CSSTermList:TCSSTermList;
+
 
 implementation
 uses XObjectInsp;
 
+type
+
+  TCSSTreeNodes = (All,Priority,Group,StyleResources,StyleSheet,StyleRule,StyleTargets,TargetGrouping,_And_,_Or_,Not_And_,Not_Or_,TargetTypes,WidgetType,Numeric,TXProgressBar,TXNumericSlider,TXNumberSpinner,Text,TXLabel,TXHyperlink,TXEditBox,TXMemo,TXTable,Selectors,TXButton,TXCheckBox,TXRadioBtns,TXComboBox,TXTree,TXDatePicker,TXColorPicker,TXMainMenu,TXMenuItem,LayoutWidgets,TXHBox,TXVBox,TXGroupBox,TXScrollBox,TXTabControl,TXTabSheet,TXForm,Identifier,ClassName,WidgetID,Relationship,ChildrenOf,DescendentsOf,SiblingsOf,State,Hover,Visited,Focused,StyleProperties,Widget,WidgetCorners,WidgetPadding,WidgetMargin,WidgetBorder,WidgetBackground,Font,FontFamily,FontSize,FontColor,FontBackgroundColor,FontWeight,FontStyle,TextDecor,Transformations,Rotate,Scale,Skew,States,Selectable,Cursor,Visibility,Effects,Transition,Filter,NotFound);
+
+  TCSSTermList = Array of TStringList;
+
+var
+  StyleOptions:Array of TStringList;
+  CSSTermList:TCSSTermList;
+
+var
+  AllowChildren            : Set of TCSSTreeNodes;
+  StyleSheetNodes          : Set of TCSSTreeNodes;
+  StyleRuleNodes           : Set of TCSSTreeNodes;
+  ClassificationNodes      : Set of TCSSTreeNodes;
+  TargetGroupingNodes      : Set of TCSSTreeNodes;
+  RelationshipNodes        : Set of TCSSTreeNodes;
+  StyletargetNodes         : Set of TCSSTreeNodes;
+  StylePropertyNodes       : Set of TCSSTreeNodes;
+  EditableTargetNodes      : Set of TCSSTreeNodes;
+  TargetNodesWithOptions   : Set of TCSSTreeNodes;
+  StyleRuleSelectors       : Set of TCSSTreeNodes;
 
 {$ifndef JScript}
 
@@ -235,7 +232,6 @@ begin
     if (length(trim(ExternalStyleText))>0)
     then
     begin
-      //indirectExternalStyleText:='@import url("data:text/css;charset=utf-8,'+ExternalStyleText +'") ';
       RemoveStyleSheet('myExternalStyleSheet');
       asm
       var link = document.createElement('link');
@@ -244,7 +240,6 @@ begin
       link.href = 'data:text/css;charset=UTF-8,' + encodeURIComponent(ExternalStyleText);
       document.getElementsByTagName('head')[0].appendChild(link);
       end;
-      //UpdateOrCreateStyleSheet(indirectExternalStyleText,'myExternalStyleSheet',1);
     end
     else
       RemoveStyleSheet('myExternalStyleSheet');
@@ -253,9 +248,9 @@ end;
 Procedure DeleteStyleNode;
 var SelectedNodeId, ParentNodeId, NodeText, SNodeType:string;
 begin
-  SelectedNodeId:=TXTree(StylesNode).SelectedNodeId;
-  ParentNodeId:=TXTree(StylesNode).GetParentOfNode(SelectedNodeId);
-  NodeText:=TXTree(StylesNode).SelectedNodeText;
+  SelectedNodeId:=XTree.TXTree(StylesNode).SelectedNodeId;
+  ParentNodeId:=XTree.TXTree(StylesNode).GetParentOfNode(SelectedNodeId);
+  NodeText:=XTree.TXTree(StylesNode).SelectedNodeText;
   SNodeType:=GetTypeFromString(NodeText);
   if (SNodeType='StyleTargets')
   or (SNodeType='StyleProperties')
@@ -268,10 +263,9 @@ begin
   else
   begin
     // use DeleteSelectedNode to remove the visible tree node, and rebuild TreeData
-    TXTree(StylesNode).DeleteSelectedNode;
+    XTree.TXTree(StylesNode).DeleteSelectedNode;
     if ParentNodeId<>'' then
-      //TXTree(StylesNode).selectedNodeId:=ParentNodeId+'Summary';
-      TXTree(StylesNode).selectedNodeId:=ParentNodeId;
+      XTree.TXTree(StylesNode).selectedNodeId:=ParentNodeId;
 
     PopulateStyleEditor(false);
   end;
@@ -414,34 +408,34 @@ begin
     else if Snodename ='TargetTypes' then nodeID := TargetTypes
     else if Snodename ='WidgetType' then nodeID := WidgetType
     else if Snodename ='Numeric' then nodeID := Numeric
-    else if Snodename ='ProgressBar' then nodeID := ProgressBar
-    else if Snodename ='NumericSlider' then nodeID := NumericSlider
-    else if Snodename ='NumberSpinner' then nodeID := NumberSpinner
+    else if Snodename ='TXProgressBar' then nodeID := TXProgressBar
+    else if Snodename ='TXNumericSlider' then nodeID := TXNumericSlider
+    else if Snodename ='TXNumberSpinner' then nodeID := TXNumberSpinner
     else if Snodename ='Text' then nodeID := Text
-    else if Snodename ='LabelText' then nodeID := LabelText
-    else if Snodename ='Hyperlink' then nodeID := Hyperlink
-    else if Snodename ='EditBox' then nodeID := EditBox
-    else if Snodename ='Memo' then nodeID := Memo
-    else if Snodename ='Table' then nodeID := Table
+    else if Snodename ='TXLabel' then nodeID := TXLabel
+    else if Snodename ='TXHyperlink' then nodeID := TXHyperlink
+    else if Snodename ='TXEditBox' then nodeID := TXEditBox
+    else if Snodename ='TXMemo' then nodeID := TXMemo
+    else if Snodename ='TXTable' then nodeID := TXTable
     else if Snodename ='Selectors' then nodeID := Selectors
-    else if Snodename ='Button' then nodeID := Button
+    else if Snodename ='TXButton' then nodeID := TXButton
     else if Snodename ='All' then nodeID := All
-    else if Snodename ='CheckBox' then nodeID := CheckBox
-    else if Snodename ='RadioButtons' then nodeID := RadioButtons
-    else if Snodename ='ComboBox' then nodeID := ComboBox
-    else if Snodename ='Tree' then nodeID := Tree
-    else if Snodename ='DatePicker' then nodeID := DatePicker
-    else if Snodename ='ColorPicker' then nodeID := ColorPicker
-    else if Snodename ='MainMenu' then nodeID := MainMenu
-    else if Snodename ='MenuItem' then nodeID := MenuItem
+    else if Snodename ='TXCheckBox' then nodeID := TXCheckBox
+    else if Snodename ='TXRadioBtns' then nodeID := TXRadioBtns
+    else if Snodename ='TXComboBox' then nodeID := TXComboBox
+    else if Snodename ='TXTree' then nodeID := TXTree
+    else if Snodename ='TXDatePicker' then nodeID := TXDatePicker
+    else if Snodename ='TXColorPicker' then nodeID := TXColorPicker
+    else if Snodename ='TXMainMenu' then nodeID := TXMainMenu
+    else if Snodename ='TXMenuItem' then nodeID := TXMenuItem
     else if Snodename ='LayoutWidgets' then nodeID := LayoutWidgets
-    else if Snodename ='HBox' then nodeID := HBox
-    else if Snodename ='VBox' then nodeID := VBox
-    else if Snodename ='GroupBox' then nodeID := GroupBox
-    else if Snodename ='ScrollBox' then nodeID := ScrollBox
-    else if Snodename ='TabControl' then nodeID := TabControl
-    else if Snodename ='TabSheet' then nodeID := TabSheet
-    else if Snodename ='Form' then nodeID := Form
+    else if Snodename ='TXHBox' then nodeID := TXHBox
+    else if Snodename ='TXVBox' then nodeID := TXVBox
+    else if Snodename ='TXGroupBox' then nodeID := TXGroupBox
+    else if Snodename ='TXScrollBox' then nodeID := TXScrollBox
+    else if Snodename ='TXTabControl' then nodeID := TXTabControl
+    else if Snodename ='TXTabSheet' then nodeID := TXTabSheet
+    else if Snodename ='TXForm' then nodeID := TXForm
     else if Snodename ='Identifier' then nodeID := Identifier
     else if Snodename ='ClassName' then nodeID := ClassName
     else if Snodename ='WidgetID' then nodeID := WidgetID
@@ -467,6 +461,7 @@ begin
     else if Snodename ='FontBackgroundColor' then nodeID := FontBackgroundColor
     else if Snodename ='FontWeight' then nodeID := FontWeight
     else if Snodename ='FontStyle' then nodeID := FontStyle
+    else if Snodename ='TextDecor' then nodeID := TextDecor
     else if Snodename ='Transformations' then nodeID := Transformations
     else if Snodename ='Rotate' then nodeID := Rotate
     else if Snodename ='Scale' then nodeID := Scale
@@ -544,7 +539,7 @@ end;
           begin
              if (AllowDrop =true) then
                //!! assumes the selected node is the parent
-               NewNodeId:=TXTree(StylesNode).InsertNewChildNode(RNodeType+'.'+'('+getqualifierdefault(RNodeType)+')');
+               NewNodeId:=XTree.TXTree(StylesNode).InsertNewChildNode(RNodeType+'.'+'('+getqualifierdefault(RNodeType)+')');
           end
           else LocalShowMessage( DropIsAllowed,mute,'Only Style property types can be added to a set of style property nodes. (selected type is '+RNodeType+')');
       end
@@ -563,25 +558,25 @@ end;
             if (AllowDrop =true) then
             begin
               //!! assumes root node has been selected
-              NewNodeId:=TXTree(StylesNode).InsertNewChildNode('StyleRule');
+              NewNodeId:=XTree.TXTree(StylesNode).InsertNewChildNode('StyleRule');
               //now need to select this node
               //TXTree(StylesNode).SelectedNodeId:=NewNodeId+'Summary';
-              TXTree(StylesNode).SelectedNodeId:=NewNodeId;
+              XTree.TXTree(StylesNode).SelectedNodeId:=NewNodeId;
               // and insert the standard set of child nodes
-              TXTree(StylesNode).InsertNewChildNode('StyleTargets');
-              TXTree(StylesNode).InsertNewChildNode('StyleProperties');
-              ANodeId:=TXTree(StylesNode).InsertNewChildNode('Priority.('+getqualifierdefault('Priority')+')');
-              TXTree(StylesNode).InsertNewChildNode('State.('+getqualifierdefault('State')+')');
-              TXTree(StylesNode).InsertNewChildNode('Group.('+getqualifierdefault('Group')+')');
+              XTree.TXTree(StylesNode).InsertNewChildNode('StyleTargets');
+              XTree.TXTree(StylesNode).InsertNewChildNode('StyleProperties');
+              ANodeId:=XTree.TXTree(StylesNode).InsertNewChildNode('Priority.('+getqualifierdefault('Priority')+')');
+              XTree.TXTree(StylesNode).InsertNewChildNode('State.('+getqualifierdefault('State')+')');
+              XTree.TXTree(StylesNode).InsertNewChildNode('Group.('+getqualifierdefault('Group')+')');
             end;
           end;
         end
         else
         begin
           //showmessage('SelectedStyleSheetNodeId='+SelectedStyleSheetNodeId);
-          //showmessage('num children is '+inttostr(length(TXTree(StylesNode).GetChildNodes(SelectedStyleSheetNodeId))));
+          //showmessage('num children is '+inttostr(length(XTree.TXTree(StylesNode).GetChildNodes(SelectedStyleSheetNodeId))));
         if (SNodeType ='StyleTargets')
-        and (length(TXTree(StylesNode).GetChildNodes(SelectedStyleSheetNodeId)) > 0)
+        and (length(XTree.TXTree(StylesNode).GetChildNodes(SelectedStyleSheetNodeId)) > 0)
         then
           LocalShowMessage( DropIsAllowed,mute,'To add more than one target use a Logical group node (e.g. (And)) then add them as children to it')
         else
@@ -597,14 +592,14 @@ end;
              begin
                if (AllowDrop =true) then
                begin
-                 NewNodeId:=TXTree(StylesNode).InsertNewChildNode(RNodeType+'.'+'('+getqualifierdefault(RNodeType)+')');
+                 NewNodeId:=XTree.TXTree(StylesNode).InsertNewChildNode(RNodeType+'.'+'('+getqualifierdefault(RNodeType)+')');
                end;
              end
              else
              begin
                if (AllowDrop =true) then
                begin
-                 NewNodeId:=TXTree(StylesNode).InsertNewChildNode(RNodeType);
+                 NewNodeId:=XTree.TXTree(StylesNode).InsertNewChildNode(RNodeType);
                end;
              end;
             end
@@ -616,7 +611,7 @@ end;
       if (AllowDrop=true)
       and (NewNodeId<>'') then
       begin
-        TXTree(StylesNode).SelectedNodeId:=NewNodeId;
+        XTree.TXTree(StylesNode).SelectedNodeId:=NewNodeId;
         PopulateStyleEditor(false);
       end;
 
@@ -659,7 +654,7 @@ end;
       then
       begin
          MyCombo:=FindDataNodeById(SystemNodeTree,'StyleNodeQualifier','',true);
-         CurrentOptionValue := TXComboBox(MyCombo).ItemValue;       //getPropertyValue('StyleNodeQualifier','ItemValue');
+         CurrentOptionValue := XComboBox.TXComboBox(MyCombo).ItemValue;       //getPropertyValue('StyleNodeQualifier','ItemValue');
       end
       else
       begin
@@ -679,10 +674,10 @@ end;
         SelectedStyleSheetNodeText := SelectedStyleSheetNodeType+'.('+CurrentOptionValue+')'
       else
         SelectedStyleSheetNodeText := SelectedStyleSheetNodeType+'.('+CurrentOptionValue+')';
-      nodeid:=TXTree(StylesNode).SelectedNodeId;
+      nodeid:=XTree.TXTree(StylesNode).SelectedNodeId;
       //showmessage('nodeid='+nodeid+' new text = '+ SelectedStyleSheetNodeText);
-      TXTree(StylesNode).SetNodeText(nodeid,SelectedStyleSheetNodeText);
-      TXTree(StylesNode).SelectedNodeId:=nodeid;
+      XTree.TXTree(StylesNode).SetNodeText(nodeid,SelectedStyleSheetNodeText);
+      XTree.TXTree(StylesNode).SelectedNodeId:=nodeid;
     end;
     setPropertyValue('StyleTreeApplyBtn','IsVisible','false');
   end;
@@ -696,7 +691,7 @@ var  SelectedStyleSheetNodeText,SelectedStyleSheetNodeType,CurrentOptionValue:st
 begin
   // get the node type and text string
   SelectedStyleSheetNodeText:=trim(getPropertyValue('StyleSheet','SelectedNodeText'));
-  nodeid:=TXTree(StylesNode).SelectedNodeId;
+  nodeid:=XTree.TXTree(StylesNode).SelectedNodeId;
   //showmessage('PopulateStyleEditor '+nodeid);
   if (nodeid<>'') then
   begin
@@ -797,7 +792,7 @@ var i,numchildren:integer;
 Begin
   CSSText:= '';
   // style properties are the children of this node.
-  props:=TXTree(StylesNode).GetChildNodes(PropertiesNodeId);
+  props:=XTree.TXTree(StylesNode).GetChildNodes(PropertiesNodeId);
   asm
     for (var i=0; i<props.length; i++) {
       var propid=props[i];
@@ -900,8 +895,8 @@ end;
       OutList1,OutList2:TCSSTermList;
   begin
     //showmessage('FlattenSubTree2 '+CurrentNodeId);
-    childnodes:=TXTree(StylesNode).GetChildNodes(CurrentNodeId);
-    SNodeType:=GetTypeFromString(TXTree(StylesNode).TextOfNode(CurrentNodeId));
+    childnodes:=XTree.TXTree(StylesNode).GetChildNodes(CurrentNodeId);
+    SNodeType:=GetTypeFromString(XTree.TXTree(StylesNode).TextOfNode(CurrentNodeId));
     numchildren:= length(childnodes);
     if numchildren = 0 then
     begin
@@ -909,7 +904,7 @@ end;
       Setlength(OutList1,1);
       OutList1[0] := MakeATermStringList;
       //showmessage('type='+SNodeType);
-      SQualifier:=GetQualifierValue(TXTree(StylesNode).TextOfNode(CurrentNodeId));
+      SQualifier:=GetQualifierValue(XTree.TXTree(StylesNode).TextOfNode(CurrentNodeId));
       //showmessage('qual='+SQualifier);
       if (SNodeType='ClassName')or(SNodeType='WidgetID')
       then nodestring :=SQualifier
@@ -943,35 +938,34 @@ end;
     result:=outlist1;
   end;
 
-  Function MaybeAddTXForWidgetTypeTargets(TargetString:string):string;
+  Function AdjustTargetString(TargetString:string):string;
   var teststring:string;
   begin
     teststring:=stringreplace(TargetString,'"','',[rfReplaceAll]);  // delete double quotes
     teststring:=rightstr(teststring,length(teststring)-1); // delete leading full stop
-    if ResourceNodeSetIDOf(teststring,true) in styletargetnodes
-    then TargetString:='".TX'+teststring+'"';
-    if TargetString = '".TXAll"' then   TargetString:= '*';
-    MaybeAddTXForWidgetTypeTargets:=TargetString;
+    if TargetString = '"All"' then   TargetString:= '*';
+    AdjustTargetString:=TargetString;
   end;
 
 Function GetStyleTargets(CurrentNode:String):string;
 var CSSTermList:TCSSTermList;
-    CSSText:string;
+    CSSText,tmp:string;
     i,numterms:integer;
 Begin
-  //showmessage('GetStyleTargets '+CurrentNode);
   setlength(CSSTermList,0);
   CSSTermList:=FlattenSubTree2(CurrentNode,false);
 
   numterms:=length(CSSTermList) ;
   if numterms >0 then
   begin
-    //CSSText:=  MaybeAddTXForWidgetTypeTargets(CSSTermList[0].DelimitedText);
-    CSSText:=  MaybeAddTXForWidgetTypeTargets(CSSTermList[0].Text);
-    // showmessage('CSSText='+CSSText);
+    tmp:=CSSTermList[0].Text;
+    //asm console.log('CSSTermList[0] '+tmp); end;
+    CSSText:=  AdjustTargetString(CSSTermList[0].Text);
     for i:=1 to numterms-1 do
     begin
-      CSSText:=CSSText+' , '+MaybeAddTXForWidgetTypeTargets(CSSTermList[i].Text);
+      tmp:=CSSTermList[i].Text;
+      //asm console.log('CSSTermList[i] '+tmp); end;
+      CSSText:=CSSText+' , '+AdjustTargetString(CSSTermList[i].Text);
     end;
   end;
   result:=stringreplace(CSSText,'"','',[rfReplaceAll]);
@@ -988,13 +982,15 @@ begin
 
 
   setlength(ruleNodes,0);
-  ruleNodes:=TXTree(StylesNode).GetChildNodes(RuleNodeId);
+  ruleNodes:=XTree.TXTree(StylesNode).GetChildNodes(RuleNodeId);
+  asm console.log('RuleNodeId='+RuleNodeId); end;
 
   StyleTargets:=GetStyleTargets(ruleNodes[0]);
-  Stylepriority:=trim(GetQualifierValue(TXTree(StylesNode).TextOfNode(RuleNodes[2])));
+  asm console.log('StyleTargets='+StyleTargets); end;
+  Stylepriority:=trim(GetQualifierValue(XTree.TXTree(StylesNode).TextOfNode(RuleNodes[2])));
   StyleProperties:=GetStyleProperties(ruleNodes[1],Stylepriority);
-  StyleState:=trim(GetQualifierValue(TXTree(StylesNode).TextOfNode(RuleNodes[3])));
-  StyleGroup:=trim(GetQualifierValue(TXTree(StylesNode).TextOfNode(RuleNodes[4])));
+  StyleState:=trim(GetQualifierValue(XTree.TXTree(StylesNode).TextOfNode(RuleNodes[3])));
+  StyleGroup:=trim(GetQualifierValue(XTree.TXTree(StylesNode).TextOfNode(RuleNodes[4])));
 
 
   StyleTargets:=' :-webkit-any('+StyleTargets+').UI';
@@ -1049,8 +1045,8 @@ end;
     ExternalCSSText:= '';
 
     setlength(rules,0);
-   // rules:=TXTree(StylesNode).GetChildNodes('StyleSheetContentsScrollNode');
-    rules:=TXTree(StylesNode).GetChildNodes('StyleSheetNode0');
+   // rules:=XTree.TXTree(StylesNode).GetChildNodes('StyleSheetContentsScrollNode');
+    rules:=XTree.TXTree(StylesNode).GetChildNodes('StyleSheetNode0');
 
     numchildren:= length(rules);
     if numchildren >0 then
@@ -1068,7 +1064,18 @@ end;
 
 procedure InitialiseStyleResources;
 begin
-  EditAttributeValue('StyleResources','','TreeData','["StyleResources","StyleRule",["StyleTargets",["TargetTypes",["WidgetType",["All"],["Numeric","ProgressBar","NumericSlider","NumberSpinner"],["Text","LabelText","Hyperlink","EditBox","Memo","Table"],["Selectors","Button","CheckBox","RadioButtons","ComboBox","Tree","DatePicker","ColorPicker","MainMenu","MenuItem"],["LayoutWidgets","HBox","VBox","GroupBox","ScrollBox","TabControl","TabSheet","Form"]],["Identifier","ClassName","WidgetID"]],["TargetGrouping","(And)","(Or)","Not(And)","Not(Or)"]],["StyleProperties",["Widget","WidgetPadding","WidgetBorder","WidgetCorners","WidgetMargin","WidgetBackground"],["Font","FontFamily","FontSize","FontColor","FontBackgroundColor","FontWeight","FontStyle"],["Transformations","Rotate","Scale","Skew"],["States","Selectable","Cursor","Visibility"],["Effects","Transition","Filter"]]]');
+  EditAttributeValue('StyleResources','','TreeData','["StyleResources","StyleRule",' +
+                    '["StyleTargets",["TargetTypes",' +
+                    '["WidgetType",["All"],["Numeric","TXProgressBar","TXNumericSlider","TXNumberSpinner"],' +
+                    '["Text","TXLabel","TXHyperlink","TXEditBox","TXMemo","TXTable"],' +
+                    '["Selectors","TXButton","TXCheckBox","TXRadioBtns","TXComboBox","TXTree","TXDatePicker","TXColorPicker","TXMainMenu","TXMenuItem"],' +
+                    '["LayoutWidgets","TXHBox","TXVBox","TXGroupBox","TXScrollBox","TXTabControl","TXTabSheet","TXForm"]],' +
+                    '["Identifier","ClassName","WidgetID"]],' +
+                    '["TargetGrouping","(And)","(Or)","Not(And)","Not(Or)"]],' +
+                    '["StyleProperties",["Widget","WidgetPadding","WidgetBorder","WidgetCorners","WidgetMargin","WidgetBackground"],' +
+                    '["Font","FontFamily","FontSize","FontColor","FontBackgroundColor","FontWeight","FontStyle","TextDecor"],' +
+                    '["Transformations","Rotate","Scale","Skew"],["States","Selectable","Cursor","Visibility"],' +
+                    '["Effects","Transition","Filter"]]]');
 end;
 
 {$endif}
@@ -1233,7 +1240,8 @@ var
     AddToOptionList('FontColor||color:|white;|silver;|gray;|black;|red;|maroon;|yellow;|olive;|lime;|green;|aqua;|teal;|blue;|navy;|fuchsia;|purple;|inherit;');
     AddToOptionList('FontBackgroundColor||background-color:|white;|silver;|gray;|black;|red;|maroon;|yellow;|olive;|lime;|green;|aqua;|teal;|blue;|navy;|fuchsia;|purple;|inherit;');
     AddToOptionList('FontWeight||font-weight:|lighter;|normal;|bold;|bolder;|inherit;');
-    AddToOptionList('FontStyle||font-style:|normal;|italic;|oblique;|line-through;|underline;|inherit;');
+    AddToOptionList('FontStyle||font-style:|normal;|italic;|oblique;|inherit;');
+    AddToOptionList('TextDecor||text-decoration:|line-through;|underline;|overline;');
 
     AddToOptionList( 'WidgetBorder|a selection of border colors and thicknesses| border: |0.1em red solid;|0.3em red solid;|0.5em red solid;|0.1em green solid;|0.3em green solid;|0.5em green solid;|0.1em blue solid;|0.3em blue solid;|0.5em blue solid;|0.1em black solid;|0.3em black solid;|0.5em black solid;|0.1em white solid;|0.3em white solid;|0.5em white solid;|inherit; ') ;
     // margin is the space around the widget
@@ -1265,8 +1273,8 @@ begin
   ClassificationNodes    :=[Identifier,StyleResources,TargetGrouping,TargetTypes,WidgetType,Numeric,Text,Selectors,LayoutWidgets,Relationship,State,StyleProperties,Widget,Font,Transformations,States,Effects];
   TargetGroupingNodes    :=[_And_,_Or_,Not_And_,Not_Or_];
   RelationshipNodes      :=[ChildrenOf,DescendentsOf,SiblingsOf];
-  StylePropertyNodes     :=[WidgetCorners,WidgetPadding,WidgetMargin,WidgetBorder,WidgetBackground,FontFamily,FontSize,FontColor,FontBackgroundColor,FontWeight,FontStyle,Rotate,Scale,Skew,Selectable,Cursor,Visibility,Transition,Filter];
-  StyletargetNodes       :=[All,ProgressBar,NumericSlider,NumberSpinner,LabelText,Hyperlink,EditBox,Memo,Table,Button,CheckBox,RadioButtons,ComboBox,Tree,DatePicker,ColorPicker,MainMenu,MenuItem,HBox,VBox,GroupBox,ScrollBox,TabControl,TabSheet,Form,ClassName,WidgetID,Hover,Visited,Focused];
+  StylePropertyNodes     :=[WidgetCorners,WidgetPadding,WidgetMargin,WidgetBorder,WidgetBackground,FontFamily,FontSize,FontColor,FontBackgroundColor,FontWeight,FontStyle,TextDecor,Rotate,Scale,Skew,Selectable,Cursor,Visibility,Transition,Filter];
+  StyletargetNodes       :=[All,TXProgressBar,TXNumericSlider,TXNumberSpinner,TXLabel,TXHyperlink,TXEditBox,TXMemo,TXTable,TXButton,TXCheckBox,TXRadioBtns,TXComboBox,TXTree,TXDatePicker,TXColorPicker,TXMainMenu,TXMenuItem,TXHBox,TXVBox,TXGroupBox,TXScrollBox,TXTabControl,TXTabSheet,TXForm,ClassName,WidgetID,Hover,Visited,Focused];
   TargetNodesWithOptions :=[ClassName,WidgetID];
   EditableTargetNodes    :=[];
   StyleRuleSelectors     :=[Priority,State,Group];

@@ -41,7 +41,7 @@ TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray 
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;
-TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean of object;
+TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean of object;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;
@@ -129,7 +129,7 @@ type TMethodsClass = class(TObject)
  procedure mmiDoEvent(EventType,NodeId,myValue:String);
  procedure mmiMoveComponent(nodeId:string;NewParentId:string);
  procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);
- function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;
+ function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;
  function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
  function mmiGetGPUConstIntValue(GPUName,pName:String):integer;
  procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
@@ -400,12 +400,12 @@ begin
   pas.XObjectInsp.OICopyToNewParent(nodeId,pas.InterfaceTypes.EventsNameSpace,NewParentId,NewName);
   end;
 end;
-function TMethodsClass.mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true):Boolean;
+function TMethodsClass.mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;
 var
   Deleted:Boolean;
 begin
   asm
-  Deleted=pas.XObjectInsp.OIDeleteItem(nodeId,pas.InterfaceTypes.EventsNameSpace,ShowNotFoundMsg);
+  Deleted=pas.XObjectInsp.OIDeleteItem(nodeId,pas.InterfaceTypes.EventsNameSpace,ShowNotFoundMsg,ShowConfirm);
   end;
   result:=Deleted;
 end;

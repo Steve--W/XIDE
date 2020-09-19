@@ -5,6 +5,8 @@ unit PyXUtils;
 interface
 
 {$ifndef Python}
+var
+  PythonCodeExists:Boolean;
 implementation
 end.
 {$else}
@@ -20,6 +22,7 @@ uses
 var
   //PythonLibDir,
   PythonVersion:String;
+  PythonCodeExists:Boolean;
 
 {$ifndef JScript}
 function PyodideScript:TStringList;
@@ -193,7 +196,7 @@ begin
     mmo.mmiCopyComponent(fnArgs[0], fnArgs[1], fnArgs[2])
   else if fname='DeleteComponent' then
   begin
-    bool:=mmo.mmiDeleteComponent(fnArgs[0], fnargs[1]);
+    bool:=mmo.mmiDeleteComponent(fnArgs[0], fnargs[1], fnargs[2]);
     v:=bool;
   end
   else if fname='GetGPUParamNumValue' then
@@ -441,6 +444,12 @@ begin
   // Load the pyodide script from the web; if unavailable try loading from pyodide_local...
   script.add('<script type="application/javascript" >');
   script.add('var pyodideReady = "no";');
+  if not PythonCodeExists then
+  begin
+    // no need for user to wait for Pyodide to finish loading on startup if there's no Python in the system...
+    script.add('console.log("No Python scripts found in this system")');
+    script.add('var pyodideReady = "yes";');
+  end;
   script.add('var localErrDone = false;');
   script.add('var pysrc1=document.createElement("script")');
   script.add('var pysrc2=document.createElement("script")');
@@ -583,8 +592,8 @@ begin
   InitScript.add('  RunXIDEFunc(''MoveComponent'',(NodeId,NewParentId))');
   InitScript.add('def CopyComponent(NodeId,NewParentId,NewName):');
   InitScript.add('  RunXIDEFunc(''CopyComponent'',(NodeId,NewParentId,NewName))');
-  InitScript.add('def DeleteComponent(NodeId,ShowNotFoundMsg):');
-  InitScript.add('  return RunXIDEFunc(''DeleteComponent'',(NodeId,ShowNotFoundMsg))');
+  InitScript.add('def DeleteComponent(NodeId,ShowNotFoundMsg,ShowConfirm):');
+  InitScript.add('  return RunXIDEFunc(''DeleteComponent'',(NodeId,ShowNotFoundMsg,ShowConfirm))');
   InitScript.add('def GetGPUParamNumValue(GPUName,pName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUParamNumValue'',(GPUName,pName))');
   InitScript.add('def GetGPUConstIntValue(GPUName,pName):');
@@ -695,8 +704,8 @@ begin
   InitScript.add('  pas.InterfaceTypes.MoveComponent(NodeId,NewParentId)');
   InitScript.add('def CopyComponent(NodeId,NewParentId,NewName):');
   InitScript.add('  pas.InterfaceTypes.CopyComponent(NodeId,NewParentId,NewName)');
-  InitScript.add('def DeleteComponent(NodeId,ShowNotFoundMsg):');
-  InitScript.add('  return pas.InterfaceTypes.DeleteComponent(NodeId,ShowNotFoundMsg)');
+  InitScript.add('def DeleteComponent(NodeId,ShowNotFoundMsg,ShowConfirm):');
+  InitScript.add('  return pas.InterfaceTypes.DeleteComponent(NodeId,ShowNotFoundMsg,ShowConfirm)');
   InitScript.add('def GetGPUParamNumValue(GPUName,pName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUParamNumValue(GPUName,pName)');
   InitScript.add('def GetGPUConstIntValue(GPUName,pName):');

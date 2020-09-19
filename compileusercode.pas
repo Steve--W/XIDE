@@ -510,6 +510,8 @@ begin
            // Insert a procedure containing the code for the event initialisation
            hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'Init');
            tmp:=trim(StartNode.myEventHandlers[i].InitCode);
+           if not PythonCodeExists then
+             PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
            InitCode:=StringSplit(tmp,LineEnding);
            InitCode.Insert(0,hdr);
            if InitCode.Count=1 then
@@ -522,7 +524,10 @@ begin
 
            // Insert a procedure containing the main code for the event
            hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'Main');
-           IncCode:=StringSplit(StartNode.myEventHandlers[i].TheCode,LineEnding);
+           tmp:=StartNode.myEventHandlers[i].TheCode;
+           if not PythonCodeExists then
+             PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
+           IncCode:=StringSplit(tmp,LineEnding);
            IncCode.Insert(0,hdr);
            WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i],'tempinc/', UnitCode, IncCode);
 
@@ -938,6 +943,7 @@ begin
     PyCode.Clear;
     if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
     begin
+       PythonCodeExists:=true;
        UnitNode:=CodeRootNode.ChildNodes[i];
        // code is all in attribute : Code
        nm:=UnitNode.NodeName;
@@ -1183,6 +1189,7 @@ var
    FoundError,FoundFatal:Boolean;
 begin
   Screen.Cursor := crHourglass;
+  PythonCodeExists:=false;
 
   ExtraDirectives:=TStringList.Create;
 
@@ -1388,6 +1395,7 @@ var
   lWebFS : TPas2JSWebFS;
   NSUnits:array of String;
 begin
+  PythonCodeExists:=false;
   NamespaceUnits.Clear;
 
   MyWebCompiler.mycodeeditor:=MyCodeEditor;
