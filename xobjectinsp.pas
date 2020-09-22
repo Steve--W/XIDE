@@ -3686,7 +3686,6 @@ begin
     PushAllSourcesToAttributes;
 
     SuppressUserEvents:=false;
-    {$ifdef JScript} asm console.log('SuppressUserEvents set to false'); end; {$endif}
 
     HandleEvent(nil,'OnEnterRunMode','UIRootNode','','');
     {$ifdef Python}
@@ -3699,7 +3698,6 @@ begin
   begin
     // Pascal compilation of event code has failed
     SuppressUserEvents:=true;
-    {$ifdef JScript} asm console.log('SuppressUserEvents set to true'); end; {$endif}
     {$ifndef JScript}
     DisplayDllCompileErrors;
     {$else}
@@ -3819,7 +3817,6 @@ begin
 
     DesignMode:=true;
     SuppressUserEvents:=true;
-    {$ifdef JScript} asm console.log('SuppressUserEvents set to true'); end; {$endif}
     SetLength(SourcedAttribs,0);        // keep these during design mode !!!!????
     TXMenuItem(Sender).Caption:='Run Mode';
     // Show Object Inspector

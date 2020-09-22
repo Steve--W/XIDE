@@ -983,10 +983,8 @@ begin
 
   setlength(ruleNodes,0);
   ruleNodes:=XTree.TXTree(StylesNode).GetChildNodes(RuleNodeId);
-  asm console.log('RuleNodeId='+RuleNodeId); end;
 
   StyleTargets:=GetStyleTargets(ruleNodes[0]);
-  asm console.log('StyleTargets='+StyleTargets); end;
   Stylepriority:=trim(GetQualifierValue(XTree.TXTree(StylesNode).TextOfNode(RuleNodes[2])));
   StyleProperties:=GetStyleProperties(ruleNodes[1],Stylepriority);
   StyleState:=trim(GetQualifierValue(XTree.TXTree(StylesNode).TextOfNode(RuleNodes[3])));

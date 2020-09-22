@@ -909,9 +909,6 @@ var
       {$else}
       tmp:=PyScriptCode.Text;
       asm
-      console.log('running python user code '+nm);
-      end;
-      asm
       try {
       pyodide.runPython(tmp);
       } catch(err) { alert(err.message+'  in '+nm);

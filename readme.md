@@ -124,6 +124,14 @@ Edit the supplied file setupxidelrs.txt, for correct paths to the listed source 
 Rebuild the resource file using a command line like: c:/fpcupdeluxe/lazarus/tools/lazres xide.lrs @setupxidelrs.txt
 
 
+Example Projects
+----------------
+<p><a href="https://steve--w.github.io/XIDEPages/">
+            XIDE Project Examples
+          </a></p>
+
+
+
 
 
 

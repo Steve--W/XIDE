@@ -697,7 +697,10 @@ begin
   InitScript.add('def LoadTableFromNumArray(TableName,NumArray):');
   InitScript.add('  pas.InterfaceTypes.LoadTableFromNumArray(TableName,NumArray)');
   InitScript.add('def GetTableDataArray(TableName,SkipHeader):');
-  InitScript.add('  return pas.InterfaceTypes.GetTableDataArray(TableName,SkipHeader)');
+  InitScript.add('  arr = eval(pas.InterfaceTypes.GetPropertyValue(TableName,''TableData''))');
+  InitScript.add('  if ((len(arr)>0) and (SkipHeader==True)):');
+  InitScript.add('    arr = arr.pop(0)');
+  InitScript.add('  return arr');
   InitScript.add('def DoEvent(EventType,NodeId,myValue):');
   InitScript.add('  pas.InterfaceTypes.DoEvent(EventType,NodeId,myValue)');
   InitScript.add('def MoveComponent(NodeId,NewParentId):');
