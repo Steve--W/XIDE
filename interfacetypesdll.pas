@@ -64,7 +64,8 @@ TDebugStart=procedure of object; stdcall;
 TRunPython=procedure(str:String) of object; stdcall;
 TSetImageSource=procedure(nm,str:String) of object; stdcall;
 TWobbleCEF=procedure(nm:String)of object;    stdcall;
-
+TPyodideLoadPackage=procedure(nm:String) of object;  stdcall;
+TPyodidePackageLoaded=function(nm:String):Boolean of object;  stdcall;
 
 type
 IMyMethodInterface = interface(IInterface)
@@ -108,6 +109,8 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiRunPython(str:String); stdcall;
     procedure mmiSetImageSource(nm,str:String); stdcall;
     procedure mmiWobbleCEF(nm:String);    stdcall;
+    procedure mmiPyodideLoadPackage(nm:String);  stdcall;
+    function mmiPyodidePackageLoaded(nm:String):Boolean; stdcall;
 end;
 
 
@@ -153,6 +156,8 @@ DebugStart:TDebugStart;
 RunPython:TRunPython;
 SetImageSource:TSetImageSource;
 WobbleCEF:TWobbleCEF;
+PyodideLoadPackage:TPyodideLoadPackage;
+PyodidePackageLoaded:TPyodidePackageLoaded;
 
 procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
 {$endif}
@@ -209,6 +214,8 @@ begin
   RunPython:=@appmethods.mmiRunPython;
   SetImageSource:=@appmethods.mmiSetImageSource;
   WobbleCEF:=@appmethods.mmiWobbleCEF;
+  PyodideLoadPackage:=@appmethods.mmiPyodideLoadPackage;
+  PyodidePackageLoaded:=@appmethods.mmiPyodidePackageLoaded;
  // dummy:=GetPropertyValue('UIRoot','Name');     // fudge...didn't work
 
 end;

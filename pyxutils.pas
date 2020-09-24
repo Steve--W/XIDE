@@ -441,6 +441,16 @@ var
   myCode:String;
 begin
   script:=TStringList.Create;
+  script.add('<script type="application/javascript" >');
+  script.add('var realalert=window.alert;');
+  script.add('window.alert=function(msg){');
+  script.add('  console.log(msg);');
+  script.add('  if (msg.toLowerCase().includes("memory access out of bounds")) {window.alert=realalert;}');
+  script.add('  else {realalert(msg);}');
+  script.add('  return true;');
+  script.add('};');
+  script.add('</script> ');
+
   // Load the pyodide script from the web; if unavailable try loading from pyodide_local...
   script.add('<script type="application/javascript" >');
   script.add('var pyodideReady = "no";');
@@ -508,23 +518,29 @@ begin
   script.add('  if (pas.XObjectInsp.RunningDeployedRuntime==true) {');
   script.add('    pas.XObjectInsp.ContinueToggleToRunMode();  }');
   script.add('  }');
+
   script.add('function pysrcLoaded() { ');
   script.add('    // pyodide is now ready to use...  ' );
   script.add('    console.log("python: "+pyodide.runPython("import sys\nsys.version"));' );
+
   script.add('    pyodide.loadPackage("numpy").then(() => {');
-  script.add('      console.log("numpy is now available");' );
+  script.add('      if ("numpy" in pyodide.loadedPackages) {console.log("numpy is now available"); } ' );
+  script.add('      else {alert("Pyodide failed to load package numpy - please check console for details");} ' );
   script.add('    });');
   script.add('    pyodide.loadPackage("matplotlib").then(() => {');
-  script.add('      console.log("matplotlib is now available"); ' );
+  script.add('      if ("matplotlib" in pyodide.loadedPackages) {console.log("matplotlib is now available"); } ' );
+  script.add('      else {alert("Pyodide failed to load package matplotlib - please check console for details");} ' );
   script.add('      pyodideReady = "yes";' );
   script.add('      DoFinalInits();');
   script.add('    }); ' );
+
   script.add('  pas.XIDEMain.StartupPython(); ');
   script.add(' } ');
   script.add('</script> ');
 
   script.add('<script> ');
-  script.add('        window.addEventListener(''DOMContentLoaded'', function() { ');
+  //script.add('        window.addEventListener(''DOMContentLoaded'', function() { ');
+  script.add('        window.addEventListener(''load'', function() { ');
   script.add('             languagePluginLoader.then(() => { pysrcLoaded();}); ');
   script.add('	    });');
   script.add('</script> ');
@@ -633,6 +649,7 @@ begin
   InitScript.add('  SetPropertyValue(ImgName,''Source'',ImgName+''.png'')');
   InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
   InitScript.add('  return json.dumps(npArray.tolist())');
+
 
 
   InitScript.add('print(''Python Engine Initialised'')');
@@ -751,6 +768,11 @@ begin
   InitScript.add('  pas.InterfaceTypes.SetImageSource(ImgName,img_str)');
   InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
   InitScript.add('  return json.dumps(npArray.tolist())');
+  InitScript.add('def PyodideLoadPackage(nm):');
+  InitScript.add('  pas.InterfaceTypes.PyodideLoadPackage(nm)');
+  InitScript.add('def PyodidePackageLoaded(nm):');
+  InitScript.add('  return pas.InterfaceTypes.PyodidePackageLoaded(nm)');
+
 
   // execute the initialisation py script
   txt:=InitScript.Text;

@@ -86,7 +86,7 @@ begin
   'function  CopyFromClip(e:TEventStatus):String; ' + LineEnding +
   '          CopyFromClip is an async function (required for browser use), so it must be coded in the  ' + LineEnding +
   '          ''Init'' section of an event handler. The result here is a blank string.                  ' + LineEnding +
-  '          The clipboard string is held in e.ReturnString, which cn be picked up in the              ' + LineEnding +
+  '          The clipboard string is held in e.ReturnString, which can be picked up in the             ' + LineEnding +
   '          ''Main'' section of the event handler.                                                    ' + LineEnding +
   'procedure ShowXForm(XFormID:String; modal:Boolean);  ' + LineEnding +
   '                            opens a TXForm. [note:''modal=false'' currently only effective on desktop] ' + LineEnding +
@@ -115,7 +115,13 @@ begin
   'procedure DebugStart;'  + LineEnding +
   '                            Functional in Browser execution only.  Executes a Javascript ''debugger;'' statement - starts the native browser debug facility.  '  + LineEnding+
   'procedure RunPython(str:String);'  + LineEnding +
-  '                            Executes the given Python script  '  + LineEnding;
+  '                            Executes the given Python script  '  + LineEnding +
+  'procedure PyodideLoadPackage(nm:String); '  + LineEnding +
+  '                            Functional in Browser execution only.  Loads the requested Pyodide/python package, so that it will be available for import.  '  + LineEnding +
+  '                            Note this runs an asynchronous process. Check the console for progress.  '  + LineEnding +
+  'function PyodidePackageLoaded(nm:String):Boolean; '  + LineEnding +
+  '                            Functional in Browser execution only.  Returns true if the named package has been loaded into the Pyodide environment.  '  + LineEnding;
+
   PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
   ' ' + LineEnding +
   'Messages and Dialogs' + LineEnding +

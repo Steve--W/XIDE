@@ -63,6 +63,8 @@ TDebugStart=procedure of object;
 TRunPython=procedure(str:String) of object;
 TSetImageSource=procedure(nm,str:String) of object;
 TWobbleCEF=procedure(nm:String) of object;
+TPyodideLoadPackage=procedure(nm:String) of object;
+TPyodidePackageLoaded=function(nm:String):Boolean of object;
 
 {$ifdef JScript}
 var
@@ -103,6 +105,8 @@ DebugStart:TDebugStart;
 RunPython:TRunPython;
 SetImageSource:TSetImageSource;
 WobbleCEF:TWobbleCEF;
+PyodideLoadPackage:TPyodideLoadPackage;
+PyodidePackageLoaded:TPyodidePackageLoaded;
 
 
 var EventsNameSpace:String;
@@ -150,6 +154,8 @@ type TMethodsClass = class(TObject)
  procedure mmiDebugStart;
  procedure mmiRunPython(str:String);
  procedure mmiSetImageSource(nm,str:String);
+ procedure mmiPyodideLoadPackage(nm:String);
+ function mmiPyodidePackageLoaded(nm:String):Boolean;
 end;
 
 type AnsiString=String;
@@ -202,6 +208,8 @@ begin
   DebugStart:=@appmethods.mmiDebugStart;
   RunPython:=@appmethods.mmiRunPython;
   SetImageSource:=@appmethods.mmiSetImageSource;
+  PyodideLoadPackage:=@appmethods.mmiPyodideLoadPackage;
+  PyodidePackageLoaded:=@appmethods.mmiPyodidePackageLoaded;
 end;
 
 procedure TMethodsClass.mmiSetEventsNameSpace(NameSpace:String);
@@ -268,12 +276,6 @@ begin
   end;
   result:=val;
 end;
-//function TMethodsClass.mmigetpropertyvalueindexed(nodeName:String;propName:String; x,y,w,h:integer):TstringArray;
-//begin
-//  //!!!!
-//  asm
-//  end;
-//end;
 Function TMethodsClass.mmiconfirm(TextMessage:string):boolean;
 var
   ok:boolean;
@@ -633,6 +635,28 @@ begin
   end;
 end;
 
+procedure TMethodsClass.mmiPyodideLoadPackage(nm:String);
+begin
+  asm
+    try {
+      pyodide.loadPackage(nm).then(() => {
+        if (nm in pyodide.loadedPackages) {console.log(nm+" is now available"); }
+        else {alert('Pyodide failed to load package '+nm+' please check console for details');}
+      }).catch(err => alert(err.message+' in PyodideLoadPackage '+nm));
+    } catch(err) { alert(err.message+'  in PyodideLoadPackage '+nm);
+           }
+  end;
+end;
+function TMethodsClass.mmiPyodidePackageLoaded(nm:String):Boolean;
+var
+  found:Boolean;
+begin
+  found:=false;
+  asm
+    if (nm in pyodide.loadedPackages) { found=true; }
+  end;
+  result:=found;
+end;
 
 begin
   EventsNameSpace:='';

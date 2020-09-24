@@ -66,6 +66,8 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiRunPython(str:String); stdcall;
     procedure mmiSetImageSource(nm,str:String); stdcall;
     procedure mmiWobbleCEF(nm:String);                  stdcall;
+    procedure mmiPyodideLoadPackage(nm:String);  stdcall;
+    function mmiPyodidePackageLoaded(nm:String):Boolean; stdcall;
 end;
 
 type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
@@ -110,6 +112,8 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiRunPython(str:String); stdcall;
       procedure mmiSetImageSource(nm,str:String); stdcall;
       procedure mmiWobbleCEF(nm:String);       stdcall;
+      procedure mmiPyodideLoadPackage(nm:String);  stdcall;
+      function mmiPyodidePackageLoaded(nm:String):Boolean;  stdcall;
   end;
 
 type TEventTimerTag = class
@@ -581,6 +585,18 @@ end;
        fr.Wobble;
      end;
      {$endif}
+   end;
+
+   procedure TMyMethodObject.mmiPyodideLoadPackage(nm:String); stdcall;
+   begin
+     // this method is applicable only in the browser environment with Pyodide.
+     // No action here.
+   end;
+   function TMyMethodObject.mmiPyodidePackageLoaded(nm:String):Boolean; stdcall;
+   begin
+     // this method is applicable only in the browser environment with Pyodide.
+     // Return True here.
+     result := true;
    end;
 
 begin

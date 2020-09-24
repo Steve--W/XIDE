@@ -91,16 +91,12 @@ var
   {$endif}
 begin
   AboutText :=
-  '           Helping people write simple apps that work "everywhere" ' + LineEnding
- +' ' + LineEnding
-     +'XIDE is a combined Development and Run Time Environment designed to run in Chrome/Linux/Windows/Android with as little installation or learning curve as possible.' + LineEnding
+     '              A simple "Browser First" IDE for Pascal and Python ' + LineEnding
      +' ' + LineEnding
-     +'It allows WYSIWYG Pascal/RAD application development in up to date HTML5 browsers and any native code platform that supports Electron or Lazarus/Pas2JS and the Chromium Embedded Framework.' + LineEnding
-     +'' + LineEnding
-     +'The target applications are small, "in house", client side, embedded or exploratory apps where the focus is on rapid development, specialist functionality or collaborative working.' + LineEnding
-     +'' + LineEnding
-     +'Applications developed for this run time will run client side in any of the target environments without modification or dependencies both on line or off line (once the run time has been installed or the web page downloaded).' + LineEnding
-     +'' + LineEnding
+     +'XIDE is a combined Client Side Run Time Library and RAD IDE intended to allow Pascal and/or Python development in the browser with the minimum of installation or '
+     +'learning curve. It is targeted at Prototyping, Small Group Collaboration and Agile Line of Business projects on any platform that is supported by Chrome or '
+     +'Electron, or Lazarus (and the Chrome Embedded Framework).  It is not intended for the development of general-purpose public facing web sites.' + LineEnding
+     +' ' + LineEnding
      +'        Version <<<XIDE>>> for Chrome' + LineEnding
      +'        Date 13/04/2020' + LineEnding
      +'        Created with' + LineEnding
