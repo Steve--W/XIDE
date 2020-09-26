@@ -93,9 +93,10 @@ begin
   AboutText :=
      '              A simple "Browser First" IDE for Pascal and Python ' + LineEnding
      +' ' + LineEnding
-     +'XIDE is a combined Client Side Run Time Library and RAD IDE intended to allow Pascal and/or Python development in the browser with the minimum of installation or '
-     +'learning curve. It is targeted at Prototyping, Small Group Collaboration and Agile Line of Business projects on any platform that is supported by Chrome or '
-     +'Electron, or Lazarus (and the Chrome Embedded Framework).  It is not intended for the development of general-purpose public facing web sites.' + LineEnding
+     +'XIDE is a combined Client Side Run Time Library and RAD IDE intended to allow Pascal and/or Python development in the browser with the minimum of installation '
+     +'overhead or learning curve while also being as platform independent as possible. It is targeted at Prototyping, Small Group Collaboration and Agile Line of '
+     +'Business projects on any platform that is supported by Chrome or Electron, or Lazarus (and the Chrome Embedded Framework). It is not intended for the development of general-purpose ' + LineEnding
+     +'public facing web sites.' + LineEnding
      +' ' + LineEnding
      +'        Version <<<XIDE>>> for Chrome' + LineEnding
      +'        Date 13/04/2020' + LineEnding

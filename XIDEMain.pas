@@ -73,7 +73,6 @@ TXIDEForm = class(TXForm)
   ResourceTreeDelBtn: TXButton;
   ResourceTreeLoadBtn: TXButton;
   OIAddPropertyButton: TXButton;
-  DebugTree: TXButton;
   StyleTreeButtonHBox: TXHBox;
   StyleTreeDelBtn: TXButton;
   StyleTreeApplyBtn: TXButton;
@@ -230,8 +229,6 @@ TXIDEForm = class(TXForm)
   procedure CodeTreeEditBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;myValue: AnsiString);
   procedure CodeTreePascalUnitBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure CodeTreeSearchBtnHandleButtonClick(e: TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-  procedure DebugTreeHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
-    myValue: AnsiString);
 
   procedure UIRootClick(Sender: TObject);
 
@@ -742,19 +739,19 @@ begin
   OIAddInterfaceElement;
 end;
 
-procedure TXIDEForm.DebugTreeHandleButtonClick(e: TEventStatus;
-  nodeID: AnsiString; myValue: AnsiString);
-var
-  txt:String;
-begin
-
-  DebugwriteNodetree(SystemnodeTree,txt,0);
-  {$ifndef JScript}
-  WriteToLocalStore('debugtree',txt);
-  {$else}
-  myCopyToClip('debugtree',txt );
-  {$endif}
-end;
+//procedure TXIDEForm.DebugTreeHandleButtonClick(e: TEventStatus;
+//  nodeID: AnsiString; myValue: AnsiString);
+//var
+//  txt:String;
+//begin
+//
+//  DebugwriteNodetree(SystemnodeTree,txt,0);
+//  {$ifndef JScript}
+//  WriteToLocalStore('debugtree',txt);
+//  {$else}
+//  myCopyToClip('debugtree',txt );
+//  {$endif}
+//end;
 
 procedure TXIDEForm.ResourceInspectorTabsHandleChange(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
