@@ -7,7 +7,7 @@ unit X3DTable;
 interface
 
 uses
-    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame, Math,
+    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame,
     UtilsJSCompile, XForm, XButton, XVBox, XTabControl, XEditBox, XNumberSpinner,XComboBox, EventsInterface,
     PasteDialogUnit,
   {$ifndef JScript}
@@ -133,16 +133,10 @@ end;
 procedure TX3DTable.BuildWidget;
 var
   VBNode,TblNode,ZNumNode,XEditNode,YEditNode,ZEditNode,BtnNode:TDataNode;
-  zeds:string;
-  vb:TXVBox;
-  i:integer;
 begin
 
   VBNode:=AddDynamicWidget('TXVBox',self.myNode.MyForm,self.myNode,'VBox',self.myNode.NodeName,'Left',-1);
-  vb:=TXVBox(VBNode.ScreenObject);
   VBNode.IsDynamic:=false;
-//  vb.ContainerHeight:='100%';
-//  vb.ContainerWidth:='100%';
 
   ZNumNode:=AddDynamicWidget('TXComboBox',self.myNode.MyForm,VBNode,'ZSelector',self.myNode.NodeName,'Left',-1);
   ZSelector:=TXComboBox(ZNumNode.ScreenObject);
@@ -540,7 +534,6 @@ end;
 procedure TX3DTable.ZEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
     zeds:string;
-    i:integer;
 begin
  // {$ifdef JScript}showmessage('3d ZDim Change');{$endif}
   self.ZDimension:=strtoint(myValue);
@@ -552,8 +545,6 @@ end;
 procedure TX3DTable.PasteData(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
     str:String;
-    msg:string;
-    i:integer;
 begin
   //paste Excel-format data to this grid
    if (e=nil)  or (e.InitRunning=false) then

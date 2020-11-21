@@ -33,12 +33,12 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiSetPropertyValue(nodeName:String;propName:String;newValue:String);  stdcall;
     procedure mmiSetPropertyValueIndexed(nodeName:String;propName:String;newValue:TStringArray; x,y:integer);  stdcall;
     function mmiGetPropertyValue(nodeName:String;propName:String):string;  stdcall;
-//    function mmiGetPropertyValueIndexed(nodeName:String;propName:String; x,y,w,h:integer):TstringArray;  stdcall;
     Function mmiconfirm(TextMessage:string):boolean;  stdcall;
     Function mmiprompt(TextMessage,promptString:string):string;  stdcall;
     procedure mmiCopyToClip(str:String);  stdcall;
     function mmiCopyFromClip(e:TEventStatus):String;  stdcall;
     procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
+    function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
     procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
     function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
@@ -79,12 +79,12 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiSetPropertyValue(nodeName:String;propName:String;newValue:String);  stdcall;
       procedure mmiSetPropertyValueIndexed(nodeName:String;propName:String;newValue:TStringArray; x,y:integer);  stdcall;
       function mmiGetPropertyValue(nodeName:String;propName:String):string;  stdcall;
-//      function mmiGetPropertyValueIndexed(nodeName:String;propName:String; x,y,w,h:integer):TstringArray;  stdcall;
       Function mmiconfirm(Textmessage:string):boolean;   stdcall;
       Function mmiprompt(TextMessage,promptString:string):string;   stdcall;
       procedure mmiCopyToClip(str:String);  stdcall;
       function mmiCopyFromClip(e:TEventStatus):String;    stdcall;
       procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
+      function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
       procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
       function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
       procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
@@ -125,6 +125,7 @@ type
   TTimerEventWrapper = class
     procedure DoEventTimer(Sender:TObject);
   end;
+
   var mmo : IMyMethodInterface;
   var DllEventTimer:TTimer;
   TimerEventWrapper:TTimerEventWrapper;
@@ -133,7 +134,7 @@ implementation
 uses PyXUtils;
 
 var
-EventsNameSpace:String;
+  EventsNameSpace:PChar;
 
 
 procedure TTimerEventWrapper.DoEventTimer(Sender:TObject);
@@ -156,7 +157,7 @@ end;
 
 procedure TMyMethodObject.mmiSetEventsNameSpace(NameSpace:String);  stdcall;
 begin
-  EventsNameSpace:=NameSpace;
+  EventsNameSpace:=PChar(NameSpace);
 end;
 
 
@@ -167,12 +168,12 @@ end;
 procedure TMyMethodObject.mmiShowXForm(XFormID:String; modal:Boolean);   stdcall;
 begin
   //showmessage('calling ShowXForm '+XFormID+' ns='+EventsNameSpace);
-  XForm.ShowXForm(XFormID,modal,EventsNameSpace);
+  XForm.ShowXForm(XFormID,modal,StrPas(EventsNameSpace));
 end;
 
 procedure TMyMethodObject.mmiCloseXForm(XFormID:String);   stdcall;
 begin
-  XForm.CloseXForm(XFormID,EventsNameSpace);
+  XForm.CloseXForm(XFormID,StrPas(EventsNameSpace));
 end;
 
 procedure TMyMethodObject.mmiSetPropertyValue(nodeName:String;propName:String;newValue:String);  stdcall;
@@ -182,7 +183,7 @@ var
   SourceAttrib:TNodeAttribute;
 begin
   // !! Must not pass Strings from dll to main, if they need to persist (when the dll is unloaded) - use PChar instead.
-  myNode:=FindDataNodeById(SystemNodetree,nodename,EventsNameSpace,true);
+  myNode:=FindDataNodeById(SystemNodetree,nodename,StrPas(EventsNameSpace),true);
   if myNode<>nil then
   begin
     nv:=PChar(newValue);
@@ -203,7 +204,7 @@ var
 begin
   if propName='MapPixelArray' then
   begin
-    myNode:=FindDataNodeById(SystemNodetree,nodename,EventsNameSpace,true);
+    myNode:=FindDataNodeById(SystemNodetree,nodename,StrPas(EventsNameSpace),true);
     if mynode<>nil then
     begin
       bitmapcomponent:=TXBitMap(myNode.ScreenObject);
@@ -219,44 +220,15 @@ var
  myNode:TDataNode;
  localStr:String;
 begin
-  myNode:=FindDataNodeById(SystemNodetree,nodename,EventsNameSpace,true);
+  myNode:=FindDataNodeById(SystemNodetree,nodename,StrPas(EventsNameSpace),true);
   if mynode<>nil then
     localStr:=mynode.GetAttributeAnyCase(propName).AttribValue
   else
     localStr:='';
   result:=localStr;
 end;
-(*
-function TMyMethodObject.mmiGetPropertyValueIndexed(nodeName:String;propName:String; x,y,w,h:integer):TstringArray;  stdcall;
-// attribute type is expected to be "StringArray".
-// attribute value is a string, comma-delimited.
-// For efficiency, fetch the value from the underlying component property.
-// Return array rows y to y+h, at character positions (x+1) to (x+1)+w.
-var
- myNode:TDataNode;
- arr:TstringArray;
-// arr0,arr:TstringArray;
-// i,j,r:integer;
- bitmapcomponent:TXBitMap;
-begin
- if propName='MapPixelArray' then
- begin
-//   setlength(arr0,0);
-//   setlength(arr,0);
-   myNode:=FindDataNodeById(SystemNodetree,nodename,EventsNameSpace,true);
-   if mynode<>nil then
-   begin
-     bitmapcomponent:=TXBitMap(myNode.ScreenObject);
-     arr:=bitmapComponent.GetMapPixelArraySection(x,y,w,h);
-   end;
- end
- else
-   showmessage('GetPropertyValueIndexed not valid for property '+propName);
 
- result:=arr;
-end;
-*)
-   Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
+Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
    begin
      result:=XobjectInsp.XIDEConfirm(Textmessage);
    end;
@@ -291,7 +263,7 @@ end;
        e.ReturnString:=s;
 
        // simulate an async function (as the JS equivalent is async)
-       HandleEvent(nil,'MemoPaste','UIRootNode','',s);       // to mirror the browser paste action
+       HandleEvent(nil,'MemoPaste',SystemRootName,'',s);       // to mirror the browser paste action
        myTag:=TEventTimerTag.Create;
        myTag.ProcName:='CopyFromClip';
        myTag.e:=e;
@@ -305,10 +277,22 @@ end;
    var
     myNode:TDataNode;
    begin
-     myNode:=FindDataNodeById(SystemNodetree,TableName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,TableName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXTable') then
      begin
        TXTable(myNode.ScreenObject).LoadTableFromExcelCopy(CopiedString);
+     end;
+   end;
+
+   function TMyMethodObject.mmiGetTableDataForExcel(TableName:String):String;  stdcall;
+   var
+     myNode:TDataNode;
+   begin
+     result:='';
+     myNode:=FindDataNodeById(SystemNodetree,TableName,StrPas(EventsNameSpace),true);
+     if (mynode<>nil) and (myNode.NodeType='TXTable') then
+     begin
+       result:=TXTable(myNode.ScreenObject).GetTableDataForExcel;
      end;
    end;
 
@@ -316,7 +300,7 @@ end;
    var
     myNode:TDataNode;
    begin
-     myNode:=FindDataNodeById(SystemNodetree,TableName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,TableName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXTable') then
      begin
        TXTable(myNode.ScreenObject).LoadTableFromNumArray(NumArray);
@@ -328,7 +312,7 @@ end;
     myNode:TDataNode;
     arr:T2DStringArray;
    begin
-     myNode:=FindDataNodeById(SystemNodetree,TableName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,TableName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXTable') then
      begin
        arr:=TXTable(myNode.ScreenObject).GetCellsAsArray(SkipHeader);
@@ -342,12 +326,12 @@ end;
    begin
      // !! Must not pass Strings from dll to main, if they need to persist (when the dll is unloaded) - use PChar instead.
      mv:=PChar(myValue);
-     handleEvent(nil,EventType,nodeId,EventsNameSpace,mv);
+     handleEvent(nil,EventType,nodeId,StrPas(EventsNameSpace),mv);
    end;
 
    procedure TMyMethodObject.mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
    begin
-     OIMoveItem(nodeId,EventsNameSpace,NewParentId);
+     OIMoveItem(nodeId,StrPas(EventsNameSpace),NewParentId);
    end;
 
    procedure TMyMethodObject.mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
@@ -356,14 +340,14 @@ end;
    begin
      // !! Must not pass Strings from dll to main, if they need to persist (when the dll is unloaded) - use PChar instead.
      nm:=PChar(NewName);
-     OICopyToNewParent(nodeId,EventsNameSpace,NewParentId,nm);
+     OICopyToNewParent(nodeId,StrPas(EventsNameSpace),NewParentId,nm);
    end;
 
    function TMyMethodObject.mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
    var
      Deleted:Boolean;
    begin
-     Deleted:=OIDeleteItem(nodeId,EventsNameSpace,ShowNotFoundMsg,ShowConfirm);
+     Deleted:=OIDeleteItem(nodeId,StrPas(EventsNameSpace),ShowNotFoundMsg,ShowConfirm);
      result:=Deleted;
    end;
 
@@ -372,7 +356,7 @@ end;
      myNode:TDataNode;
    begin
     //showmessage('mmiSetGPUParamNumValue GPUName='+GPUName);
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        TXGPUCanvas(myNode.ScreenObject).SetParamNumValue(pName,pValue,true);
@@ -384,7 +368,7 @@ end;
      myNode:TDataNode;
    begin
     //showmessage('mmiSetGPUParam2DNumValue GPUName='+GPUName);
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        TXGPUCanvas(myNode.ScreenObject).SetParam2DNumValue(pName,pValue,true);
@@ -396,7 +380,7 @@ end;
      myNode:TDataNode;
    begin
     //showmessage('mmiSetGPUConstIntValue GPUName='+GPUName);
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        TXGPUCanvas(myNode.ScreenObject).SetConstIntValue(pName,pValue);
@@ -410,7 +394,7 @@ end;
    begin
      result:=nil;
     //showmessage('mmiSetGPUParamNumValue GPUName='+GPUName);
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        result:=TXGPUCanvas(myNode.ScreenObject).GetParamNumValue(pName);
@@ -422,7 +406,7 @@ end;
      myNode:TDataNode;
    begin
      result:=0;
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        result:=TXGPUCanvas(myNode.ScreenObject).GetConstIntValue(pName);
@@ -494,7 +478,7 @@ end;
      myNode:TDataNode;
    begin
      result:=nil;
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        {$ifdef Chromium}
@@ -509,7 +493,7 @@ end;
      myNode:TDataNode;
    begin
      result:='';
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        {$ifdef Chromium}
@@ -524,7 +508,7 @@ end;
      myNode:TDataNode;
    begin
      result:=nil;
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        {$ifdef Chromium}
@@ -543,7 +527,7 @@ end;
    begin
      result:='';
     //showmessage('mmiGetGPUStageArray GPUName='+GPUName);
-     myNode:=FindDataNodeById(SystemNodetree,GPUName,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,GPUName,StrPas(EventsNameSpace),true);
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        {$ifdef Chromium}
@@ -578,7 +562,7 @@ end;
      myNode:TDataNode;
    begin
      {$ifdef Chromium}
-     myNode:=FindDataNodeById(SystemNodetree,nm,EventsNameSpace,true);
+     myNode:=FindDataNodeById(SystemNodetree,nm,StrPas(EventsNameSpace),true);
      if myNode<>nil then
      begin
        fr:=TXIframe(myNode.ScreenObject);
@@ -600,7 +584,7 @@ end;
    end;
 
 begin
-    EventsNameSpace:='';
+    EventsNameSpace:=PChar('');
     mmo := TMyMethodObject.Create();
     Events.mmi:=IInterface(mmo);
 

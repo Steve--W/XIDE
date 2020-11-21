@@ -15,17 +15,17 @@ unit XGPUEditor;
 
 interface
 uses
-    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame, Math,
+    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame,
     UtilsJSCompile, XForm, XCode, XButton, XVBox, XHBox, XTabControl, XMemo, XComboBox, XEditBox,
     X3DTable, EventsInterface,
-    WebTranspilerUtils,
+    //WebTranspilerUtils,
   {$ifndef JScript}
     LResources, Forms, Controls, StdCtrls, Graphics, Dialogs, ExtCtrls, Propedits, RTTICtrls,
     LazsUtils, LCLIntf,
     LCLType, gettext,
-    {$ifdef Chromium}
-    uCEFChromium, uCEFInterfaces, uCEFTypes,
-    {$endif}
+//    {$ifdef Chromium}
+//    uCEFChromium, uCEFInterfaces, uCEFTypes,
+//    {$endif}
   {$else}
     webfilecache, pas2jswebcompiler,
     HTMLUtils,
@@ -80,7 +80,6 @@ var
   LaunchBtn:TXButton;
   MainVB,VB,vb2:TXVBox;
   HB:TXHBox;
-  tmp, Olist:String;
 begin
 
 
@@ -227,7 +226,7 @@ procedure SaveThisCodeBlock(idx:integer);
 var
   AllKernels:TAnimCodeArray;
   AllCode:String;
-  i,d:integer;
+  i:integer;
 begin
   AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
   // Re-concatenate the kernel code blocks
@@ -275,7 +274,9 @@ var linenumber:integer;
     SelectedLine,FileName,CharPos:string;
     FoundLineNum:Boolean;
     LineNum:String;
+    {$ifdef JScript}
     Messages:TStringList;
+    {$endif}
 begin
    //showmessage('GPUCodeEditHandleClickMessage '+ nodeID + ' '+myValue);
   {$ifndef JScript}
@@ -332,9 +333,7 @@ end;
 
 procedure TGPUEventClass.GPUComboBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
-  thisNode:TDataNode;
   AllKernels:TAnimCodeArray;
-  i:integer;
 begin
   // Select the given Kernel code for display in the editor.
   if (EditingGPUNode<>nil) then
@@ -356,7 +355,6 @@ end;
 procedure ShowGPUEditor(GPUNode:TDataNode;TabPage:integer);
 var
   AllKernels:TAnimCodeArray;
-  tmp:string;
 begin
   // Edit the AnimationCode in a TXGPUCanvas component using the dedicated popup editor...
   // the animation code may consist of several kernel procedures.
@@ -378,7 +376,7 @@ begin
 
   GPUEditorTabControl.TabIndex:=TabPage;
 
-  tmp:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
+  //tmp:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
   GPUTableEditor.Table3DData:='[[[1]]]';
   GPUTableEditor.Table3DData:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
   {$ifndef JScript}

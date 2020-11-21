@@ -16,6 +16,7 @@ unit XIDEMain;
 {$INTERFACES CORBA}
 {$endif}
 
+
 interface
 
 uses
@@ -41,7 +42,8 @@ uses
   // XIDE project units...
   CompileUserCode, XObjectInsp,XIDESettings,
   CodeEditor, InputSelectUnit, PropertyEditUnit,
-  PopupMemo, AboutUnit, SavedSystems, StylesUtils;
+  PopupMemo, AboutUnit, SavedSystems, StylesUtils,
+  IntfParamUnit, IntfEventUnit;
 
 
 {$ifdef JScript}
@@ -82,6 +84,7 @@ TXIDEForm = class(TXForm)
   WatchBox: TXEditBox;
   CodeTreeSearchBtn: TXButton;
   CodeTreePythonBtn: TXButton;
+  CompositePropsScrollbox: TXScrollBox;
   XIDEMainMenu: TXMainMenu;
 
   MyRootDiv: TXScrollBox;
@@ -102,8 +105,6 @@ TXIDEForm = class(TXForm)
   ResourceInspectorTabs: TXTabControl;
   Resources: TXTabSheet;
   ResourceTree: TXTree;
-  DefaultPropertiesLabel: TXLabel;
-  ResourceEditorScrollbox: TXScrollBox;
   CodeTreeEditBtn: TXButton;
   CodeTreeDelBtn: TXButton;
   OIClear: TXButton;
@@ -137,6 +138,7 @@ TXIDEForm = class(TXForm)
   StyleResourcesPage: TXTabSheet;
   StyleResources: TXTree;
   XMemo1: TXMemo;
+  OICompositePropsTab: TXTabSheet;
 
   procedure CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
     nodeID: AnsiString; myValue: AnsiString);
@@ -150,10 +152,6 @@ TXIDEForm = class(TXForm)
   procedure FormClose(Sender: TObject; var CloseAction: TCloseAction); override;
   procedure FormCreate(Sender: TObject);
   procedure FormResize(Sender: TObject);
-  //procedure RITabsMouseDown(Sender: TObject;Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-  //procedure RITabsMouseUp(Sender: TObject;Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-  //procedure RITabsMouseMove(Sender: TObject;Shift: TShiftState; X, Y: Integer);
-  //procedure RITabsPaint;
   procedure LoadIframes(dum:integer);
   {$endif}
 
@@ -193,6 +191,7 @@ TXIDEForm = class(TXForm)
     nodeID: AnsiString; myValue: AnsiString);
   procedure ResourceTreeHandleTreeNodeClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure ResourceTreeHandleDragStart(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+  function ResourceTreeTreeNodeHintFunc(TreeLabelStr: String): String;
   procedure StyleNodeQualifierHandleChange(e: TEventStatus; nodeID: AnsiString;
     myValue: AnsiString);
   procedure StyleSheetHandleDrop(e: TEventStatus; nodeID: AnsiString;
@@ -234,10 +233,6 @@ TXIDEForm = class(TXForm)
 
 private
   { private declarations }
-  {$ifndef JScript}
-  RITabsDragging: Boolean;
-  RITabsLastPos: TPoint;
-  {$endif}
 public
   { public declarations }
  end;
@@ -261,8 +256,7 @@ end;
 
 function TXIDEForm.HandleGenericEvent(MyEventType,myValue:string;EventNode:TDataNode):Boolean;
 var
-  CompositeNode,SearchNode:TdataNode;
-  ok:boolean;
+  CompositeNode:TdataNode;
 begin
   result:=true;
   // If the EventNode is part of the user's system definition, then select the node in the object inspector.
@@ -375,7 +369,7 @@ begin
     if (values.dstText<>'') then
     begin
       DstNodename:=TreeLabelToId(values.DstText,'NavTree',Part1);
-      DstNode:=FindDataNodeById(SystemNodeTree,DstNodeName,'',true);     //!!!!namespace - assuming top design level only
+      DstNode:=FindDataNodeById(UIRootNode,DstNodeName,'',true);     //!!namespace - assuming top design level only
       if (DstNode<>nil) then
       begin
         ok:=OINavTreeAllowDrop(DstNode);
@@ -461,6 +455,11 @@ begin
   OIDragItem(e,nodeId,myValue);
 end;
 
+function TXIDEForm.ResourceTreeTreeNodeHintFunc(TreeLabelStr: String): String;
+begin
+  result := OIResTreeNodeHint(TreeLabelStr);
+end;
+
 procedure TXIDEForm.StyleNodeQualifierHandleChange(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
@@ -472,9 +471,11 @@ end;
 
 procedure TXIDEForm.StyleSheetHandleDrop(e: TEventStatus; nodeID: AnsiString;
   myValue: AnsiString);
+{$ifdef JScript}
 var
   values:TNodeEventValue;
   TreeNodeId:String;
+{$endif}
 begin
   // e.ValueObject is an object of type TNodeEventValue.
   // values.myNode is of type TTreeNode, and contains data with a unique id.
@@ -492,10 +493,12 @@ end;
 
 procedure TXIDEForm.StyleSheetHandleDropAccepted(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
+{$ifdef JScript}
 var
   values:TNodeEventValue;
   SourceName,SrcText,DstText,ReturnString:String;
   priorNodeText:string;
+{$endif}
 begin
   {$ifdef JScript}
   values:=TNodeEventValue(e.ValueObject);
@@ -720,9 +723,11 @@ begin
   // Add root node events
   UIRootNode.myeventTypes.Add('OnEnterRunMode');
   UIRootNode.myeventTypes.Add('OnExitRunMode');
-  SetLength(UIRootNode.myEventHandlers,1);
+  UIRootNode.InitialiseEventHandlers;
+  {$ifdef JScript}
+  UIRootNode.MyForm:=nil;
+  {$endif}
 end;
-
 
 procedure TXIDEForm.SystemSettingsHandleClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
@@ -738,20 +743,6 @@ procedure TXIDEForm.OIAddPropertyButtonHandleButtonClick(e: TEventStatus;
 begin
   OIAddInterfaceElement;
 end;
-
-//procedure TXIDEForm.DebugTreeHandleButtonClick(e: TEventStatus;
-//  nodeID: AnsiString; myValue: AnsiString);
-//var
-//  txt:String;
-//begin
-//
-//  DebugwriteNodetree(SystemnodeTree,txt,0);
-//  {$ifndef JScript}
-//  WriteToLocalStore('debugtree',txt);
-//  {$else}
-//  myCopyToClip('debugtree',txt );
-//  {$endif}
-//end;
 
 procedure TXIDEForm.ResourceInspectorTabsHandleChange(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
@@ -806,6 +797,8 @@ begin
   AddRequiredFile('stylesutils','resources/project/stylesutils.pas');
   AddRequiredFile('pyxutils','resources/project/pyxutils.pas');
   AddRequiredFile('xidesettings','resources/project/xidesettings.pas');
+  AddRequiredFile('intfparamunit','resources/project/intfparamunit.pas');
+  AddRequiredFile('intfeventunit','resources/project/intfeventunit.pas');
 
   // files needed for web-pas2jscompiler to be compilable by pas2js, and built into the project JS file...
   AddRequiredFile('fppas2js','resources/pas2jstranspiler/fppas2js.pp');
@@ -856,15 +849,17 @@ begin
   UITopControl:=UIRoot;
 
   SystemNodeTree.ScreenObject:=nil;       // root node has no screen object.
-  NavTreeComponent:=self.NavTree.myNode;
-  ResourceTreeComponent:=self.ResourceTree.myNode;
-  CodeTreeComponent:=self.CodeTree.myNode;
 
   myNode:=DoXFormCreated(self);
 
-  MainFormProjectRoot:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
-  UIRootitem:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
+  //UIRootitem:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
   XIDESetupUIRootNode;
+
+  MainFormProjectRoot:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
+
+  NavTreeComponent:=self.NavTree.myNode;
+  ResourceTreeComponent:=self.ResourceTree.myNode;
+  CodeTreeComponent:=self.CodeTree.myNode;
 
   InitialiseResources;
   InitialiseXIDE;
@@ -980,7 +975,6 @@ begin
 end;
 
 {$else}
-
 procedure InitialisePage(dummy:string);
 var
   tempstr,dm:string;
@@ -991,7 +985,6 @@ begin
   ok:=true;
 
   StartingUp:=true;// suppress event handlers while starting up
-
   CheckBrowser;
 
   // this include file contains create statements for all the interface objects in main form and other forms
@@ -1008,8 +1001,6 @@ begin
      }catch(err) { alert(err.message+' in XIDEMain');}
   end;
 
-  UIRootNode.MyForm:=nil;
-  //showmessage('DONE INTFACE LOAD................');
   XIDESetupUIRootNode;
 
   NavTreeComponent:=XIDEForm.NavTree.myNode;
@@ -1017,7 +1008,6 @@ begin
   CodeTreeComponent:=XIDEForm.CodeTree.myNode;
 
   MainFormProjectRoot:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
-  UIRootitem:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
 
   BuildSkeletonResourceTree;
   InitialiseStyleDesigner;
@@ -1106,6 +1096,7 @@ begin
 
   StartingUp:=false;// suppress event handlers while starting up
   SelectNavTreeNode(MainFormProjectRoot,true);
+  RunModeAttempts:=0;
 
   if ok then
   begin
@@ -1122,7 +1113,7 @@ begin
         XIDEForm.SystemLoadFromStore.IsVisible:=false;
         XIDEForm.SystemEncapsulate.IsVisible:=false;
         XIDEForm.SystemSettings.IsVisible:=false;
-        ShowGreyOverlay('UIRootNode','Grey1','Compiling Deployed System. Please Wait...');
+        ShowGreyOverlay(SystemRootName,'Grey1','Compiling Deployed System. Please Wait...');
         // timeout here so the grey overlay appears
         {$ifndef Python}
         asm

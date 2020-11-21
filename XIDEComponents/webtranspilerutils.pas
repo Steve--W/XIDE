@@ -79,9 +79,10 @@ end;
 function LoadIncludeFile(Compiler:TObject;FileName,IncPath:String):TStringList;
 var
   tmp1:TStringList;
-  tmp:String;
   {$ifndef JScript}
   TheStream:TFileStream;
+  {$else}
+  tmp:String;
   {$endif}
 begin
   tmp1:=TStringList.Create;

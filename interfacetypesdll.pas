@@ -30,13 +30,13 @@ Tsetpropertyvalue=procedure(nodeName:String;propName:String;newValue:String) of 
 TsetpropertyvalueIndexed=procedure(nodeName:String;propName:String;newValue:TStringArray;x,y:integer) of object;   stdcall;
 Tconfirm=function(TextMessage:string):boolean of object;                                             stdcall;
 Tgetpropertyvalue=function(nodeName:String;propName:String):string  of object;                        stdcall;
-//TgetpropertyvalueIndexed=function(nodeName:String;propName:String; x,y,w,h:integer):TStringArray  of object;  stdcall;
 Tprompt=function(TextMessage,promptString:string):string of object;                                  stdcall;
 Tshowxform=procedure(XFormID:String; modal:Boolean) of object;                                       stdcall;
 Tclosexform=procedure(XFormID:String) of object;                                                     stdcall;
 TCopyToClip=procedure(str:String) of object;                                                         stdcall;
 TCopyFromClip=function(e:TEventStatus):String of object;                                             stdcall;
 TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;                         stdcall;
+TGetTableDataForExcel=function(TableName:String):String of object                                   stdcall;
 TLoadTableFromNumArray=procedure(TableName:String;NumArray:T2DNumArray) of object;                  stdcall;
 TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray of object;       stdcall;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;                                      stdcall;
@@ -76,12 +76,12 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiSetPropertyValue(nodeName:String;propName:String;newValue:String);  stdcall;
     procedure mmiSetPropertyValueIndexed(nodeName:String;propName:String;newValue:TStringArray; x,y:integer);  stdcall;
     function mmiGetPropertyValue(nodeName:String;propName:String):string;  stdcall;
-//    function mmiGetPropertyValueIndexed(nodeName:String;propName:String; x,y,w,h:integer):TstringArray;  stdcall;
     Function mmiconfirm(TextMessage:string):boolean;  stdcall;
     Function mmiprompt(TextMessage,promptString:string):string;  stdcall;
     procedure mmiCopyToClip(str:String);  stdcall;
     function mmiCopyFromClip(e:TEventStatus):String;  stdcall;
     procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String); stdcall;
+    function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
     procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray); stdcall;
     function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray; stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
@@ -125,10 +125,10 @@ prompt:Tprompt;
 setpropertyvalue:Tsetpropertyvalue;
 setpropertyvalueindexed:Tsetpropertyvalueindexed;
 getpropertyvalue:Tgetpropertyvalue;
-//getpropertyvalueindexed:Tgetpropertyvalueindexed;
 copytoclip:TCopyToClip;
 copyfromclip:TCopyFromClip;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
+GetTableDataForExcel:TGetTableDataForExcel;
 LoadTableFromNumArray:TLoadTableFromNumArray;
 GetTableDataArray:TGetTableDataArray;
 doevent:TDoEvent;
@@ -179,12 +179,12 @@ begin
   setpropertyvalue:=@AppMethods.mmisetpropertyvalue;
   setpropertyvalueindexed:=@AppMethods.mmisetpropertyvalueindexed;
   getpropertyvalue:=@AppMethods.mmigetpropertyvalue;
-//  getpropertyvalueindexed:=@AppMethods.mmigetpropertyvalueindexed;
   confirm:=@AppMethods.mmiconfirm;
   prompt:=@AppMethods.mmiprompt;
   copytoclip:=@AppMethods.mmiCopyToClip;
   copyfromclip:=@AppMethods.mmiCopyFromClip;
   LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
+  GetTableDataForExcel:=@AppMethods.mmiGetTableDataForExcel;
   LoadTableFromNumArray:=@AppMethods.mmiLoadTableFromNumArray;
   GetTableDataArray:=@AppMethods.mmiGetTableDataArray;
   doevent:=@appmethods.mmiDoEvent;
@@ -193,11 +193,9 @@ begin
   deletecomponent:=@appmethods.mmiDeleteComponent;
   getgpuparamnumvalue:=@appmethods.mmiGetGPUParamNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
-//  getgpuparamimgvalue:=@appmethods.mmiGetGPUParamImgValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
   setgpuparam2Dnumvalue:=@appmethods.mmiSetGPUParam2DNumValue;
   setgpuconstintvalue:=@appmethods.mmiSetGPUConstIntValue;
-//  setgpuparamimgvalue:=@appmethods.mmiSetGPUParamImgValue;
   startmain:=@appmethods.mmiStartMain;
   showbusy:=@appmethods.mmiShowBusy;
   hidebusy:=@appmethods.mmiHideBusy;
@@ -216,7 +214,6 @@ begin
   WobbleCEF:=@appmethods.mmiWobbleCEF;
   PyodideLoadPackage:=@appmethods.mmiPyodideLoadPackage;
   PyodidePackageLoaded:=@appmethods.mmiPyodidePackageLoaded;
- // dummy:=GetPropertyValue('UIRoot','Name');     // fudge...didn't work
 
 end;
 {$endif}

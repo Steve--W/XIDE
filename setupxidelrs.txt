@@ -21,3 +21,5 @@ c:/Laz19Projects/XIDE/savedsystems.pas
 c:/Laz19Projects/XIDE/stylesutils.pas
 c:/Laz19Projects/XIDE/pyxutils.pas
 c:/Laz19Projects/XIDE/xidesettings.pas
+c:/Laz19Projects/XIDE/IntfParamUnit.pas
+c:/Laz19Projects/XIDE/IntfEventUnit.pas

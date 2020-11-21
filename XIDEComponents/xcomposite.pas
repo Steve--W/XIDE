@@ -18,7 +18,7 @@ unit XComposite;
 interface
 
 uses
-    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame, Math,
+    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame,
     UtilsJSCompile, XForm, XCode, XButton, XVBox, XTabControl, XMemo, EventsInterface,
     XCompositeIntf,
   {$ifndef JScript}
@@ -79,6 +79,7 @@ var
 procedure TXComposite.SetMyEventTypes;
 begin
   MyEventTypes.Add('Click');
+
 end;
 
 
@@ -197,7 +198,7 @@ begin
   if myNode<>nil then
   begin
     myNode.SetAttributeValue('InheritColor',myBoolToStr(AValue),'Boolean');
-    parentNode:=FindParentOfNode(SystemNodeTree,myNode);
+    parentNode:=myNode.NodeParent;
     if parentNode<>nil then
     begin
       if AValue=true then
@@ -275,7 +276,7 @@ begin
           TargetNode:=FindCompositeContainer(myNode);
           // set the equivalent property
           if TargetNode<>nil then
-            TargetNode.SetAttributeValue(propName,newValue);
+            TargetNode.SetAttributeValue(propName,newValue,'');
        end;
     end
     else if myNode.NodeType='TXComposite' then
@@ -299,11 +300,9 @@ begin
    SearchNode:=StartNode;
    while (ok=false) do
    begin
-     PNode:=FindParentOfnode(SystemNodeTree,SearchNode);
+     PNode:=SearchNode.NodeParent;
      if PNode<>nil then
      begin
-       //if (SearchNode.NodeType<>'TXComposite')
-       //or (SearchNode.NameSpace<>'') then
        if (PNode.NameSpace=StartNode.NameSpace) then
        begin
          ok:=false;
@@ -331,6 +330,8 @@ begin
   AddDefaultAttribute(myDefaultAttribs,'BgColor','Color','#FFFFFF','',false);
   AddDefaultAttribute(myDefaultAttribs,'InheritColor','Boolean','False','',false);
   AddDefaultAttribute(myDefaultAttribs,'SourceString','String','','',true);
+  AddDefaultAttribute(myDefaultAttribs,'LabelPos','String','','',true);
+  AddDefaultAttribute(myDefaultAttribs,'LabelText','String','','',true);
   AddDefaultsToTable(MyNodeType,myDefaultAttribs);
 
   AddAttribOptions(MyNodeType,'Alignment',AlignmentOptions);

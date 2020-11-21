@@ -281,7 +281,9 @@ var
   FileName,CharPos:string;
   LineNum:String;
   LNum:integer;
+  {$ifdef JScript}
   tmp1:TStringList;
+  {$endif}
 begin
   // search the messages list.  Look for a name(line,char) string.
   // If the line also contains keyword 'Error' then navigate to the indicated code block
@@ -401,7 +403,7 @@ begin
             CodeEditInitTab.IsVisible:=true;
 
             // Load up both the main event code AND the initialisation code...
-            TargetNode:=FindDataNodeById(SystemNodeTree,self.TargetNodeName,'',true);
+            TargetNode:=FindDataNodeById(UIRootNode,self.TargetNodeName,'',true);
             if TargetNode<>nil then
             begin
               CodeEditInit.ItemValue:=TargetNode.GetEventInitCode(self.EventType);
@@ -422,7 +424,7 @@ begin
         self.EventType:='';
         self.Mode:='UnitCode';
         Context:='PasUnit';
-        TargetNode:=FindDataNodeById(SystemNodeTree,self.TargetNodeName,'',true);
+        TargetNode:=FindDataNodeById(CodeRootNode,self.TargetNodeName,'',true);
         CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
         targetLine:=StrToInt(linenum)-1;     // -1 because there is no top line (unit xxx;) in the source code
       end;
@@ -450,9 +452,11 @@ var linenumber,targetLine:integer;
     SelectedLine,FileName,CharPos:string;
     FoundLineNum:Boolean;
     FStrings:TStringList;
-    tmp,LineNum,Context:String;
+    LineNum,Context:String;
     TargetNode:TDataNode;
+    {$ifdef JScript}
     Messages:TStringList;
+    {$endif}
 begin
   //showmessage('CodeEdit HandleClickMessage '+ nodeID + ' '+myValue);
  {$ifndef JScript}
@@ -771,11 +775,12 @@ end;
 procedure TCodeEditForm.CodeEditFindNextBtnHandleButtonClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 var
-    found,startidx:integer;
+    found:integer;
     {$ifndef JScript}
     opts:TSynSearchOptions;
     {$else}
     txt:String;
+    startidx:integer;
     {$endif}
 begin
   if self.CodeEditFindTxt.ItemValue='' then
@@ -828,8 +833,6 @@ begin
 end;
 
 procedure TCodeEditForm.CodeEditCancelBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-    XFormNode:TDataNode;
 begin
   CodeEditStatus:='Cancel';
   TXForm(self).Showing:='No';

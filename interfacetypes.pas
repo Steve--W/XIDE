@@ -29,13 +29,13 @@ Tsetpropertyvalue=procedure(nodeName:String;propName:String;newValue:String) of 
 TsetpropertyvalueIndexed=procedure(nodeName:String;propName:String;newValue:TStringArray;x,y:integer) of object;
 Tconfirm=function(TextMessage:string):boolean of object;
 Tgetpropertyvalue=function(nodeName:String;propName:String):string  of object;
-//TgetpropertyvalueIndexed=function(nodeName:String;propName:String; x,y,w,h:integer):TStringArray  of object;
 Tprompt=function(TextMessage,promptString:string):string of object;
 Tshowxform=procedure(XFormID:String; modal:Boolean) of object;
 Tclosexform=procedure(XFormID:String) of object;
 TCopyToClip=procedure(str:String) of object;
 TCopyFromClip=function(e:TEventStatus):String of object;
 TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;
+TGetTableDataForExcel=function(TableName:String):String of object;
 TLoadTableFromNumArray=procedure(TableName:String;NumArray:T2DNumArray) of object;
 TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray of object;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;
@@ -79,6 +79,7 @@ GetPropertyValue:Tgetpropertyvalue;
 CopyToClip:TCopyToClip;
 CopyFromClip:TCopyFromClip;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
+GetTableDataForExcel:TGetTableDataForExcel;
 LoadTableFromNumArray:TLoadTableFromNumArray;
 GetTableDataArray:TGetTableDataArray;
 DoEvent:TDoEvent;
@@ -128,6 +129,7 @@ type TMethodsClass = class(TObject)
  procedure mmiCopyToClip(str:String);
  function mmiCopyFromClip(e:TEventStatus):String;
  procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
+ function mmiGetTableDataForExcel(TableName:String):String;
  procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);
  function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;
  procedure mmiDoEvent(EventType,NodeId,myValue:String);
@@ -183,6 +185,7 @@ begin
   copytoclip:=@AppMethods.mmiCopyToClip;
   copyfromclip:=@AppMethods.mmiCopyFromClip;
   LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
+  GetTableDataForExcel:=@AppMethods.mmiGetTableDataForExcel;
   LoadTableFromNumArray:=@AppMethods.mmiLoadTableFromNumArray;
   GetTableDataArray:=@AppMethods.mmiGetTableDataArray;
   doevent:=@appmethods.mmiDoEvent;
@@ -238,7 +241,7 @@ begin
 
   if (pas.InterfaceTypes.EventsNameSpace!='') {
 
-     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
+     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.UIRootNode,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
      if (mynode!=null) {
        if (myNode.NodeType=='TXCompositeIntf') {
           // find the composite container
@@ -353,6 +356,20 @@ begin
       myNode.LoadTableFromExcelCopy(CopiedString);
     }
   end;
+end;
+function TMethodsClass.mmiGetTableDataForExcel(TableName:String):String;
+var
+  dta:String;
+begin
+  dta:='';
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
+    {
+      dta = myNode.GetTableDataForExcel;
+    }
+  end;
+  result:=dta;
 end;
 
 procedure TMethodsClass.mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);

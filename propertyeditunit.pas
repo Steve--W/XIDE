@@ -41,19 +41,18 @@ type
     PropertyEditSourceHBox: TXHBox;
     PropertyEditVBox1: TXVBox;
     PropertyEditTabSheet1: TXTabSheet;
-    PropertyEditTabSheet2: TXTabSheet;
     PropertyEditTab1VBox1: TXVBox;
     PropertyEditName: TXEditBox;
     PropertyEditType: TXEditBox;
     PropertyEditDoneBtn: TXButton;
     PropertyEditCancelBtn: TXButton;
     PropertyEditSourceBox: TXEditBox;
- //   PropertyEditSourceTree: TXTree;
     PropertyEditSourceBtn: TXButton;
     PropertyEditTabSheet3: TXTabSheet;
     PropertyEditVBox99: TXVBox;
     PropertyEditLabel: TXLabel;
     PropertyEditVBox66: TXVBox;
+    PropertyEditHint: TXEditBox;
     {$ifndef JScript}
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -61,7 +60,6 @@ type
     procedure PropertyEditCancelBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure PropertyEditDoneBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure PropertyEditSourceBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-//    procedure PropertyEditSourceTreeHandleTreeNodeClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure HandleTreeDataNodeSelect(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure HandleTreeDataDragStart(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure HandleTreeDataDrop(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -80,7 +78,6 @@ type
   private
 
   public
-    //myNode:TDataNode;
     TargetNode:TDataNode;
     EditNode:TDataNode;
     TargetAttribute:TNodeAttribute;
@@ -100,9 +97,6 @@ var
 implementation
 {$R *.lfm}
 uses xobjectinsp;
-
-var
-  SourceOptionsList:String;
 
 procedure TPropertyEditForm.SetupPages;
 var
@@ -136,7 +130,6 @@ begin
     if AttribOptions<>nil then
     begin
       NewComboBox:=TXComboBox(AddDynamicWidget('TXComboBox',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditWidget','','Left',-1).ScreenObject);
-      //NewComboBox.OptionList:=StringListToListString(AttribOptions);
       NewComboBox.OptionList:=StringListToJSONString(AttribOptions);
       NewComboBox.LabelText:='';
       EditNode:=NewComboBox.myNode;
@@ -231,7 +224,6 @@ begin
         NewTable.ColWidth:=strtoint(str);
     end;
 
-    //NewTable.HasHeaderRow:=TXTable(TargetNode.ScreenObject).HasHeaderRow;
     NewTable.HasHeaderRow:=false;       // allow for editing col headers
 
     NewHBox:=TXHBox(AddDynamicWidget('TXHBox',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditHBox66','','Left',-1).ScreenObject);
@@ -259,7 +251,6 @@ begin
     NewEditBox:=TXEditBox(AddDynamicWidget('TXEditBox',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditWidget2','','Left',-1).ScreenObject);
     NewEditBox.LabelText:='OR edit TableData as string....';
     NewEditBox.LabelPos:='Top';
-    //EditNode:=NewEditBox.myNode;
     NewEditBox.ItemValue:=TargetAttribute.AttribValue;
     NewEditBox.BoxWidth:='90%';
     NewBtn5:=TXButton(AddDynamicWidget('TXButton',PropertyEditForm,PropertyEditVBox66.myNode,'PropertyEditBtn5','','Left',-1).ScreenObject);
@@ -283,13 +274,14 @@ begin
     EditNode:=NewColorPicker.myNode;
     NewColorPicker.ItemValue:=TargetAttribute.AttribValue;
   end;
-  PropertyEditFormXTabControl11.TabIndex:=2;
+  if PropertyEditForm.PropertyEditTabSheet3.IsVisible then
+    PropertyEditFormXTabControl11.TabIndex:=1
+  else
+    PropertyEditFormXTabControl11.TabIndex:=0;
 end;
 
 {$ifndef JScript}
 procedure TPropertyEditForm.FormCreate(Sender: TObject);
-//var
-//  myNode:TDataNode;
 begin
   myNode:=DoXFormCreated(self);
 end;
@@ -328,9 +320,10 @@ begin
       InputSelectForm.PropType:='';
     InputSelectForm.Initialise;
     ShowXForm('InputSelectForm',true);
-
+    {$ifndef JScript}
     // on return...
     InputSelectForm.InputSelectClosed;
+    {$endif}
 end;
 
 procedure TPropertyEditForm.HandleTreeDataNodeSelect(
@@ -476,7 +469,6 @@ var
   {$ifndef JScript}
   myTree:TmyTreeView;
   {$endif}
-  i:integer;
 begin
 {$ifndef JScript}
   if (CopiedTreeNode<>nil) then
@@ -587,7 +579,6 @@ procedure TPropertyEditForm.CopyStringToTable(e:TEventStatus;nodeID: AnsiString;
 var
   myTable:TXTable;
   myEditBox:TXEditBox;
-  r,c:integer;
 begin
   myTable:=TXTable(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget','',true).ScreenObject);
   myEditBox:=TXEditBox(FindDataNodeById(PropertyEditVBox66.myNode,'PropertyEditWidget2','',true).ScreenObject);

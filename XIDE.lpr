@@ -20,7 +20,7 @@ uses
   {$ifdef Python}
   PyXUtils,PythonEngine,
   {$endif}
-  CEFXUtils, FrameViewer09, XGPUEditor, XIDESettings;
+  CEFXUtils, FrameViewer09, XGPUEditor, XIDESettings, intfparamunit, IntfEventUnit;
 
 {$R *.res}
 {$ifdef Chromium}
@@ -56,6 +56,8 @@ begin
     Application.CreateForm(TXIDEHelpForm, XIDEHelpForm);
     Application.CreateForm(TSavedSystemsForm, SavedSystemsForm);
     Application.CreateForm(TXIDESettingsForm, XIDESettingsForm);
+    Application.CreateForm(TIntfParamForm, IntfParamForm);
+    Application.CreateForm(TIntfEventForm, IntfEventForm);
     Application.ProcessMessages;
     Application.Run;
 

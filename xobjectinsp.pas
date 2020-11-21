@@ -30,7 +30,7 @@ uses
   XHBox, XVBox, XCode,XColorPicker,
   XTree,  XButton, XScrollBox, XEditBox, XCheckBox, XComboBox, XTabControl,
   XForm, XTable, XMemo, XMenu, CodeEditor, PropertyEditUnit, EventsInterface,
-  XGPUCanvas, XGPUEditor, XCompositeIntf, StylesUtils;
+  XGPUCanvas, XGPUEditor, XCompositeIntf, StylesUtils,IntfParamUnit,IntfEventUnit;
 
 {$ifdef JScript}
 function CheckForSavedSystemOnLoad:Boolean;
@@ -57,15 +57,18 @@ type
     procedure OIEditEvent(e:TEventStatus;nodeId:string;myValue:string);
     procedure OIEditEventCode(e:TEventStatus;nodeId:string;myValue:string);
     procedure OIEditEventCodeFromCodeTree(NodeNameToEdit:string;EventToEdit:string);
+    procedure OIEditIntfEvent(e:TEventStatus;nodeId:String;myValue:String);
     procedure TestButtonClick(e:TEventStatus;nodeId:string;myValue:string);
     procedure OIEditPropertyButtonClick(e:TEventStatus;nodeId:string;myValue:string);
+    procedure OIDelPropertyButtonClick(e:TEventStatus;nodeId:string;myValue:string);
+    procedure OIDelEventButtonClick(e:TEventStatus;nodeId:string;myValue:string);
     procedure CloseGPUEditor(e:TEventStatus;nodeId:string;myValue:string);
     {$ifdef JScript}
     procedure OIPasteTarget(e:TEventStatus;nodeId:string;myValue:string);
     {$endif}
   end;
 
-procedure DebugWriteNodeTree(StartNode:TdataNode;var txt:String;lvl:integer);
+procedure DumpFullNodeTree;
 procedure InitialiseXIDE;
 function XIDEConfirm(promptString:String):boolean;
 procedure SetupAvailableResources;
@@ -90,9 +93,11 @@ procedure OISystemLoad(e:TEventStatus;nodeId:string);
 procedure OIClearSystem;
 procedure OIDeploySystem;
 function OITreeNodeHint(TreeLabelStr:String):String;
+function OIResTreeNodeHint(TreeLabelStr:String):String;
 procedure PopulateObjectInspector(CurrentNode:TDataNode);
+procedure RefreshObjectInspectorLater(targetNode:TDataNode);
 procedure OIPropsEventsTabChange;
-function PopulateResourceInspector(CurrentNode:TDataNode):String;
+procedure PopulateResourceInspector(CurrentNode:TDataNode);
 function TreeLabelToID(TreeLabelStr,TreeName:String;var FirstBit:String):String;
 function GetNavigatorHint(InTree:TDataNode;SystemNodeName:String):String;
 function CompositeResourcesString(QuotedString:Boolean):String;
@@ -116,7 +121,6 @@ function OINavTreeAllowDrop(DstNode:TDataNode):Boolean;
 procedure SelectNavTreeNode(CurrentNode:TDataNode; refresh:boolean);
 Function ConstructSystemTreeString(CurrentItem:TDataNode; level:Integer; IncludeTypes,IncludeProperties:Boolean;
                                    Exclusions:TStringList;PropType:String):String;
-//function   DfltEventCode:string;
 procedure OIMoveItem(nodeId,NameSpace:string;NewParentId:string);
 procedure OICopyToNewParent(nodeId,NameSpace:string;NewParentId:string;NewName:String);  overload;
 {$ifndef JScript}
@@ -135,7 +139,7 @@ procedure OILoadResource;
 procedure OIAddInterfaceElement;
 procedure DiscoverSavedSystems(var NamesList:TStringList);
 procedure OICodeSearch;
-function PythonScriptsExist:Boolean;
+function NameStringIsValid(nm:String):Boolean;
 
 
 const
@@ -143,14 +147,16 @@ const
   CodeDataRootName=  'dllRoot' ;
   UIProjectRootName = 'UIRoot';                    //the scrollbox containing the user-designed (mainform) system
   PropertyEditorScrollboxName:string = 'PropertyEditorScrollbox';
+  CompositePropsScrollboxName:string = 'CompositePropsScrollbox';
+  CompositePropsTabName:string = 'OICompositePropsTab';
   EventsEditorScrollboxName:string = 'EventsEditorScrollbox';
-  ResourceEditorScrollboxName:string = 'ResourceEditorScrollbox';
+//  ResourceEditorScrollboxName:string = 'ResourceEditorScrollbox';
   DeploymentModeOptions:Array[0..1] of string = ('Design','Run');
   ShowResourcesOptions:Array[0..1] of string = ('Left','Right');
 
 
 var
-  MainFormProjectRoot,UIRootItem:TDataNode;
+  MainFormProjectRoot:TDataNode;
   DesignMode:Boolean;
   NavTreeComponent,ResourcesNodeTree, ResourceTreeComponent, CodeTreeComponent:TDataNode;
   OIEventWrapper:TOIEventWrapper;
@@ -159,6 +165,10 @@ var
   TreeInFocus, ObjectInspectorSelectedNavTreeNode, ObjectInspectorSelectedCodeTreeNode, ObjectInspectorSourceNode:TDataNode;
   OISelectedCodeProcName:String;
   OISelectedCodeLineNum:integer;
+  RunModeAttempts:integer;
+
+  PropertiesNode, InterfacePropsNode, InterfaceTabNode, EventsNode,
+    AddInterfacePropsButtonNode, OITabs : TDataNode;
 
   {$ifndef JScript}
   UITopControl:TWinControl;
@@ -181,11 +191,11 @@ var
   AvailableResourcesSelectedNode:TDataNode;
   ObjectInspectorSourceCut:Boolean;
 
-type
-  TCompositeResource = record
-    ResourceName:String;
-    SourceString:String;
-  end;
+//type
+//  TCompositeResource = record
+//    ResourceName:String;
+//    SourceString:String;
+//  end;
 //var
 //  ListOfComposites:Array of TCompositeResource;
 
@@ -209,12 +219,6 @@ begin
 
   if CurrentItem<>nil then
   begin
-//    {$ifdef JScript}
-//    if CurrentItem.NodeClass='SVG' then
-//    asm
-//      console.log(CurrentItem.NodeName+' '+CurrentItem.NodeType+' '+CurrentItem.IsDynamic);
-//    end;
-//    {$endif}
     if (CurrentItem.NameSpace='')
     and (
     ((CurrentItem.NodeClass='UI') and (CurrentItem.IsDynamic=true))
@@ -226,7 +230,7 @@ begin
     or (CurrentItem=ResourcesNodeTree)
     or (CurrentItem=CodeRootNode)
     or (CurrentItem=UIRootNode)
-    or (CurrentItem=UIRootItem)
+    or (CurrentItem=MainFormProjectRoot)
     or (CurrentItem.NodeClass='Code')
     or (CurrentItem.NodeClass[1]='R')
     )
@@ -296,7 +300,7 @@ begin
                ArrayString:=ArrayString+ConstructSystemTreeString(CurrentItem.ChildNodes[i],level+1,IncludeTypes,IncludeProperties,Exclusions,PropType);
           end;
 
-          ArrayString:=ArrayString+ConstructSystemTreeString(UIRootitem,level+1,IncludeTypes,IncludeProperties,Exclusions,PropType);
+          ArrayString:=ArrayString+ConstructSystemTreeString(MainFormProjectRoot,level+1,IncludeTypes,IncludeProperties,Exclusions,PropType);
 
         end;
 
@@ -427,7 +431,7 @@ end;
 
 Function ConstructEventsTreeString(CurrentItem:TDataNode;var e:integer):String;
 // Recursive
-var ArrayString,dflt,tmp:String;
+var ArrayString,dflt:String;
     i,numchildren:integer;
 begin
   dflt:=DfltEventCode;
@@ -467,10 +471,9 @@ end;
 
 Function ConstructGPUCodeTreeString(CurrentItem:TDataNode):String;
 // Recursive
-var ArrayString,dflt,tmp:String;
+var ArrayString:String;
     i,numchildren:integer;
 begin
-  dflt:=DfltEventCode;
   if CurrentItem<>nil then
   if CurrentItem.NameSpace='' then
   begin
@@ -510,9 +513,12 @@ begin
   //showmessage('GetNavigatorHint '+SystemNodeName);
   if SystemNode<>nil then
   begin
-    foundattrib:=SystemNode.GetAttribute('Hint',true);
-    if foundattrib.AttribName='Hint' then
-      result:=foundattrib.AttribValue;
+    if SystemNode.HasAttribute('Hint') then
+    begin
+      foundattrib:=SystemNode.GetAttribute('Hint',false);
+      if foundattrib<>nil then
+        result:=foundattrib.AttribValue;
+    end;
   end;
   //showmessage('GetNavigatorHint result '+result);
 end;
@@ -532,8 +538,7 @@ begin
   end;
 end;
 
-function RegisterResource(ClassName,ScreenObjectType,ScreenObjectName,ParentName:string; position:integer;
-                          Attribs:TNodeAttributesArray):TDataNode;  overload;
+function RegisterResource(ClassName,ScreenObjectType,ScreenObjectName,ParentName:string; Hint:String):TDataNode;  overload;
  var
       dfltAttribs:TDefaultAttributesArray;
       myAttribs:TNodeAttributesArray;
@@ -546,28 +551,26 @@ function RegisterResource(ClassName,ScreenObjectType,ScreenObjectName,ParentName
     if myparent<>nil
     then
     begin
-      dfltAttribs:=GetDefaultAttribs(ScreenObjectType);
-      setlength(myAttribs,length(dfltAttribs));
-      for i:=0 to length(dfltAttribs)-1 do
-      begin
-        myAttribs[i].AttribName:=dfltAttribs[i].AttribName;
-        myAttribs[i].AttribType:=dfltAttribs[i].AttribType;
-        myAttribs[i].AttribReadOnly:=dfltAttribs[i].AttribReadOnly;
-        myAttribs[i].AttribValue:=dfltAttribs[i].AttribValue;
-      end;
+      //dfltAttribs:=GetDefaultAttribs(ScreenObjectType);
+      //setlength(myAttribs,length(dfltAttribs));
+      //for i:=0 to length(dfltAttribs)-1 do
+      //begin
+      //  myAttribs[i]:=TNodeAttribute.Create(nil,dfltAttribs[i].AttribName);
+      //  myAttribs[i].AttribType:=dfltAttribs[i].AttribType;
+      //  myAttribs[i].AttribReadOnly:=dfltAttribs[i].AttribReadOnly;
+      //  myAttribs[i].AttribValue:=dfltAttribs[i].AttribValue;
+      //end;
+      setlength(myAttribs,1);
+      myAttribs[0]:=TNodeAttribute.Create(nil,'Hint');
+      myAttribs[0].AttribType:='String';
+      myAttribs[0].AttribReadOnly:=True;
+      myAttribs[0].AttribValue:=Hint;
 
-      myself:=AddChildToDataNode(myparent,ClassName,ScreenObjectName,ScreenObjectType,'',myAttribs,position);
+      myself:=AddChildToDataNode(myparent,ClassName,ScreenObjectName,ScreenObjectType,'',myAttribs,-1);
 
       if myself<>nil then
       begin
-       // mySelf.AddAttribute('Hint','String','',false);
         mySelf.AddAttribute('ParentName', ParentName,'String',true);
-
-        // add or update the given attributes
-        for i:=0 to length(Attribs)-1 do
-        begin
-          mySelf.SetAttributeValue(Attribs[i].AttribName,Attribs[i].AttribValue,Attribs[i].AttribType);
-        end;
         mySelf.SetAttributeValue('ParentName', ParentName,'String');
 
         // myself is a local variable.  Re-assign it to the childnodes array.
@@ -584,11 +587,10 @@ procedure BuildSkeletonResourceTree;
 var
   emptyAttribs:TNodeAttributesArray;
 begin
-  setlength(emptyAttribs,0);
-
+  setLength(emptyAttribs,0);
   ResourcesNodeTree:=AddChildToDataNode(SystemNodeTree,'ResourceRoot',ResourceDataRootName,'','',emptyAttribs,-1);
   ResourcesNodeTree.AddAttribute('ParentName','String', SystemRootName,true);
-  RegisterResource('RUI','','Composites','ResourceRoot',-1,emptyAttribs);
+  RegisterResource('RUI','','Composites','ResourceRoot','');
 end;
 
 procedure SaveSystemData;
@@ -629,6 +631,13 @@ end;
 
 procedure InitialiseXIDE;
 begin
+  //OITabs:=FindDataNodeById(SystemNodeTree,'OITabs','',true);
+  OITabs:=FindDataNodeById(UIRootNode,'OITabs','',true);
+  PropertiesNode:=FindDataNodeById(OITabs,PropertyEditorScrollboxName,'',true);
+  InterfacePropsNode:=FindDataNodeById(OITabs,CompositePropsScrollboxName,'',true);
+  EventsNode:=FindDataNodeById(OITabs,EventsEditorScrollboxName,'',true);
+  InterfaceTabNode:=FindDataNodeById(OITabs,CompositePropsTabName,'',true);
+  AddInterfacePropsButtonNode:=FindDataNodeById(UIRootNode,'OIAddPropertyButton','',true);
 
   InitResourcesNodeTree;
   RebuildResourcesTree;
@@ -637,7 +646,7 @@ begin
   RebuildCodeTree;
 
   {$ifndef JScript}
-  ConsoleNode:=FindDataNodeById(SystemNodeTree,'XMemo1','',true);
+  ConsoleNode:=FindDataNodeById(UIRootNode,'XMemo1','',true);
   {$else}
   AboutXIDEForm.BuildText;
   PasteDialogUnit.SetupPasteDialogForm;
@@ -657,7 +666,7 @@ begin
   //showmessage('InitialiseComposites '+CompositesString);
   // The string CompositesString contains the XML list of the stored composites defined in the desktop system.
   // These are now being transferred into the browser environment.
-  composites:=FindDataNodeById(SystemNodetree,'Composites','',false);
+  composites:=FindDataNodeById(ResourcesNodeTree,'Composites','',false);
   if (composites<>nil)
   and (CompositesString<>'</>') then
     XMLToNodeTree(CompositesString,composites,false);
@@ -665,7 +674,6 @@ begin
   begin
     itemName:=composites.ChildNodes[i].NodeName;
     // these names all have a _xcmp suffix.
-//    itemName:=Copy(itemName,1,length(itemName)-5);
     composites.ChildNodes[i].NodeName:=itemName;
     src:=composites.ChildNodes[i].GetAttribute('SourceString',false).AttribValue;
     itemName:=Copy(itemName,1,length(itemName)-5);
@@ -679,7 +687,7 @@ procedure ClearAllComposites;
 var
   composites:TDataNode;
 begin
-  composites:=FindDataNodeById(SystemNodetree,'Composites','',false);
+  composites:=FindDataNodeById(ResourcesNodeTree,'Composites','',false);
   DeleteNodeChildren(composites);
 end;
 
@@ -771,428 +779,110 @@ end;
 
 procedure SetupAvailableResources;
 var
-  AttrParams:TNodeAttributesArray;
   NamesList:TStringList;
   i:integer;
   str:String;
+  RNode:TDataNode;
 begin
 
-    ClearAttribs(AttrParams);
-    RegisterResource('RUI','','UIComponents',ResourceDataRootName,-1,AttrParams);
-    // Set up the tree of available components
+  RegisterResource('RUI','','UIComponents',ResourceDataRootName,'');
+  // Set up the tree of available components
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','','Layout','UIComponents',-1,AttrParams);
+  RegisterResource('RUI','','Layout','UIComponents','');
+  RegisterResource('RUI','TXVBox','TXVBox','Layout','Panel for vertically aligned items');
+  RegisterResource('RUI','TXHBox','TXHBox','Layout','Panel for horizontally aligned items');
+  RegisterResource('RUI','TXGroupBox','TXGroupBox','Layout','');
+  RegisterResource('RUI','TXScrollBox','TXScrollBox','Layout','Scrollable panel (with vertical alignment of items)');
+  RegisterResource('RUI','TXTabControl','TXTabControl','Layout','Container for a set of Tab Pages');
+  RegisterResource('RUI','TXTabSheet','TXTabSheet','Layout','Tab Page');
+  RegisterResource('RUI','TXForm','TXForm','Layout','Pop-up Form');
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ContainerWidth','String','100',false);
-     AddAttrib(AttrParams,'ContainerHeight','String','100',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     AddAttrib(AttrParams,'Border','Boolean','True',false);
-     RegisterResource('RUI','TXVBox','TXVBox','Layout',-1,AttrParams);
+  RegisterResource('RUI','','Numeric','UIComponents','');
+  RegisterResource('RUI','TXProgressBar','TXProgressBar','Numeric','');
+  RegisterResource('RUI','TXNumericSlider','TXNumericSlider','Numeric','');
+  //AddAttrib(AttrParams,'StepSize','Real','1',false);
+  RegisterResource('RUI','TXNumberSpinner','TXNumberSpinner','Numeric','');
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ContainerWidth','String','',false);
-     AddAttrib(AttrParams,'ContainerHeight','String','30',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     AddAttrib(AttrParams,'Border','Boolean','True',false);
-     RegisterResource('RUI','TXHBox','TXHBox','Layout',-1,AttrParams);
+  RegisterResource('RUI','','Text','UIComponents','');
+  RegisterResource('RUI','TXLabel','TXLabel','Text','Simple text label');
+  RegisterResource('RUI','TXHyperlink','TXHyperlink','Text','URL Link item');
+  //AddAttrib(AttrParams,'ContainerWidth','','',false);
+  RegisterResource('RUI','TXEditBox','TXEditBox','Text','Editable text box');
+  RegisterResource('RUI','TXMemo','TXMemo','Text','Editable multi-line text box');
+  RegisterResource('RUI','TXTable','TXTable','Text','2D Tabular data display');
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ContainerWidth','String','300',false);
-     AddAttrib(AttrParams,'ContainerHeight','String','200',false);
-     AddAttrib(AttrParams,'Hint','String','Example hint: This is a group box',false);
-     RegisterResource('RUI','TXGroupBox','TXGroupBox','Layout',-1,AttrParams);
+  //{$ifdef Python}
+  ////AddAttrib(AttrParams,'Language','String','Python',false);
+  //RegisterResource('RUI','TXCode','TXCode','Text','');
+  //{$endif}
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ContainerWidth','String','100',false);
-     AddAttrib(AttrParams,'ContainerHeight','String','100',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     AddAttrib(AttrParams,'Border','Boolean','True',false);
-     AddAttrib(AttrParams,'ScrollType','String','Right',false);
-     RegisterResource('RUI','TXScrollBox','TXScrollBox','Layout',-1,AttrParams);
+  RegisterResource('RUI','','Selectors','UIComponents','');
+  RegisterResource('RUI','TXButton','TXButton','Selectors','Button');
+  //AddAttrib(AttrParams,'Enabled','Boolean','True',false);
+  RegisterResource('RUI','TXCheckBox','TXCheckBox','Selectors','Checkbox');
+  RegisterResource('RUI','TXRadioBtns','TXRadioBtns','Selectors','Radio buttons group');
+  //AddAttrib(AttrParams,'ItemIndex','Integer','0',false);
+  RegisterResource('RUI','TXComboBox','TXComboBox','Selectors','Drop-down selector');
+  //AddAttrib(AttrParams,'ItemText','String','Tree',false);
+  RegisterResource('RUI','TXTree','TXTree','Selectors','Hierarchical tree structure');
+  RegisterResource('RUI','TXDatePicker','TXDatePicker','Selectors','Date picker');
+  RegisterResource('RUI','TXColorPicker','TXColorPicker','Selectors','Colour picker');
+  RegisterResource('RUI','TXMainMenu','TXMainMenu','Selectors','Main menu, container for menu items');
+  RegisterResource('RUI','TXMenuItem','TXMenuItem','Selectors','Menu Item');
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ContainerWidth','String','200',false);
-     AddAttrib(AttrParams,'ContainerHeight','String','200',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXTabControl','TXTabControl','Layout',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXTabSheet','TXTabSheet','Layout',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Width','Integer','600',false);
-     AddAttrib(AttrParams,'Height','Integer','500',false);
-     AddAttrib(AttrParams,'Caption','String','My Title',false);
-     AddAttrib(AttrParams,'Top','Integer','50',false);
-     AddAttrib(AttrParams,'Left','Integer','50',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXForm','TXForm','Layout',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','','Numeric','UIComponents',-1,AttrParams);
-
-    ClearAttribs(AttrParams);
-    ClearAttribs(AttrParams);
-    AddAttrib(AttrParams,'MaxVal','Integer','100',false);
-    AddAttrib(AttrParams,'LabelText','String','ProgressBar',false);
-    AddAttrib(AttrParams,'ItemValue','Integer','5',false);
-    AddAttrib(AttrParams,'BarWidth','String','200',false);
-    AddAttrib(AttrParams,'Hint','String','',false);
-    RegisterResource('RUI','TXProgressBar','TXProgressBar','Numeric',-1,AttrParams);
-
-    ClearAttribs(AttrParams);
-    AddAttrib(AttrParams,'MinVal','Integer','0',false);
-    AddAttrib(AttrParams,'MaxVal','Integer','100',false);
-    AddAttrib(AttrParams,'LabelText','String','Number Slider',false);
-    AddAttrib(AttrParams,'ItemValue','Integer','5',false);
-    AddAttrib(AttrParams,'BarWidth','String','200',false);
-    AddAttrib(AttrParams,'Hint','String','',false);
-    RegisterResource('RUI','TXNumericSlider','TXNumericSlider','Numeric',-1,AttrParams);
-
-    ClearAttribs(AttrParams);
-    AddAttrib(AttrParams,'MinVal','Integer','22',false);
-    AddAttrib(AttrParams,'MaxVal','Integer','44',false);
-    AddAttrib(AttrParams,'LabelText','String','NumberField',false);
-    AddAttrib(AttrParams,'ItemValue','String','22',false);
-    AddAttrib(AttrParams,'StepSize','Real','1',false);
-    AddAttrib(AttrParams,'Hint','String','',false);
-    RegisterResource('RUI','TXNumberSpinner','TXNumberSpinner','Numeric',-1,AttrParams);
-
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','','Text','UIComponents',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'LabelCaption','String','caption',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXLabel','TXLabel','Text',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'LabelCaption','String','Hyperlink BBC News',false);
-     AddAttrib(AttrParams,'URL','String','http://www.bbc.co.uk/news',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXHyperlink','TXHyperlink','Text',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ItemValue','String','',false);
-     AddAttrib(AttrParams,'LabelText','String','EditBox',false);
-     AddAttrib(AttrParams,'ReadOnly','Boolean','False',false);
-     AddAttrib(AttrParams,'ContainerWidth','','',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXEditBox','TXEditBox','Text',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'MemoHeight','String','200',false);
-     AddAttrib(AttrParams,'MemoWidth','String','500',false);
-     AddAttrib(AttrParams,'LabelText','String','Multi-Line EditBox',false);
-     AddAttrib(AttrParams,'ItemValue','String','',false);
-     AddAttrib(AttrParams,'ReadOnly','Boolean','False',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXMemo','TXMemo','Text',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'TableHeight','String','200',false);
-     AddAttrib(AttrParams,'TableWidth','String','400',false);
-     AddAttrib(AttrParams,'ColWidth','Integer','40',false);
-     AddAttrib(AttrParams,'LabelText','String','',false);
-     AddAttrib(AttrParams,'TableData','TableString','[["a","b","c"],["1","2","3"]]',false);
-     AddAttrib(AttrParams,'ReadOnly','Boolean','False',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXTable','TXTable','Text',-1,AttrParams);
-
-     {$ifdef Python}
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Language','String','Python',false);
-     RegisterResource('RUI','TXCode','TXCode','Text',-1,AttrParams);
-     {$endif}
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','','Selectors','UIComponents',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ButtonWidth','String','',false);
-     AddAttrib(AttrParams,'Caption','String','Press Me',false);
-     AddAttrib(AttrParams,'Enabled','Boolean','True',false);
-     RegisterResource('RUI','TXButton','TXButton','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Checked','Boolean','false',false);
-     AddAttrib(AttrParams,'LabelText','String','checkbox label',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     AddAttrib(AttrParams,'Enabled','Boolean','True',false);
-     RegisterResource('RUI','TXCheckBox','TXCheckBox','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ItemValue','String','',false);
-     AddAttrib(AttrParams,'Caption','String','radio buttons',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     AddAttrib(AttrParams,'ReadOnly','Boolean','False',false);
-     RegisterResource('RUI','TXRadioBtns','TXRadioBtns','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ItemIndex','Integer','0',false);
-     AddAttrib(AttrParams,'LabelText','String','ComboBox',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXComboBox','TXComboBox','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'ItemText','String','Tree',false);
-     AddAttrib(AttrParams,'OpenToLevel','Integer','1',false);
-     AddAttrib(AttrParams,'TreeHeight','String','200',false);
-     AddAttrib(AttrParams,'TreeWidth','String','350',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXTree','TXTree','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'LabelText','String','Date Picker',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXDatePicker','TXDatePicker','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'LabelText','String','Colour Picker',false);
-     AddAttrib(AttrParams,'ItemValue','String','#FF8040',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXColorPicker','TXColorPicker','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     RegisterResource('RUI','TXMainMenu','TXMainMenu','Selectors',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Caption','String','Menu Item',false);
-     RegisterResource('RUI','TXMenuItem','TXMenuItem','Selectors',-1,AttrParams);
-
-
-  //   ClearAttribs(AttrParams);
-  //   AddAttrib(AttrParams,'LabelText','String','File Picker',false);
-  //   AddAttrib(AttrParams,'ItemText','String','*.pas',false);
-  //   AddAttrib(AttrParams,'ItemValue','String','',false);
-  //   AddAttrib(AttrParams,'Hint','String','',false);
   //   RegisterResource('RUI','FilePicker','FilePicker','Selectors',-1,AttrParams);
 
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','','Media','UIComponents',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'LabelText','String','Image',false);
-     AddAttrib(AttrParams,'Source','String','',false);       //loading.gif?
-     AddAttrib(AttrParams,'ImageHeight','String','200px',false);
-     AddAttrib(AttrParams,'ImageWidth','String','250px',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXImage','TXImage','Media',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'LabelText','String','Image',false);
-     AddAttrib(AttrParams,'ImageHeight','String','500px',false);
-     AddAttrib(AttrParams,'ImageWidth','String','500px',false);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','TXBitMap','TXBitMap','Media',-1,AttrParams);
+  RegisterResource('RUI','','Media','UIComponents','');
+  RegisterResource('RUI','TXImage','TXImage','Media','Image');
+  RegisterResource('RUI','TXBitMap','TXBitMap','Media','Bitmap');
 
      // missing.....Audio
      // missing.....Video
      // missing.....Chat
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','','IFrame','UIComponents',-1,AttrParams);
+  RegisterResource('RUI','','IFrame','UIComponents','');
+  RegisterResource('RUI','TXIFrame','TXIFrame','IFrame','IFrame (embedded HTML) component');
+  RegisterResource('RUI','TXGPUCanvas','TXGPUCanvas','IFrame','GPU Canvas');
+  RegisterResource('RUI','TXHTMLEditor','TXHTMLEditor','IFrame','Editable HTML text frame');
+  RegisterResource('RUI','TXHTMLText','TXHTMLText','IFrame','Non-editable HTML Text frame');
+  RegisterResource('RUI','TXSVGContainer','TXSVGContainer','IFrame','SVG Container');
+  RegisterResource('RUI','','SVGComponents','IFrame','');
+  RegisterResource('RSVG','TXSVGText','TXSVGText','SVGComponents','SVG Text element');
+  RegisterResource('RSVG','TXSVGRect','TXSVGRect','SVGComponents','SVG Rectangle element');
+  RegisterResource('RSVG','TXSVGRoundedRect','TXSVGRoundedRect','SVGComponents','SVG Rounded Rectangle element');
+  RegisterResource('RSVG','TXSVGCircle','TXSVGCircle','SVGComponents','SVG Circle element');
+  RegisterResource('RSVG','TXSVGEllipse','TXSVGEllipse','SVGComponents','SVG Ellipse element');
+  RegisterResource('RSVG','TXSVGLine','TXSVGLine','SVGComponents','SVG Line element');
+  RegisterResource('RSVG','TXSVGPolyLine','TXSVGPolyLine','SVGComponents','SVG Poly-line element');
+  RegisterResource('RSVG','TXSVGPolyGon','TXSVGPolyGon','SVGComponents','SVG Polygon element');
 
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'HTMLSource','String','',false);
-     AddAttrib(AttrParams,'FrameHeight','Integer','300',false);
-     AddAttrib(AttrParams,'FrameWidth','Integer','300',false);
-     RegisterResource('RUI','TXIFrame','TXIFrame','IFrame',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'FrameHeight','Integer','300',false);
-     AddAttrib(AttrParams,'FrameWidth','Integer','300',false);
-     AddAttrib(AttrParams,'AnimationCode','String','',false);
-     AddAttrib(AttrParams,'Active','Boolean','False',false);
-     AddAttrib(AttrParams,'Animated','Boolean','False',false);
-     AddAttrib(AttrParams,'MaxIterations','Integer','512',false);
-     AddAttrib(AttrParams,'StartIteration','Integer','1',false);
-     AddAttrib(AttrParams,'NumFrames','Integer','100',false);
-     AddAttrib(AttrParams,'MaxFramesPerSec','Integer','15',false);
-     RegisterResource('RUI','TXGPUCanvas','TXGPUCanvas','IFrame',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'HTMLSource','String','',false);
-     AddAttrib(AttrParams,'FrameHeight','Integer','300',false);
-     AddAttrib(AttrParams,'FrameWidth','Integer','300',false);
-     AddAttrib(AttrParams,'IsEmbedded','Boolean','True',false);
-     AddAttrib(AttrParams,'SourceText','String','...text...',false);
-     AddAttrib(AttrParams,'Showing','Boolean','False',false);
-     RegisterResource('RUI','TXHTMLEditor','TXHTMLEditor','IFrame',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'FrameHeight','Integer','300',false);
-     AddAttrib(AttrParams,'FrameWidth','Integer','300',false);
-     AddAttrib(AttrParams,'SourceText','String','...text...',false);
-     RegisterResource('RUI','TXHTMLText','TXHTMLText','IFrame',-1,AttrParams);
-
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'FrameHeight','Integer','300',false);
-     AddAttrib(AttrParams,'FrameWidth','Integer','300',false);
-     RegisterResource('RUI','TXSVGContainer','TXSVGContainer','IFrame',-1,AttrParams);
-
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'Hint','String','',false);
-     RegisterResource('RUI','','SVGComponents','IFrame',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'XPos','Integer','50',false);        //y
-     AddAttrib(AttrParams,'YPos','Integer','50',false);         //x
-     AddAttrib(AttrParams,'TextString','String','SVG Text Example',false);
-     AddAttrib(AttrParams,'Height','Integer','20',false);
-     AddAttrib(AttrParams,'FontFamily','String',' impact, georgia, times, serif;',false);
-     AddAttrib(AttrParams,'FontWeight','String',' normal',false);
-     AddAttrib(AttrParams,'FontStyle','String',' normal',false);
-     AddAttrib(AttrParams,'Rotate','Integer','0',false) ;
-     RegisterResource('RSVG','TXSVGText','TXSVGText','SVGComponents',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'XPos','Integer','0',false);        //y
-     AddAttrib(AttrParams,'YPos','Integer','110',false);         //x
-     AddAttrib(AttrParams,'Width','Integer','30',false);
-     AddAttrib(AttrParams,'Height','Integer','30',false);
-     AddAttrib(AttrParams,'StrokeColor','Color','#000000',false);          // stroke
-     //AddAttrib(AttrParams,'FillColor','Color','none',false);            //fill
-     AddAttrib(AttrParams,'FillColor','Color','#FFFFFF',false);            //fill
-     AddAttrib(AttrParams,'StrokeWidth','Integer','5',false);
-     AddAttrib(AttrParams,'Rotate','Integer','0',false);
-     RegisterResource('RSVG','TXSVGRect','TXSVGRect','SVGComponents',-1,AttrParams);
-
-     ClearAttribs(AttrParams);
-     AddAttrib(AttrParams,'XPos','Integer','60',false);        //y
-     AddAttrib(AttrParams,'YPos','Integer','10',false);         //x
-     AddAttrib(AttrParams,'Rx','Integer','10',false);
-     AddAttrib(AttrParams,'Ry','Integer','10',false);
-     AddAttrib(AttrParams,'Width','Integer','30',false);
-     AddAttrib(AttrParams,'Height','Integer','30',false);
-     AddAttrib(AttrParams,'StrokeColor','Color','#000000',false);          // stroke
-     //AddAttrib(AttrParams,'FillColor','Color','none',false);            //fill
-     AddAttrib(AttrParams,'FillColor','Color','#FFFFFF',false);            //fill
-     AddAttrib(AttrParams,'StrokeWidth','Integer','5',false);
-     AddAttrib(AttrParams,'Rotate','Integer','0',false);
-     RegisterResource('RSVG','TXSVGRoundedRect','TXSVGRoundedRect','SVGComponents',-1,AttrParams);
-
-      ClearAttribs(AttrParams);
-      AddAttrib(AttrParams,'XPos','Integer','25',false);        //cy
-      AddAttrib(AttrParams,'YPos','Integer','75',false);         //cy
-      AddAttrib(AttrParams,'Radius','Integer','20',false);       //r
-      AddAttrib(AttrParams,'StrokeColor','Color','#00FF00',false);          // stroke
-      AddAttrib(AttrParams,'FillColor','Color','#FFFF00',false);            //fill
-      AddAttrib(AttrParams,'Strokewidth','Integer','5',false);
-      AddAttrib(AttrParams,'Rotate','Integer','0',false);
-      RegisterResource('RSVG','TXSVGCircle','TXSVGCircle','SVGComponents',-1,AttrParams);
-
-      ClearAttribs(AttrParams);
-      AddAttrib(AttrParams,'XPos','Integer','100',false);        //cy
-      AddAttrib(AttrParams,'YPos','Integer','75',false);         //cy
-      AddAttrib(AttrParams,'Rx','Integer','20',false);       //rx
-      AddAttrib(AttrParams,'Ry','Integer','50',false);       //ry
-      AddAttrib(AttrParams,'StrokeColor','Color','#000000',false);          // stroke
-      //AddAttrib(AttrParams,'FillColor','Color','none',false);            //fill
-      AddAttrib(AttrParams,'FillColor','Color','#FFFFFF',false);            //fill
-      AddAttrib(AttrParams,'StrokeWidth','Integer','5',false);
-      AddAttrib(AttrParams,'Rotate','Integer','0',false);
-      RegisterResource('RSVG','TXSVGEllipse','TXSVGEllipse','SVGComponents',-1,AttrParams);
-
-      ClearAttribs(AttrParams);
-      AddAttrib(AttrParams,'X1','Integer','10',false);        //x1
-      AddAttrib(AttrParams,'Y1','Integer','110',false);         //y1
-      AddAttrib(AttrParams,'X2','Integer','50',false);       //x2
-      AddAttrib(AttrParams,'Y2','Integer','150',false);       //y2
-      AddAttrib(AttrParams,'StrokeColor','Color','#FF9900',false);          // stroke
-      AddAttrib(AttrParams,'StrokeWidth','Integer','5',false);
-      AddAttrib(AttrParams,'Rotate','Integer','0',false);
-      RegisterResource('RSVG','TXSVGLine','TXSVGLine','SVGComponents',-1,AttrParams);
-
-      ClearAttribs(AttrParams);
-      AddAttrib(AttrParams,'XCoords','IntegerVector','60 , 65 , 70 , 75  , 80 , 85 , 90,  95 , 100 ',false);
-      AddAttrib(AttrParams,'YCoords','IntegerVector','110, 120, 115 ,130 ,125 ,140, 135 ,150 , 145',false);
-      AddAttrib(AttrParams,'StrokeColor','Color','#FF9900',false);          // stroke
-      //AddAttrib(AttrParams,'FillColor','Color','none',false);            //fill
-      AddAttrib(AttrParams,'FillColor','Color','#FFFFFF',false);            //fill
-      AddAttrib(AttrParams,'StrokeWidth','Integer','5',false);
-      AddAttrib(AttrParams,'Rotate','Integer','0',false);
-      RegisterResource('RSVG','TXSVGPolyLine','TXSVGPolyLine','SVGComponents',-1,AttrParams);
-
-      ClearAttribs(AttrParams);
-      AddAttrib(AttrParams,'XCoords','IntegerVector','50 ,  55 ,   70 , 60 ,  65 ,  50 ,  35  , 40 ,  30 ,  45 ',false);
-      AddAttrib(AttrParams,'YCoords','IntegerVector','160 , 180 , 180 , 190 , 205 , 195 , 205 , 190 , 180,  180',false);
-      AddAttrib(AttrParams,'StrokeColor','Color','#FF9900',false);          // stroke
-      AddAttrib(AttrParams,'FillColor','Color','#AAAAAA',false);            //fill
-      AddAttrib(AttrParams,'StrokeWidth','Integer','5',false);
-      AddAttrib(AttrParams,'Rotate','Integer','0',false);
-      RegisterResource('RSVG','TXSVGPolyGon','TXSVGPolyGon','SVGComponents',-1,AttrParams);
-
-
-      ClearAttribs(AttrParams);
-      AddAttrib(AttrParams,'Hint','String','',false);
-      RegisterResource('RUI','','Composites','UIComponents',-1,AttrParams);
+  RegisterResource('RUI','','Composites','UIComponents','');
 
       // Set up the list of previously saved composite items
       NamesList:=TStringList.Create;
       DiscoverSavedComposites(NamesList);
       for i:=0 to NamesList.count-1 do
       begin
-        ClearAttribs(AttrParams);
-        AddAttrib(AttrParams,'CompositeType','String',NamesList[i],true);
+        //ClearAttribs(AttrParams);
+        //AddAttrib(AttrParams,'CompositeType','String',NamesList[i],true);
         {$ifndef JScript}
         str:=ReadFromLocalStore('SavedSystems/'+NamesList[i]+'.xcmp');
         {$else}
         str:=ReadFromLocalStore(NamesList[i]+'.xcmp');
         {$endif}
-        AddAttrib(AttrParams,'SourceString','String',str,true);
-        AddAttrib(AttrParams,'ContainerWidth','String','',false);
-        AddAttrib(AttrParams,'ContainerHeight','String','',false);
-        AddAttrib(AttrParams,'InheritColor','Boolean','True',false);
-        RegisterResource('RUI','TXComposite',NamesList[i]+'_xcmp','Composites',-1,AttrParams);   //suffix to protect nodename-uniqueness
+        //AddAttrib(AttrParams,'SourceString','String',str,true);
+        RNode := RegisterResource('RUI','TXComposite',NamesList[i]+'_xcmp','Composites','Composite (encapsulated) component');   //suffix to protect nodename-uniqueness
+        RNode.SetAttributeValue('CompositeType',NamesList[i],'String',true);
+        RNode.SetAttributeValue('SourceString',str,'String',true);
       end;
 
-       ClearAttribs(AttrParams);
-       AddAttrib(AttrParams,'Hint','String','',false);
-       RegisterResource('RNV','','Non-Visual Components',ResourceDataRootName,-1,AttrParams);
+  RegisterResource('RNV','','Non-Visual Components',ResourceDataRootName,'');
+  RegisterResource('RNV','TXStore','TXStore','Non-Visual Components','Data Store item (keyname, value pair)');
+  RegisterResource('RNV','TXTrapEvents','TXTrapEvents','Non-Visual Components','Event handler to intercept system events');
+  RegisterResource('RNV','TXThreads','TXThreads','Non-Visual Components','To provide multi-thread process');
+  RegisterResource('RNV','TXCompositeIntf','TXCompositeIntf','Non-Visual Components','Interface element for Composites');
 
-       ClearAttribs(AttrParams);
-       AddAttrib(AttrParams,'KeyName','String','',false);
-       AddAttrib(AttrParams,'DataValue','String','',false);
-       RegisterResource('RNV','TXStore','TXStore','Non-Visual Components',-1,AttrParams);
-
-       ClearAttribs(AttrParams);
-       RegisterResource('RNV','TXTrapEvents','TXTrapEvents','Non-Visual Components',-1,AttrParams);
-
-       ClearAttribs(AttrParams);
-       AddAttrib(AttrParams,'Active','Boolean','False',false);
-       RegisterResource('RNV','TXThreads','TXThreads','Non-Visual Components',-1,AttrParams);
-
-       ClearAttribs(AttrParams);
-       RegisterResource('RNV','TXCompositeIntf','TXCompositeIntf','Non-Visual Components',-1,AttrParams);
-
-//       ClearAttribs(AttrParams);
-//       RegisterResource('RNV','','Saved Systems',ResourceDataRootName,-1,AttrParams);
-//
-//       // Set up the list of previously saved systems
-//       NamesList.Clear;
-//       DiscoverSavedSystems(NamesList);
-//       ClearAttribs(AttrParams);
-//       for i:=0 to NamesList.count-1 do
-//       begin
-//         if NamesList[i]<>'' then
-//           RegisterResource('RSS','System',NamesList[i]+'_xide','Saved Systems',-1,AttrParams);   //suffix to protect nodename-uniqueness
-//       end;
-
-       NamesList.Free;
+  NamesList.Free;
 
 end;
 
@@ -1210,7 +900,7 @@ begin
       //Following event handler being called (while probably in design mode) due to the requirement for
       //event logging during design.
       // Not available for capture by user-written code.
-      HandleEvent(nil,'UserInput','UIRootNode','',str);
+      HandleEvent(nil,'UserInput',SystemRootName,'',str);
     end;
     {$else}
     asm
@@ -1221,7 +911,7 @@ begin
         //Following event handler being called (while probably in design mode) due to the requirement for
         //event logging during design.
         // Not available for capture by user-written code.
-        pas.Events.handleEvent(null,'UserInput','UIRootNode','',str);
+        pas.Events.handleEvent(null,'UserInput',pas.NodeUtils.SystemRootName,'',str);
       }
     end;
     {$endif}
@@ -1229,42 +919,51 @@ begin
     result:=str;
 end;
 
-function getname(PromptString:string):string;
-var resultstring,DefaultString:string;
+function NameStringIsValid(nm:String):Boolean;
+var
   ok:Boolean;
 begin
+  ok:=false;
+  if FoundString(nm,'.')>0 then
+    showmessage('Enter the name without dot characters ''.''')
+  else if FoundString(nm,' ')>0 then
+    showmessage('Enter the name without space characters')
+  else if not SysUtils.IsValidIdent(nm) then
+    showmessage('Name is not valid - Use Alphanumeric characters plus ''_''; first char non-numeric.')
+  else
+    ok:=true;
+  result:=ok;
+end;
+
+function GetValidItemName(PromptString,DefaultString:String):String;
+var
+  resultstring:String;
+  ok:Boolean;
+begin
+  ok:=false;
+  while not ok do
+  begin
+    resultstring:= trim(XIDEPrompt(PromptString,DefaultString));
+    if resultstring<>'' then
+    begin
+      DefaultString:=resultstring;
+      ok:=NameStringIsValid(resultstring);
+    end
+    else
+      ok:=true; // user cancelled the action
+  end;
+  result:=resultstring;
+end;
+
+function GetComponentName(PromptString:string):string;
+var DefaultString:string;
+begin
    DefaultString := 'Created_'+DateTimeToStr(Now);
-   //DefaultString :=myStringReplace( DefaultString,' ','_',999,999);
-   //DefaultString :=myStringReplace( DefaultString,':','_',999,999);
-   //DefaultString :=myStringReplace( DefaultString,'-','_',999,999);
-   //DefaultString :=myStringReplace( DefaultString,'/','_',999,999);
    DefaultString :=ReplaceStr( DefaultString,' ','_');
    DefaultString :=ReplaceStr( DefaultString,':','_');
    DefaultString :=ReplaceStr( DefaultString,'-','_');
    DefaultString :=ReplaceStr( DefaultString,'/','_');
-
-   ok:=false;
-   while not ok do
-   begin
-     resultstring:= trim(XIDEPrompt(PromptString,DefaultString));
-     if resultstring<>'' then
-     begin
-       DefaultString:=resultstring;
-       if FoundString(resultstring,'.')>0 then
-         showmessage('Enter the name without dot characters ''.''')
-       else if FoundString(resultstring,' ')>0 then
-         showmessage('Enter the name without space characters')
-       else if not SysUtils.IsValidIdent(resultstring) then
-         showmessage('Name is not valid - Use Alphanumeric characters plus ''_''; first char non-numeric.')
-       else
-         ok:=true;
-     end
-     else
-       ok:=true; // user cancelled the action
-   end;
-
-
-   result:=resultstring;
+   result:=GetValidItemName(PromptString,DefaultString);
 end;
 
 function ComponentNameIsUnique(ScreenObjectName,NameSpace:string):Boolean;
@@ -1275,8 +974,6 @@ begin
   myresult:=true;
   founditem:=FindDataNodeById(SystemNodeTree,ScreenObjectName,NameSpace,false);
   if (founditem<>nil)
-//  and ((founditem.ScreenObject<>nil) or (founditem.NodeClass='SVG'))
-//  and (founditem.NodeName=ScreenObjectName)
   then
   begin
     ShowMessage('Error. Name >'+ScreenObjectName+'< is not unique when creating a new system component' );
@@ -1303,7 +1000,7 @@ begin
     //pas.XForm.ShowXForm(XFormName);
     ob.style.position='relative';
   end;
-  XFormNode:=FindDataNodeById(SystemNodeTree,XFormName,'',true);
+  XFormNode:=FindDataNodeById(UIRootNode,XFormName,'',true);
   TXForm(XFormNode.ScreenObject).Showing:='Modal';
 end;
 
@@ -1350,14 +1047,19 @@ end;
 
 procedure HighlightNavigatorObject(CurrentNode:TDataNode);
 var
+  {$ifdef JScript}
   mf:TForm;
-  tmp,cfn,mfn, Nodeid:string;
+  mfn,cfn:string;
+  {$endif}
+  tmp:string;
   Border:Boolean;
   i:integer;
   ParentNode:TDataNode;
   TabPage:TXTabSheet;
 begin
-  tmp:=CurrentNode.GetAttribute('Border',true).AttribValue;
+  tmp:='';
+  if CurrentNode.HasAttribute('Border') then
+    tmp:=CurrentNode.GetAttribute('Border',false).AttribValue;
   if tmp='' then
     Border:=false
   else
@@ -1454,7 +1156,7 @@ end;
 procedure RefreshObjectInspector(CurrentNode:TDataNode);
 var AttributePrefix:string;
   i:integer;
-  PropertiesNode,EventsNode,WidgetNode:TDataNode;
+  WidgetNode:TDataNode;
   myAttribs:TNodeAttributesArray;
   s:boolean;
   BoxName,AttribValue:String;
@@ -1463,10 +1165,8 @@ begin
   s:=SuppressEvents;
   SuppressEvents:=true;
   //showmessage('RefreshObjectInspector. Node='+CurrentNode.NodeName);
-  PropertiesNode:=FindDataNodeById(SystemNodeTree,PropertyEditorScrollboxName,'',true);
-  EventsNode:=FindDataNodeById(SystemNodeTree,EventsEditorScrollboxName,'',true);
 
-  if (PropertiesNode<>nil) and (CurrentNode<>nil)  then
+  if (CurrentNode<>nil)  then
   begin
 
       AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
@@ -1508,11 +1208,8 @@ begin
        end;
 
      end;
-  end;
 
-  //------------------- Refresh the registered Events Tabpage -----------------------
-  if (EventsNode<>nil) and (CurrentNode<>nil)  then
-  begin
+    //------------------- Refresh the registered Events Tabpage -----------------------
 
     if CurrentNode.IsDynamic then
     begin
@@ -1538,12 +1235,22 @@ begin
   SuppressEvents:=s;
 end;
 
+procedure RefreshObjectInspectorLater(targetNode:TDataNode);
+begin
+  {$ifndef JScript}
+  // do after delay because this process deletes the button whose click event we are handling
+  ObjectInspectorSelectedNavTreeNode:=nil;
+  HandleEventLater(nil,'TreeNodeClick','NavTree','','');
+  {$else}
+  PopulateObjectInspector(targetNode);
+  {$endif}
+end;
+
 procedure DoSelectNavTreeNode(CurrentNode:TDataNode; refresh:boolean);
 var
-  mynodeText,tmp, NodeId:string;
-  IFrameNode,tmpnode:TDataNode;
+  mynodeText:string;
+  IFrameNode:TDataNode;
   okToContinue:Boolean;
-  i:integer;
 begin
   if CurrentNode.NameSpace<>'' then
     EXIT;
@@ -1628,9 +1335,7 @@ end;
 
 
 procedure  SelectCodeTreeNode(CurrentNode:TDataNode; refresh:boolean; TreeNodeText:String);
- var
-    tmp, NodeId:string;
- begin
+begin
      //!!!! Should to operate this by node id, not text  :: HOWEVER, in the code tree, node texts are all unique.
 
      //showmessage('SelectCodeTreeNode '+CurrentNode.Nodename+' >'+TreeNodeText+'<');
@@ -1663,15 +1368,12 @@ procedure  SelectCodeTreeNode(CurrentNode:TDataNode; refresh:boolean; TreeNodeTe
      begin
        ObjectInspectorSelectedCodeTreeNode:=CurrentNode;
      end;
- end;
+end;
 
 procedure RebuildResourcesTree;
  var
-     newtreestring, nodetext:string;
-     AttrParams:TNodeAttributesArray;
+     newtreestring:string;
      ResTree:TXTree;
-     i:integer;
-     mynode:TDataNode;
  begin
    //showmessage('ConstructSystemTreeString for resources');
    ClearResourceInspector;
@@ -1691,10 +1393,7 @@ end;
 
 procedure RebuildNavigatorTree;
 var
-    newtreestring,formstring:string;
-    AttrParams:TNodeAttributesArray;
-    i,j:integer;
-    fm:TForm;
+    newtreestring:string;
     tempNode:TDataNode;
 begin
 (*
@@ -1739,10 +1438,8 @@ end;
 
 procedure RebuildCodeTree;
 var
-    newtreestring,formstring:string;
-    AttrParams:TNodeAttributesArray;
-    i,e:integer;
-    fm:TForm;
+    newtreestring:string;
+    e:integer;
 begin
 (*
 CodeRootNode
@@ -1791,7 +1488,7 @@ begin
 //ShowMessage('ntc event. node='+DataNodeId+' Text='+TreeNodeText);
   if TreeNodeText<>'Root' then
   begin
-    CurrentNode:=FindDataNodeById(SystemNodeTree,DataNodeId,'',true);
+    CurrentNode:=FindDataNodeById(UIRootNode,DataNodeId,'',true);
     if CurrentNode=nil then
       showmessage('Cannot find node '+DataNodeId+' in XObjectInsp.HandleNavTreeClickEvent')
     else
@@ -1890,7 +1587,7 @@ begin
    else ShowMessage('Select an item (from the Navigation Tree) to copy before calling this action');
 end;
 
-function PickItem( SelectedResourcesTreeNode:TDataNode):string;
+procedure PickItem( SelectedResourcesTreeNode:TDataNode);
 begin
    // Copy an item from the Resources tree, ready for paste elsewhere
    if (SelectedResourcesTreeNode<>nil)
@@ -1906,13 +1603,9 @@ begin
 end;
 
 procedure  SelectResourceTreeNode(TreeNodeText:string;CurrentNode:TDataNode);
-var
-   mynodeid:string;
-   ResourceTreeNode:TDataNode;
 begin
   //!!!! Should to operate this by node id, not text  :: HOWEVER, in the resource tree, node texts are all unique.
   //showmessage('SelectResourceTreeNode '+TreeNodeText);
-  mynodeid:=CurrentNode.NodeName;
   AvailableResourcesSelectedNode:=CurrentNode;
   PopulateResourceInspector(CurrentNode);
 end;
@@ -1937,7 +1630,6 @@ procedure DeleteItemQuietly(InTree,SelectedNode:TDataNode);
 var
    ParentNode:TDataNode;
 begin
-  //ParentNode:=FindParentOfNodeByName(InTree,SelectedNode.NodeName);
   ParentNode:=FindParentOfNode(InTree,SelectedNode);
      DeleteNode(ParentNode,SelectedNode);
 
@@ -1988,10 +1680,6 @@ begin
               RebuildNavigatorTree;
               RebuildCodeTree;  // (to remove displayed event code items)
            end
- //          else if InTree.NodeName=ResourceDataRootName then
- //          begin
- //             RebuildResourcesTree;
- //          end
            else if InTree.NodeName=CodeRootName then
            begin
               RebuildCodeTree;
@@ -2017,7 +1705,7 @@ begin
   XIDEForm.OIPaste.Hint:='Ready to paste UI node '+ObjectInspectorSourceNode.NodeName;
 end;
 
-function CutItem(InTree,SelectedNode:TDataNode):string;
+procedure CutItem(InTree,SelectedNode:TDataNode);
 var
    myName:string;
 begin
@@ -2046,8 +1734,6 @@ begin
             RebuildNavigatorTree;
             RebuildCodeTree;
           end;
-  //        else if InTree.NodeName=ResourceDataRootName then
-  //          RebuildResourcesTree;
         end;
         ShowMessage('Node '+ myName +' ready to paste');
 
@@ -2070,25 +1756,11 @@ begin
   end;
 end;
 
-procedure RenameCompositeNodes(MyNode:TDataNode;NameSpace:string);
-var
-   i:integer;
-begin
-  for i:=0 to length(MyNode.ChildNodes)-1 do
-  begin
-    MyNode.ChildNodes[i].NameSpace:=NameSpace;
-    RenameChildNodes(MyNode.ChildNodes[i],NameSpace);
-  end;
-end;
-
-
 procedure PasteItemQuietly(InTree:TDataNode;pos:integer;ParentNode,SourceNode:TDataNode);
 var
    TreePos:integer;
    glb:Boolean;
-   //pn:String;
 begin
-  //showmessage('PasteItemQuietly');
   SourceNode.ScreenObject:=nil;
   TreePos:=pos;
   {$ifndef JScript}
@@ -2154,7 +1826,6 @@ begin
     ShowMessage('The Main Form already has a Main Menu')
   else if (ParentNode.NodeType<>'TXForm') and (SourceNode.NodeType='TXMainMenu') then
     ShowMessage('A MainMenu can only be inserted under a Form element')
-  //else if (ParentNode.NodeType<>'TXForm') and (SourceNode.NodeClass='NV') then
   else if (SourceNode.NodeClass='NV') and (ParentNode<>UIRootNode) then
     ShowMessage(ParentNode.NodeType+' '+SourceNode.NodeClass+' '+'A non-visual component can only be inserted under the UI Root Node')
   else if (ParentNode.NodeClass='NV') then
@@ -2178,10 +1849,11 @@ var
 begin
   ok:=true;
   SrcNode:=ObjectInspectorSourceNode;
-//showmessage('OINavTreeAllowDrop. Dest='+DstNode.NodeName+' Src='+SrcNode.NodeName);
-      // cannot drop to Root Node.
+      // cannot drop to Root Node, except for forms and non-visuals.
       if (DstNode.NodeClass='Root')
-      and (SrcNode.NodeType <> 'TXForm') then
+      and (SrcNode.NodeType <> 'TXForm')
+      and (SrcNode.NodeClass <> 'NV')
+      and (SrcNode.NodeClass <> 'RNV') then
         ok:=false;
       // on main form, cannot drop to Form node
       if (DstNode.NodeType='TXForm')
@@ -2280,6 +1952,8 @@ var
    CompositeResource:Boolean;
    InterfaceNodes:TNodesArray;
    i,j:integer;
+   evtyp:String;
+   evh:TeventHandlerRec;
 begin
   ok:=false;
   if  OrigSourceNode.NodeClass='RSS' then
@@ -2301,9 +1975,11 @@ begin
   else
   begin
     //ShowMessage('PasteItem.  Source='+SourceNode.NodeName+' Dest='+NavTreeDestinationNode.NodeName);
-    if (SourceNode.NodeClass='RUI')
-    and (SourceNode.NodeType='TXComposite') then
-      CompositeResource:=true;
+    if (SourceNode.NodeClass='RUI') then
+      if (SourceNode.NodeType='TXComposite') then
+        CompositeResource:=true
+      else
+        setlength(SourceNode.NodeAttributes,0);  // removes the Hint attribute (from the resource tree node)
 
     if SourceNode.NodeClass='RUI' then SourceNode.NodeClass:='UI';
     if SourceNode.NodeClass='RNV' then SourceNode.NodeClass:='NV';
@@ -2352,7 +2028,6 @@ begin
     else
     begin
       // ShowMessage('paste as sibling');
-      //ParentNode:=FindParentOfNodeByName(SystemNodeTree,NavTreeDestinationNode.NodeName);
       ParentNode:=FindParentOfNode(SystemNodeTree,NavTreeDestinationNode);
       TreePos:=ParentNode.GetChildIndex(NavTreeDestinationNode);
     end;
@@ -2366,7 +2041,7 @@ begin
          if ObjectInspectorSourceCut=false then
          begin
              // Dialog for name entry
-             NewName:=getname('Enter Component Name:');
+             NewName:=GetComponentName('Enter Component Name:');
          end
          else
          begin
@@ -2390,13 +2065,30 @@ begin
             // and reset the instantiated SourceString to blank
             NewNode.SetAttributeValue('SourceString','','String',true);
             // From within the expanded composite, find interface node(s?) and add the defined properties and events
-            InterfaceNodes:=FindNodesOfType(NewNode,'TXCompositeIntf');
-            for i:=0 to length(InterfaceNodes)-1 do     //!!!! only allow one of these???
+            InterfaceNodes:=FindNodesOfType(NewNode,'TXCompositeIntf',true,NewNode.NodeName);
+            for i:=0 to length(InterfaceNodes)-1 do     //!! only allow one of these
             begin
               for j:=0 to length(InterfaceNodes[i].NodeAttributes)-1 do
-                NewNode.AddAttribute(InterfaceNodes[i].NodeAttributes[j].AttribName,'String',InterfaceNodes[i].NodeAttributes[j].AttribValue,false);
+                // copying interface attribute here so that it is accessible from main system,
+                // but if the property is not "Input" to the composite, then the value will not be editable in design mode.
+                NewNode.AddAttribute(InterfaceNodes[i].NodeAttributes[j].AttribName,'String',
+                                     InterfaceNodes[i].NodeAttributes[j].AttribValue,
+                                     (not InterfaceNodes[i].NodeAttributes[j].AttribReadOnly));
               for j:=0 to InterfaceNodes[i].myEventTypes.Count-1 do
-                NewNode.AddEvent(InterfaceNodes[i].myEventTypes[j],'','');
+              begin
+                evtyp := InterfaceNodes[i].myEventTypes[j];
+                // copying event type and code here so that it is accessible from main system,
+                // (ie. using a DoEvent call), but if the interface event is 'readonly', then
+                // the code in the event will not be editable
+                // in design mode, as it is defined within the encapsulated composite element.
+                evh := InterfaceNodes[i].GetEvent(evtyp);
+                NewNode.AddEvent(evtyp,
+                                 evh.TheCode,
+                                 evh.InitCode,
+                                 evh.ReadOnlyInterface,
+                                 evh.EventHint
+                                 );
+              end;
             end;
           end;
        end;
@@ -2435,8 +2127,6 @@ begin
 end;
 
 procedure ClearInspectors;
-var
-thisnode:TDataNode;
 begin
   if NavTreeComponent.ScreenObject <>nil then
   begin
@@ -2456,7 +2146,6 @@ begin
 
     if CodeEditform<>nil then
     begin
-      thisnode:=CodeEditForm.myNode;
       CodeEditForm.CodeEdit.ItemValue:='';
       CodeEditForm.CodeEditInit.ItemValue:='';
     end;
@@ -2465,12 +2154,11 @@ end;
 
 function CompositeResourcesString(QuotedString:Boolean):String;
 var
-  StartNode,TempNode,CompNode,TempComp:TdataNode;
+  StartNode:TdataNode;
   systemstring:String;
-  i:integer;
 begin
-  StartNode:=FindDataNodeById(SystemNodeTree,'Composites','',true);
-  systemstring:=NodeTreeToXML(StartNode,UIRootItem,false,QuotedString);
+  StartNode:=FindDataNodeById(ResourcesNodeTree,'Composites','',true);
+  systemstring:=NodeTreeToXML(StartNode,MainFormProjectRoot,false,QuotedString);
   result:= systemstring;
 
 end;
@@ -2485,21 +2173,35 @@ begin
   WriteToFile(ProjectDirectory+'tempinc/systemcomposites.inc','XObjectInsp.CompositesString := '''+systemstring+''';');
 end;
 {$endif}
-procedure DebugWriteNodeTree(StartNode:TdataNode;var txt:String;lvl:integer);
+procedure DebugWriteNodeTree(StartNode,ParentNode:TdataNode;var txt:String;lvl:integer);
 var
   i:integer;
 begin
   txt:=txt+LineEnding;
   for i:=0 to lvl-1 do
     txt:=txt+'  ';
-  txt:=txt+StartNode.NodeClass+' '+ StartNode.NodeType+' '+StartNode.NodeName+' '+myBoolToStr(StartNode.IsDynamic);
+  if ParentNode<>nil then
+    txt:=txt+StartNode.NodeClass+' '+ StartNode.NodeType+' '+StartNode.NodeName+' '+myBoolToStr(StartNode.IsDynamic)+' '+StartNode.NodeParent.NodeName+' '+ParentNode.NodeName
+  else
+    txt:=txt+StartNode.NodeClass+' '+ StartNode.NodeType+' '+StartNode.NodeName+' '+myBoolToStr(StartNode.IsDynamic);
   for i:=0 to length(StartNode.ChildNodes)-1 do
-    DebugWriteNodeTree(StartNode.ChildNodes[i],txt,lvl+1);
+    DebugWriteNodeTree(StartNode.ChildNodes[i],StartNode,txt,lvl+1);
+end;
+procedure DumpFullNodeTree;
+var
+  txt:String;
+begin
+  DebugwriteNodetree(SystemnodeTree,nil,txt,0);
+  {$ifndef JScript}
+  WriteToLocalStore('debugtree',txt);
+  {$else}
+  myCopyToClip('debugtree',txt );
+  {$endif}
 end;
 
 function BuildSystemString(Encapsulate:Boolean):String;
 var
-  systemstring,eventstring,fullstring,tmp:string;
+  systemstring,fullstring:string;
   StartNode,UINode, MenuNode,StyleTreeParent:TDataNode;
   i:integer;
   TopType,TopClass:String;
@@ -2509,14 +2211,14 @@ begin
   // Save just the user-design portions of the system node tree.
   // Mainform Menu items, Mainform centre section, PLUS dynamic XForms added.
 
-  UINode:=UIRootItem;
+  UINode:=MainFormProjectRoot;
   TopType:=UINode.NodeType;
   TopClass:=UINode.NodeClass;
   UINode.NodeType:='Root';    // so that this item will be skipped on load
   UINode.NodeClass:='Root';    // so that this item will be skipped on load
   UINode.IsDynamic:=true;
 
-  MenuNode:=FindDataNodeById(SystemNodeTree,'XIDEMainMenu','',true);
+  MenuNode:=FindDataNodeById(UIRootNode,'XIDEMainMenu','',true);
 
   // Create a temporary root node to enclose the project nodes (copy from UIRootNode)
   StartNode:= CopyNode(UIRootNode,false);
@@ -2545,7 +2247,6 @@ begin
 
   // add non-visual components
   StartNode:=FindDataNodeById(SystemNodeTree,SystemRootName,'',true);
-  //StartNode:=FindDataNodeById(SystemNodeTree,MainForm.Name,'',true);
   for i:=0 to length(StartNode.ChildNodes)-1 do
   begin
     if (StartNode.ChildNodes[i].NodeClass='NV')
@@ -2612,24 +2313,9 @@ end;
 Procedure SaveSystemToFile;
 var
   fullstring,sysname:String;
-  ok:Boolean;
 begin
-  ok:=false;
   sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
-
-  while not ok do
-  begin
-    sysname:= XIDEPrompt('Enter System Name',sysname);
-    if sysname<>'' then
-    begin
-      if FoundString(sysname,'.')>0 then
-        showmessage('Enter the name without dot characters ''.''')
-      else
-        ok:=true;
-    end
-    else
-      ok:=true;  // user cancelled the action
-  end;
+  sysname:=GetValidItemName('Enter System Name',sysname);
   if sysname='' then
     EXIT;
 
@@ -2644,7 +2330,7 @@ begin
 end;
 
 function isValidSystemData(SystemDescription:string):boolean;
-var teststring,teststring2,sys:string;
+var teststring,sys:string;
    i:integer;
    MatchFound:boolean;
 begin
@@ -2664,21 +2350,54 @@ begin
 end;
 
 {$ifndef Python}
+procedure CheckEventCode(StartNode:TDataNode);
+var
+  i:integer;
+  tmp:string;
+begin
+  if (StartNode.IsDynamic) or (StartNode=UIRootNode) then
+    for i:=0 to length(StartNode.myEventHandlers)-1 do
+    begin
+      tmp:=StartNode.myEventHandlers[i].TheCode;
+      if (trim(tmp)<>'')  then
+      begin
+         tmp:=trim(StartNode.myEventHandlers[i].InitCode);
+         if not PythonCodeExists then
+           PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
+
+         tmp:=StartNode.myEventHandlers[i].TheCode;
+         if not PythonCodeExists then
+           PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
+
+      end;
+    end;
+  if not PythonCodeExists then
+    for i:=0 to length(StartNode.ChildNodes)-1 do
+      CheckEventCode(StartNode.ChildNodes[i]);
+
+end;
+
 procedure CheckForPythonCode;
 var
   i:integer;
-  found:Boolean;
 begin
-  found:=false;
+  PythonCodeExists:=false;
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
   begin
     if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
     begin
-       found:=true;
+       PythonCodeExists:=true;
     end;
   end;
-  if found then
-    showmessage('Warning: The loaded system contains Python code units.  These cannot be executed unless the XIDE framework is built with the ''Python'' option');
+  if not PythonCodeExists then
+  begin
+    // also check ALL Pascal event code for 'RunPython' calls...
+    PythonCodeExists:=false;
+    CheckEventCode(SystemNodeTree);
+  end;
+
+  if PythonCodeExists then
+    showmessage('Warning: The loaded system contains Python code.  These cannot be executed unless the XIDE framework is built with the ''Python'' option');
 end;
 {$endif}
 
@@ -2714,9 +2433,9 @@ begin
 
   //make sure UIRoot width attribute is still at 60% (design mode)
   //if ShowResourceTree<>'Hide' then
-    UIRootItem.SetAttributeValue('ContainerWidth','60%');
+    MainFormProjectRoot.SetAttributeValue('ContainerWidth','60%');
   //else
-  //  UIRootItem.SetAttributeValue('ContainerWidth','80%');
+  //  MainFormProjectRoot.SetAttributeValue('ContainerWidth','80%');
 
   {$ifndef Python}
   CheckForPythonCode;
@@ -2729,7 +2448,6 @@ end;
 
 function DoSystemLoad(SystemDescription,SysName:string):Boolean;
 var
-  i:integer;
   tempTimer:TTimer;
   myTag:TLoadTimerTag;
   ok:boolean;
@@ -2813,17 +2531,14 @@ end;
 procedure OINavTreeNodeChange(e:TEventStatus;nodeId,NameSpace:string;myValue:string);
 var
   NodeText,TreeNodeId,p1:String;
-  //myNode:TdataNode;
   myTree:TXTree;
 begin
   {$ifndef JScript}
   myTree:=TXTree(NavTreeComponent.ScreenObject);
-  //NodeText:=myValue;
   NodeText:=myTree.SelectedNodeText;
   {$else}
   myTree:=TXTree(NavTreeComponent);
   NodeText:=myTree.SelectedNodeText;
-//showmessage('OINavTreeNodeChange. NodeText='+NodeText);
   {$endif}
   TreeNodeId:=TreeLabelToID(NodeText,'NavTree',p1);
 
@@ -2840,15 +2555,12 @@ end;
 procedure OIResourceTreeNodeChange(nodeId:string;myValue:string);
 var
   NodeText,TreeNodeId,p1:String;
-  //myNode:TdataNode;
   myTree:TXTree;
 begin
   {$ifndef JScript}
   myTree:=TXTree(ResourceTreeComponent.ScreenObject);
-  //NodeText:=myValue;
   NodeText:=myTree.SelectedNodeText;
   {$else}
-  //myNode:=findDataNodeById(systemnodetree,nodeid,NameSpace,true);
   myTree:=TXTree(ResourceTreeComponent);
   NodeText:=myTree.SelectedNodeText;
   {$endif}
@@ -2912,7 +2624,7 @@ begin
     else
     begin
         dst:=TreeLabelToID( myValue, TreeInFocus.NodeName,p1);  // destination node
-        DestNode:=FindDataNodeById(SystemNodeTree,dst,'',true);      //!!namespace - assuming top design level only
+        DestNode:=FindDataNodeById(UIRootNode,dst,'',true);      //!!namespace - assuming top design level only
     end;
 //showmessage('dest node '+DestNode.NodeName);
     if TreeInFocus.NodeName=SystemRootName then
@@ -2950,13 +2662,14 @@ begin
   TreeNodeId:=TreeLabelToID( myValue, 'NavTree',p1);  // destination node
 
   TreeInFocus:=UIRootNode;
-  ObjectInspectorSelectedNavTreeNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',true);
+  ObjectInspectorSelectedNavTreeNode:=FindDataNodeById(UIRootNode,TreeNodeId,'',true);
   //ShowMessage('drop '+ObjectInspectorSourceNode.NodeName+' at '+ObjectInspectorSelectedNavTreeNode.NodeName);
 
   // if an intra-tree drag/drop, then cut the source node first
   // find the original source node (still in the nav tree)
   OriginalSource:=FindDataNodeById(SystemNodeTree,ObjectInspectorSourceNode.NodeName,'',false);
-  OriginalParent:=FindParentOfNode(SystemNodeTree,OriginalSource,true,OriginalPos);
+  OriginalParent:=FindParentOfNode(SystemNodeTree,OriginalSource,true);
+  OriginalPos:=OriginalParent.GetChildIndex(OriginalSource);
   if (OriginalSource<>nil)
   and (OriginalSource <> ObjectInspectorSelectedNavTreeNode)
   and (OriginalSource.IsDynamic=true)
@@ -2984,7 +2697,6 @@ begin
   thisNode:=ObjectInspectorSelectedNavTreeNode;
   if thisNode<>nil then
   begin
-    //myParent:=FindParentOfNodeByName(SystemNodeTree,thisNode.NodeName,false);
     myParent:=FindParentOfNode(SystemNodeTree,thisNode);
     if myParent<>nil then
     begin
@@ -3020,13 +2732,13 @@ var
   OriginalSource, DestNode:TDataNode;
 begin
   // find the source node
-  OriginalSource:=FindDataNodeById(SystemNodeTree,NodeId,NameSpace,false);
+  OriginalSource:=FindDataNodeById(UIRootNode,NodeId,NameSpace,false);
   if (OriginalSource<>nil) then
   begin
 
     TreeInFocus:=UIRootNode;
     // find the new parent node
-    DestNode:=FindDataNodeById(SystemNodeTree,NewParentId,NameSpace,true);
+    DestNode:=FindDataNodeById(UIRootNode,NewParentId,NameSpace,true);
     if DestNode<>nil then
     begin
       //ShowMessage('OIMoveItem '+ObjectInspectorSourceNode.NodeName+' at '+ObjectInspectorSelectedNavTreeNode.NodeName);
@@ -3056,13 +2768,13 @@ var
   OriginalSource, DestNode:TDataNode;
 begin
   // find the source node
-  OriginalSource:=FindDataNodeById(SystemNodeTree,NodeId,NameSpace,false);
+  OriginalSource:=FindDataNodeById(UIRootNode,NodeId,NameSpace,false);
   if (OriginalSource<>nil) then
   begin
 
     TreeInFocus:=UIRootNode;
     // find the new parent node
-    DestNode:=FindDataNodeById(SystemNodeTree,NewParentId,NameSpace,true);
+    DestNode:=FindDataNodeById(UIRootNode,NewParentId,NameSpace,true);
     if (DestNode<>nil) then
     begin
       //ShowMessage('OIMoveItem '+ObjectInspectorSourceNode.NodeName+' at '+ObjectInspectorSelectedNavTreeNode.NodeName);
@@ -3185,7 +2897,7 @@ begin
   else
   if nodeId = 'NavTree' then
     begin
-      ObjectInspectorSelectedNavTreeNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',true);
+      ObjectInspectorSelectedNavTreeNode:=FindDataNodeById(UIRootNode,TreeNodeId,'',true);
       TreeInFocus:=UIRootNode;
       OICopySelectedItem;
     end;
@@ -3304,20 +3016,6 @@ begin
     InitialiseStyleDesigner;
 
  end;
-
-function PythonScriptsExist:Boolean;
-var
-  i:integer;
-  found:Boolean;
-begin
-  found:=false;
-  for i:=0 to length(CodeRootNode.ChildNodes)-1 do
-    if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
-      found:=true;
-  // also check ALL event code for 'RunPython' calls...
-
-  result:=found;
-end;
 
 
 function SetMyDeployedMode(wholesystem,dm2:String):String;
@@ -3473,7 +3171,7 @@ begin
   myCopyToClip('HTML System',wholesystem );
 
   {$else}
-  ShowGreyOverlay('UIRootNode','Grey1','Completing Deployment. Please Wait...');
+  ShowGreyOverlay(SystemRootName,'Grey1','Completing Deployment. Please Wait...');
   // timeout here so the grey overlay appears
   asm
     myTimeout(pas.XObjectInsp.CompleteDeployFromBrowser,20,'CompleteDeployFromBrowser',0,deployname);
@@ -3500,11 +3198,11 @@ begin
      ClearInspectors;
    end;
 
-   aNode:=FindDataNodeById(SystemNodeTree,'InnerRootVBox','',true);
+   aNode:=FindDataNodeById(UIRootNode,'InnerRootVBox','',true);
    if aNode<>nil then
      ShowHideNode(aNode,show);
 
-   aNode:=FindDataNodeById(SystemNodeTree,'ResourceInspectorTabs','',true);
+   aNode:=FindDataNodeById(UIRootNode,'ResourceInspectorTabs','',true);
    lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
    if aNode<>nil then
      if lr<>'Hide' then
@@ -3513,13 +3211,13 @@ begin
    if show then
    begin
      if lr<>'Hide' then
-       TXScrollBox(UIRootItem.ScreenObject).ContainerWidth:='60%'
+       TXScrollBox(MainFormProjectRoot.ScreenObject).ContainerWidth:='60%'
      else
-       TXScrollBox(UIRootItem.ScreenObject).ContainerWidth:='80%';
+       TXScrollBox(MainFormProjectRoot.ScreenObject).ContainerWidth:='80%';
    end
    else
    begin
-     TXScrollBox(UIRootItem.ScreenObject).ContainerWidth:='100%';
+     TXScrollBox(MainFormProjectRoot.ScreenObject).ContainerWidth:='100%';
    end;
 
 end;
@@ -3532,9 +3230,9 @@ var
   ob1,ob2,ob3:TControl;
   lr:String;
 begin
-  aNode:=FindDataNodeById(SystemNodeTree,'RootHBox','',true);
+  aNode:=FindDataNodeById(UIRootNode,'RootHBox','',true);
   hbox:=TWinControl(aNode.ScreenObject);
-  aNode:=FindDataNodeById(SystemNodeTree,'ResourceInspectorTabs','',true);
+  aNode:=FindDataNodeById(UIRootNode,'ResourceInspectorTabs','',true);
   ob1:=TControl(aNode.ScreenObject);
   lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
   if lr='Hide' then
@@ -3543,9 +3241,9 @@ begin
   end
   else
   begin
-    aNode:=FindDataNodeById(SystemNodeTree,'InnerRootVBox','',true);
+    aNode:=FindDataNodeById(UIRootNode,'InnerRootVBox','',true);
     ob2:=TControl(aNode.ScreenObject);
-    aNode:=FindDataNodeById(SystemNodeTree,'UIRoot','',true);
+    aNode:=FindDataNodeById(UIRootNode,UIProjectRootName,'',true);
     ob3:=TControl(aNode.ScreenObject);
 
     hbox.RemoveControl(ob1);
@@ -3579,7 +3277,7 @@ var
   ob1:TObject;
   lr:String;
 begin
-  aNode:=FindDataNodeById(SystemNodeTree,'ResourceInspectorTabs','',true);
+  aNode:=FindDataNodeById(UIRootNode,'ResourceInspectorTabs','',true);
   ob1:=aNode.ScreenObject;
   lr:=UIRootNode.GetAttribute('ShowResources',true).AttribValue;
   if lr='Hide' then
@@ -3619,16 +3317,17 @@ end;
 {$endif}
 
 procedure DisplayDllCompileErrors;
+{$ifdef JScript}
 var
   nm,nm2:String;
+{$endif}
 begin
   CodeEditForm.Mode:='dll';
   CodeEditForm.InitialiseOnShow('Compiler Errors','','');
 
   ShowXForm('CodeEditForm',true);     // the relevant text and message contents have already been populated
 
-  {$ifndef JScript}
-  {$else}
+  {$ifdef JScript}
   nm:=CodeEditor.CodeEditForm.CodeEdit.NodeName;
   nm2:=CodeEditor.CodeEditForm.CodeEditInit.NodeName;
   asm
@@ -3642,11 +3341,9 @@ end;
 procedure CompleteToggleToRunMode(ok:boolean);
 var
   MenuItemNode:TDataNode;
-  MenuItem:TXMenuItem;
-  dm:String;
-  i:integer;
+  MenuItem,SysMenuItem:TXMenuItem;
 begin
-  MenuItemNode:=FindDataNodeById(SystemNodeTree,'ToggleDesignRunMode','',true);
+  MenuItemNode:=FindDataNodeById(UIRootNode,'ToggleDesignRunMode','',true);
   MenuItem:=TXMenuItem(MenuItemNode.ScreenObject);
   if ok then
   begin
@@ -3671,9 +3368,12 @@ begin
     GatherSourcedAttributes(SystemNodeTree);
     PushAllSourcesToAttributes;
 
+    SysMenuItem:=XIDEForm.SystemMenu;
+    SysMenuItem.IsVisible:=false;
+
     SuppressUserEvents:=false;
 
-    HandleEventLater(nil,'OnEnterRunMode','UIRootNode','','');
+    HandleEventLater(nil,'OnEnterRunMode',SystemRootName,'','');
     {$ifdef Python}
     //Clear the python engine and re-initialise
     DoPy_InitEngine;
@@ -3687,7 +3387,7 @@ begin
 
     SuppressUserEvents:=false;
 
-    HandleEvent(nil,'OnEnterRunMode','UIRootNode','','');
+    HandleEvent(nil,'OnEnterRunMode',SystemRootName,'','');
     {$ifdef Python}
     //exec all defined python scripts
     GatherAndRunPythonScriptsLater;
@@ -3736,9 +3436,6 @@ end;
 
 procedure DoToggleDesignRunMode(Sender:TXMenuItem);
 var
-  TargetNode :TDataNode;
-  myNode:TDataNode;
-  tmp,dm:string;
   ok:Boolean;
   GPUNodes:TNodesArray;
   i:integer;
@@ -3765,6 +3462,7 @@ begin
       DisplayDllCompileErrors;
     end;
     {$else}
+    RunModeAttempts:=RunModeAttempts+1;
     for i:=length(OpenXForms)-1 downto 0 do
     begin
       if OpenXForms[i].NameSpace='' then
@@ -3774,14 +3472,20 @@ begin
     {$ifdef Python}
     asm
       if (pyodideReady!="yes") {
-        alert('pyodide is not ready. Please try again, or check console.');
+        if (pas.XObjectInsp.RunModeAttempts>3) {
+          alert('Pyodide still not ready. Please check console for possible problems.');
+        }
+        else {
+          alert('Pyodide is not ready. Please wait and try again.');
+        }
         ok = false;
       }
     end;
     {$endif}
     if ok then
     begin
-      ShowGreyOverlay('UIRootNode','Grey1','Compiling System. Please Wait...');
+      RunModeAttempts:=0;
+      ShowGreyOverlay(SystemRootName,'Grey1','Compiling System. Please Wait...');
       // timeout here so the grey overlay appears
       asm
         myTimeout(pas.XObjectInsp.ContinueToggleToRunMode,5,'ContinueToggleToRunMode',0);
@@ -3813,12 +3517,13 @@ begin
     end;
     {$endif}
 
-    HandleEvent(nil,'OnExitRunMode','UIRootNode','','');
+    HandleEvent(nil,'OnExitRunMode',SystemRootName,'','');
 
     DesignMode:=true;
     SuppressUserEvents:=true;
     SetLength(SourcedAttribs,0);        // keep these during design mode !!!!????
     TXMenuItem(Sender).Caption:='Run Mode';
+    XIDEForm.SystemMenu.IsVisible:=true;
     // Show Object Inspector
     ShowHideObjectInspector(true);
     {$ifndef JScript}
@@ -3852,9 +3557,10 @@ end;
 procedure EditEventCode(NodeNameToEdit,EventToEdit,MainCode,InitCode:String);
 var
   targetNode:TDataNode;
-  i,j,k:integer;
+  i:integer;
 begin
-  targetNode:=FindDataNodeById(SystemNodetree,NodeNameToEdit,'',true);
+  //targetNode:=FindDataNodeById(SystemNodetree,NodeNameToEdit,'',true);
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
 
   for i:=0 to targetNode.myEventTypes.count-1 do
   begin
@@ -3876,10 +3582,9 @@ end;
 procedure TOIEventWrapper.OIEditPropertyButtonClick(e:TEventStatus;nodeId:string;myValue:string);
 var
   bits:TStringList;
-  NodeNameToEdit,PropertyToEdit, EditBoxName, SourceName, tempstr:String;
+  NodeNameToEdit,PropertyToEdit, EditBoxName, SourceName:String;
   targetNode:TDataNode;
   targetAttribute:TNodeAttribute;
-  AllKernels:TAnimCodeArray;
 begin
   bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
   if bits.Count = 4 then
@@ -3891,8 +3596,8 @@ begin
     end;
   end;
 
-  targetNode:=FindDataNodeById(SystemNodeTree,NodeNameToEdit,'',true);
-  targetAttribute:= targetNode.GetAttribute(PropertyToEdit,true);
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
+  targetAttribute:= targetNode.GetAttribute(PropertyToEdit,false);
 
   if (targetNode.NodeType<>'TXGPUCanvas')
   or ((targetAttribute.AttribName<>'AnimationCode') and (targetAttribute.AttribName<>'InitStageData')) then
@@ -3905,6 +3610,16 @@ begin
     // and display data source details...
     PropertyEditForm.PropertyEditName.ItemValue:=PropertyToEdit;
     PropertyEditForm.PropertyEditType.ItemValue:=targetAttribute.AttribType;
+    PropertyEditForm.PropertyEditTabSheet3.IsVisible:=true;
+    if targetNode.NodeType = 'TXCompositeIntf' then
+    begin
+      PropertyEditForm.PropertyEditHint.IsVisible:=true;
+      PropertyEditForm.PropertyEditHint.ItemValue:=targetAttribute.AttribHint;
+      if targetAttribute.AttribReadOnly=true then
+        PropertyEditForm.PropertyEditTabSheet3.IsVisible:=false;
+    end
+    else
+      PropertyEditForm.PropertyEditHint.IsVisible:=false;
     SourceName:=targetAttribute.AttribSource.InputNodeName;
     if targetAttribute.AttribSource.InputAttribName<>'' then
     begin
@@ -3913,8 +3628,12 @@ begin
     end;
     PropertyEditForm.PropertyEditSourceBox.ItemValue:=SourceName;
     // PropertyEditBox is the editbox (or combobox, checkbox etc) in the object inspector...
-    EditBoxName:=myStringReplace(nodeId,'Btn','',1,9999);
-    PropertyEditBox:=FindDataNodeById(SystemNodeTree,EditBoxName,'',true);
+    // associated EditBox has same name, minus the Btn suffix...
+    EditBoxName:=bits[0]+AttributeEditorNameDelimiter
+                 +NodeNameToEdit+AttributeEditorNameDelimiter
+                 +PropertyToEdit+AttributeEditorNameDelimiter
+                 +myStringReplace(bits[3],'Btn','',1,9999);         //myStringReplace(nodeId,'Btn','',1,9999);
+    PropertyEditBox:=FindDataNodeById(OITabs,EditBoxName,'',true);
 
     PropertyEditForm.SetupPages;
     ShowXForm('PropertyEditForm',true);
@@ -3931,39 +3650,109 @@ begin
 
 end;
 
+procedure TOIEventWrapper.OIDelPropertyButtonClick(e:TEventStatus;nodeId:string;myValue:string);
+var
+  bits:TStringList;
+  NodeNameToEdit,PropertyToDelete:String;
+  targetNode:TDataNode;
+  targetAttribute:TNodeAttribute;
+begin
+  bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
+  if bits.Count = 4 then
+  begin
+    if (bits[0]='OI') then       // OI, Editboxname, NodeName, suffix
+    begin
+      NodeNameToEdit:=bits[1];
+      PropertyToDelete:=bits[2];
+    end
+    else
+      EXIT;
+  end
+  else
+    EXIT;
+
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
+  targetAttribute:= targetNode.GetAttribute(PropertyToDelete,false);
+
+  if (targetNode.NodeType='TXCompositeIntf') then
+  begin
+    targetNode.DeleteAttribute(targetAttribute.AttribName);
+  end
+  else
+    showmessage('This property cannot be deleted');
+
+  // refresh the object inspector
+  RefreshObjectInspectorLater(targetNode);
+end;
+
+procedure TOIEventWrapper.OIDelEventButtonClick(e:TEventStatus;nodeId:string;myValue:string);
+var
+  bits:TStringList;
+  NodeNameToEdit,EventToDelete:String;
+  targetNode:TDataNode;
+begin
+  bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
+  if bits.Count = 4 then
+  begin
+    if (bits[0]='OI') then       // OI, Editboxname, NodeName, suffix
+    begin
+      NodeNameToEdit:=bits[1];
+      EventToDelete:=bits[2];
+    end
+    else
+      EXIT;
+  end
+  else
+    EXIT;
+
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
+
+  if (targetNode.NodeType='TXCompositeIntf') then
+  begin
+    targetNode.DeleteEvent(EventToDelete);
+  end
+  else
+    showmessage('This event cannot be deleted');
+
+  // refresh the object inspector
+  RefreshObjectInspectorLater(targetNode);
+end;
+
 procedure TOIEventWrapper.OIEditProperty(e:TEventStatus;nodeId:string;myValue:string);
 var
   bits:TStringList;
   NodeNameToEdit,AttrNameToEdit:String;
+  {$ifdef JScript}
   ok:boolean;
+  {$endif}
 begin
   //showmessage('OIEditProperty '+nodeId+' '+myValue);
   // fudge...
-  ok:=true;
   {$ifdef JScript}
+  ok:=true;
   asm
     if (myValue==undefined) {ok=false};
   end;
   if not ok then EXIT;
   {$endif}
-      bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
-      if bits.Count = 4 then
-      begin
-        if (bits[0]='OI') or (bits[0]='RI') then       // OI, Editboxname, NodeName, Attrname, suffix
-        begin
-          NodeNameToEdit:=bits[1];
-          AttrNameToEdit:=bits[2];
-          if bits[0]='OI' then
-          begin
-            //showmessage('OIEditProperty '+nodeId+' '+AttrNameToEdit+' '+myValue);
-            EditAttributeValue(NodeNameToEdit,'',AttrNameToEdit,myValue);
-            RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
-          end
-          else
-            EditResourceAttributeValue(NodeNameToEdit,AttrNameToEdit,myValue);
 
-        end;
-      end;
+  bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
+  if bits.Count = 4 then
+  begin
+    if (bits[0]='OI') or (bits[0]='RI') then       // OI, Editboxname, NodeName, Attrname, suffix
+    begin
+      NodeNameToEdit:=bits[1];
+      AttrNameToEdit:=bits[2];
+      if bits[0]='OI' then
+      begin
+        //showmessage('OIEditProperty '+nodeId+' '+AttrNameToEdit+' '+myValue);
+        EditAttributeValue(NodeNameToEdit,'',AttrNameToEdit,myValue);
+        RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
+      end
+      else
+        EditResourceAttributeValue(NodeNameToEdit,AttrNameToEdit,myValue);
+    end;
+  end;
 end;
 
 procedure TOIEventWrapper.OIEditEvent(e:TEventStatus;nodeId:string;myValue:string);
@@ -3979,7 +3768,7 @@ begin
         begin
           NodeNameToEdit:=bits[1];
           EventToEdit:=bits[2];
-          EventNode:=FindDataNodeById(SystemNodeTree,NodeNameToEdit,'',true);
+          EventNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
           EventInitCode:=EventNode.GetEventCode(EventToEdit);
           //showmessage('OIEditEvent '+nodeId+' '+myValue);
           EditEventCode(NodeNameToEdit,EventToEdit,myValue,EventInitCode);
@@ -4046,7 +3835,6 @@ var
   SourceNode, SourceAttrib:String;
   EditNode:TDataNode;
 begin
-  //showmessage('PropertyEditorClosed. return status '+ PropertyEditStatus);
   if PropertyEditStatus = 'ok' then
   begin
     EditNode:= PropertyEditForm.EditNode;
@@ -4073,9 +3861,7 @@ begin
     else if EditNode.NodeType='TXColorPicker' then
       PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('ItemValue',false).AttribValue;
 
-    //showmessage('PropertyEditorClosed. calling EditAttributeValue');
     // Update the property value in the target node...
-    //EditAttributeValue(PropertyEditForm.TargetNode.NodeName,'',PropertyEditForm.TargetAttribute.AttribName,PropertyEditForm.TargetAttribute.AttribValue);
     EditAttributeValue(PropertyEditForm.TargetNode,PropertyEditForm.TargetAttribute.AttribName,PropertyEditForm.TargetAttribute.AttribValue);
 
     // Set the data source for the property, if specified...
@@ -4086,11 +3872,16 @@ begin
       SourceNode:=SourceBits[0];
       if SourceBits.Count>1 then
         SourceAttrib:=SourceBits[1];
-      PropertyEditForm.TargetNode.SetAttributeSource(PropertyEditForm.TargetAttribute.AttribName,SourceNode,SourceAttrib);
+      PropertyEditForm.TargetNode.SetAttributeSource(PropertyEditForm.TargetAttribute.AttribName,SourceNode,'',SourceAttrib);
     end
     else
     begin
-      PropertyEditForm.TargetNode.SetAttributeSource(PropertyEditForm.TargetAttribute.AttribName,'','');
+      PropertyEditForm.TargetNode.SetAttributeSource(PropertyEditForm.TargetAttribute.AttribName,'','','');
+    end;
+
+    if PropertyEditForm.TargetNode.NodeType = 'TXCompositeIntf' then
+    begin
+      PropertyEditForm.TargetAttribute.AttribHint:=PropertyEditForm.PropertyEditHint.ItemValue;
     end;
 
     RefreshObjectInspector(PropertyEditForm.TargetNode);
@@ -4100,14 +3891,12 @@ end;
 
 procedure TOIEventWrapper.OIEditEventCodeFromCodeTree(NodeNameToEdit:string;EventToEdit:string);
 var
-  EditBoxName, EventCode, EventInitCode:string;
-  bits:TStringList;
+  EventCode, EventInitCode:string;
   targetNode:TDataNode;
-  EventNum,i:integer;
 begin
   // pop up the syntax editor.
   OIEditBox:=nil;
-  targetNode:=FindDataNodeById(SystemNodeTree,NodeNameToEdit,'',true);
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
   EventCode:=targetNode.GetEventCode(EventToEdit);
   EventInitCode:=targetNode.GetEventInitCode(EventToEdit);
   if Trim(EventCode)='' then
@@ -4119,7 +3908,7 @@ begin
   end;
   CodeEditForm.CodeEdit.ItemValue := EventCode;
   CodeEditForm.CodeEditInit.ItemValue := EventInitCode;
-  EventNum:=targetNode.EventNum(EventToEdit);
+  //EventNum:=targetNode.EventNum(EventToEdit);
   CodeEditForm.CodeEdit.MessageLines:='';
   CodeEditForm.CodeEditInit.MessageLines:='';
 
@@ -4132,11 +3921,10 @@ end;
 
 procedure TOIEventWrapper.OIEditEventCode(e:TEventStatus;nodeId:string;myValue:string);
 var
-  EditBoxName, EventCode, EventInitCode:string;
+  EditBoxName, EventCode:string;
   bits:TStringList;
   NodeNameToEdit,EventToEdit:String;
   targetNode:TDataNode;
-  EventNum,i:integer;
 begin
   bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
   if bits.Count = 4 then
@@ -4147,10 +3935,11 @@ begin
       EventToEdit:=bits[2];
     end;
   end;
+  bits.Free;
   // pop up the syntax editor.
   // remove the 'Btn' suffix
   EditBoxName:=Copy(nodeId,1,length(nodeId)-3);
-  OIEditBox:=FindDataNodeById(SystemNodeTree,EditBoxName,'',true);
+  OIEditBox:=FindDataNodeById(UIRootNode,EditBoxName,'',true);
   EventCode:=TXEditBox(OIEditBox.ScreenObject).ItemValue;
   if Trim(EventCode)='' then
   begin
@@ -4164,7 +3953,7 @@ begin
       EventCode:= DfltEventCode;
   end;
   CodeEditForm.CodeEdit.ItemValue := EventCode;
-  targetNode:=FindDataNodeById(SystemNodeTree,NodeNameToEdit,'',true);
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
   CodeEditForm.CodeEditInit.ItemValue := targetNode.GetEventInitCode(EventToEdit);
 
   CodeEditForm.CodeEdit.MessageLines:='';
@@ -4177,6 +3966,44 @@ begin
   ShowXForm('CodeEditForm',true);
 
 end;
+
+procedure TOIEventWrapper.OIEditIntfEvent(e:TEventStatus;nodeId:string;myValue:string);
+var
+  bits:TStringList;
+  targetNode:TDataNode;
+  NodeNameToEdit,EventNameToEdit:String;
+  EventToEdit:TEventHandlerRec;
+begin
+  bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
+  if bits.Count = 4 then
+  begin
+    if (bits[0]='OI') or (bits[0]='RI') then       // OI, Editboxname, NodeName, suffix
+    begin
+      NodeNameToEdit:=bits[1];
+      EventNameToEdit:=bits[2];
+    end;
+  end;
+  bits.Free;
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
+  if targetNode<>nil then
+  begin
+    EventToEdit:=targetNode.GetEvent(EventNameToEdit);
+    if EventToEdit<>nil then
+    begin
+      IntfEventUnit.EventToEdit:=EventToEdit;
+      IntfEventUnit.IntfEventForm.IntfEventName.ItemValue:=EventNameToEdit;
+      IntfEventUnit.IntfEventForm.IntfEventName.ReadOnly:=true;
+      if EventToEdit.ReadOnlyInterface=true then
+        IntfEventUnit.IntfEventForm.IntfEventType.ItemValue:='Read-Only'
+      else
+        IntfEventUnit.IntfEventForm.IntfEventType.ItemValue:='Editable';
+ //     IntfEventUnit.IntfEventForm.IntfEventType.Enabled:=false;
+      IntfEventUnit.IntfEventForm.IntfEventHint.ItemValue:=EventToEdit.EventHint;
+      ShowXForm('IntfEventForm',true);
+    end;
+  end;
+end;
+
 
 {$ifdef JScript}
 procedure TOIEventWrapper.OIPasteTarget(e:TEventStatus;nodeId:string;myValue:string);
@@ -4213,19 +4040,26 @@ begin
   result := GetNavigatorHint(SystemNodeTree,SystemNodeName);
 end;
 
-procedure AddPropertyEditButton(BoxName:String; PropHBox:TXHBox; HBoxNode:TDataNode;ro:Boolean);
+function OIResTreeNodeHint(TreeLabelStr:String):String;
+var
+   SystemNodeName,p1:string;
+begin
+  SystemNodeName:=TreeLabelToID( TreeLabelStr,'ResourceTree',p1);
+  result := GetNavigatorHint(SystemNodeTree,SystemNodeName);
+end;
+
+procedure AddPropertyEditButton(BoxName:String; HBoxNode:TDataNode;CannotEdit:Boolean);
 //                     HBox     <name>HB
 //                       widget   <name>
 //                       Button    <name>Btn
 var
   NewBtn:TXButton;
-  BtnNode:TDataNode;
 begin
     NewBtn:=TXButton(AddDynamicWidget('TXButton',MainForm,HBoxNode,BoxName+'Btn','','Top',-1).ScreenObject);
     NewBtn.ButtonWidth:='30px';
     NewBtn.SpacingAround:=0;
 
-    if ro then
+    if CannotEdit then
     begin
       NewBtn.Caption:=' ';
       NewBtn.Enabled:=false
@@ -4236,6 +4070,40 @@ begin
       NewBtn.Hint:='Edit Property';
       NewBtn.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditPropertyButtonClick);
     end;
+end;
+
+procedure AddPropertyDelButton(BoxName:String; HBoxNode:TDataNode);
+//                     HBox     <name>HB
+//                       widget   <name>
+//                       editButton    <name>Btn
+//                       delButton    <name>DelBtn
+var
+  NewBtn:TXButton;
+begin
+    NewBtn:=TXButton(AddDynamicWidget('TXButton',MainForm,HBoxNode,BoxName+'DelBtn','','Top',-1).ScreenObject);
+    NewBtn.ButtonWidth:='30px';
+    NewBtn.SpacingAround:=0;
+
+    NewBtn.Caption:='Del';
+    NewBtn.Hint:='Delete Property';
+    NewBtn.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIDelPropertyButtonClick);
+end;
+
+procedure AddEventDelButton(BoxName:String; HBoxNode:TDataNode);
+//                     HBox     <name>HB
+//                       widget   <name>
+//                       editButton    <name>Btn
+//                       delButton    <name>DelBtn
+var
+  NewBtn:TXButton;
+begin
+    NewBtn:=TXButton(AddDynamicWidget('TXButton',MainForm,HBoxNode,BoxName+'DelBtn','','Top',-1).ScreenObject);
+    NewBtn.ButtonWidth:='30px';
+    NewBtn.SpacingAround:=0;
+
+    NewBtn.Caption:='Del';
+    NewBtn.Hint:='Delete Event';
+    NewBtn.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIDelEventButtonClick);
 end;
 
 function AddPropertyContainer(ParentNode:TDataNode;BoxName:String; var VBoxNode,HBoxNode:TdataNode):TXHbox;
@@ -4251,8 +4119,11 @@ begin
   NewHBox:=TXHBox(HBoxNode.ScreenObject);
 
   NewVBox.Border:=false;
+  NewVBox.ContainerHeight:='';
+  NewVBox.ContainerWidth:='';
   NewHBox.Border:=false;
   NewHBox.ContainerHeight:='';
+  NewHBox.ContainerWidth:='';
 
   NewHBox.Alignment:='Right';
 
@@ -4263,13 +4134,12 @@ procedure AddCheckBox(PropertiesNode:TDataNode;BoxName,LblText,ItmValue:String;r
 var
   NewCheckBox:TXCheckBox;
   NewHBox:TXHBox;
-  NewNode, HBoxNode, VBoxNode:TDataNode;
-  fn:TAddComponentFunc;
+  HBoxNode, VBoxNode:TDataNode;
 begin
   NewHBox:=AddPropertyContainer(PropertiesNode,BoxName,VBoxNode,HBoxNode);
   NewCheckBox:=TXCheckBox(AddDynamicWidget('TXCheckBox',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  AddPropertyEditButton(BoxName,NewHBox,HBoxNode,ro);
+  AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewCheckBox.Checked:=myStrToBool(ItmValue);
   NewCheckBox.LabelText:=LblText;
@@ -4282,18 +4152,23 @@ begin
   NewCheckBox.myNode.registerEvent('Click',@OIEventWrapper.OIEditProperty);
 end;
 
-procedure AddPropertyEditBox(ParentNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;IsResource:Boolean;attribHint:String);
+procedure AddPropertyEditBox(ParentNode:TDataNode;BoxName,LblText,ItmValue:String;ro,CanDelete:Boolean;attribHint:String);
 var
   NewEditBox:TXEditBox;
-  VBoxNode,HBoxNode,NewNode:TDataNode;
+  VBoxNode,HBoxNode:TDataNode;
   NewHBox:TXHBox;
-  fn:TAddComponentFunc;
+  CannotEdit:Boolean;
 begin
   NewHBox:=AddPropertyContainer(ParentNode,BoxName,VBoxNode,HBoxNode);
   NewEditBox:=TXEditBox(AddDynamicWidget('TXEditBox',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  if (not IsResource) then
-    AddPropertyEditButton(BoxName,NewHBox,HBoxNode,ro);
+  CannotEdit:=ro;
+  if CanDelete then
+    CannotEdit:=false;
+
+  AddPropertyEditButton(BoxName,HBoxNode,CannotEdit);
+  if CanDelete then
+    AddPropertyDelButton(BoxName,HBoxNode);
 
   NewEditBox.LabelText:=LblText;
   NewEditBox.BoxWidth:='120px';
@@ -4304,13 +4179,7 @@ begin
 
   NewHBox.Alignment:='Right';     //!!!! why do I have to set this again here, for it to take effect??
 
-//  if length(ItmValue) < 131073 then
-    NewEditBox.ItemValue:=ItmValue;
-//  else
-//  begin
-//    NewEditBox.ItemValue:='...';
-//    NewEditBox.Enabled:=false;
-//  end;
+  NewEditBox.ItemValue:=ItmValue;
 
   // event handler....
   // by default, the XEditBox has an onExit event handler that calls HandleEvent with an
@@ -4334,7 +4203,7 @@ begin
   NewColorPicker:=TXColorPicker(AddDynamicWidget('TXColorPicker',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
   if (not IsResource) then
-    AddPropertyEditButton(BoxName,NewHBox,HBoxNode,ro);
+    AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewColorPicker.ItemValue:=ItmValue;
   NewColorPicker.LabelText:=LblText;
@@ -4349,7 +4218,7 @@ begin
   NewColorPicker.myNode.registerEvent('Change',@OIEventWrapper.OIEditProperty);
 end;
 
-procedure AddEventEditBox(ParentNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean);
+procedure AddEventEditBox(ParentNode:TDataNode;BoxName,LblText,ItmValue,HintText:String;CanEditCode:Boolean;enableButton,CanDelete:Boolean);
 var
   NewHBox:TXHBox;
   NewButton:TXButton;
@@ -4368,17 +4237,37 @@ begin
   NewEditBox.ItemValue:=ItmValue;
   NewEditBox.LabelText:=LblText;
   NewEditBox.BoxWidth:='100px';
-  NewEditBox.ReadOnly:=ro;
   NewEditBox.LabelPos:='Left';
+  NewEditBox.Hint:=HintText;
+  NewEditBox.ReadOnly:=(not CanEditCode);
 
   NewButton.Caption:='...';
-  NewButton.Hint:='Edit Event Code';
+
+  if CanDelete then
+    AddEventDelButton(BoxName,NewHBox.myNode);
 
   NewHBox.Alignment:='Right';
 
   // event handlers....
   NewEditBox.myNode.registerEvent('Change',@OIEventWrapper.OIEditEvent);
-  NewButton.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditEventCode);
+  if enableButton then
+  begin
+    NewButton.Enabled:=true;
+    if (CanDelete=false) or (CanEditCode=true) then
+    begin
+      NewButton.Hint:='Edit Event Code';
+      NewButton.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditEventCode);
+    end
+    else
+    begin
+      NewButton.Hint:='Edit Event Hint';
+      NewButton.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditIntfEvent);
+    end;
+  end
+  else
+  begin
+    NewButton.Enabled:=false;
+  end;
 end;
 
 procedure AddComboBox(PropertiesNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;Options:TStringList;attribHint:String);
@@ -4391,7 +4280,7 @@ begin
   NewHBox.ContainerHeight:='';
   NewComboBox:=TXComboBox(AddDynamicWidget('TXComboBox',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  AddPropertyEditButton(BoxName,NewHBox,HBoxNode,ro);
+  AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewComboBox.LabelText:=LblText;
   NewComboBox.BoxWidth:='120px';
@@ -4411,133 +4300,167 @@ end;
 procedure PopulateObjectInspector(CurrentNode:TDataNode);
 var AttributePrefix:string;
   i:integer;
-  PropertiesNode, EventsNode,OITabs:TDataNode;
+  ShowOn,IntfNode:TDataNode;
+  IntfEvent:TEventHandlerRec;
   myAttribs:TNodeAttributesArray;
   ro:boolean;
   s:boolean;
   AttribOptions:TStringList;
-  tmp1,tmp2:string;
-  tabIndex:String;
+  tabIndex,HintText:String;
   dfltAttrib:TDefaultAttribute;
+  NodesList:TNodesArray;
 begin
-  //if CurrentNode=nil then EXIT;
   s:=SuppressEvents;
   SuppressEvents:=true;
 
-  //if CurrentNode<>nil then showmessage('PopulateObjectInspector. Node='+CurrentNode.NodeName);
-  PropertiesNode:=FindDataNodeById(SystemNodeTree,PropertyEditorScrollboxName,'',true);
-  EventsNode:=FindDataNodeById(SystemNodeTree,EventsEditorScrollboxName,'',true);
-  OITabs:=FindDataNodeById(SystemNodeTree,'OITabs','',true);
-  if OITabs<>nil then
-    tabIndex:=OITabs.GetAttribute('TabIndex',false).AttribValue
-  else
-  begin
-    showmessage('cannot find OITabs');
-    EXIT;
-  end;
+  tabIndex:=OITabs.GetAttribute('TabIndex',false).AttribValue;
 
-  //showmessage('TabIndex='+TabIndex);
-  if (PropertiesNode<>nil) then
-  begin
-    EditAttributeValue(PropertiesNode,'IsVisible','false');
-    DeleteNodeChildren(PropertiesNode);
-  end;
-  if (EventsNode<>nil) then
-  begin
-    EditAttributeValue(EventsNode,'IsVisible','false');
-    DeleteNodeChildren(EventsNode);
-  end;
+  EditAttributeValue(PropertiesNode,'IsVisible','false');
+  DeleteNodeChildren(PropertiesNode);
+  EditAttributeValue(InterfacePropsNode,'IsVisible','false');
+  DeleteNodeChildren(InterfacePropsNode);
+  EditAttributeValue(EventsNode,'IsVisible','false');
+  DeleteNodeChildren(EventsNode);
 
-  if (PropertiesNode<>nil) and (CurrentNode<>nil)  then
+  if (CurrentNode<>nil)  then
   begin
-    if TabIndex='0' then
+    if CurrentNode.NodeType='TXComposite' then
+    begin
+      IntfNode:=nil;
+      NodesList:=FindNodesOfType(CurrentNode,'TXCompositeIntf',true,CurrentNode.NodeName);  // should be only 1 of these
+      if length(NodesList)>0 then
+        IntfNode:=NodesList[0];
+    end;
+
+    if (TabIndex='0') or (TabIndex='2') then
     begin
       if CurrentNode<>nil then
       begin
-      //showmessage('show properties');
-        {$ifdef JScript}
-        TXTabControl(OITabs.ScreenObject).TabIndex:=0;   //fudge. (browser)...make sure tab is still visible
-        {$endif}
         AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
+
         AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
                                   +'Name'+AttributeEditorNameDelimiter
                                   +'0','Name',CurrentNode.NodeName,true,false,CurrentNode.NodeName);
 
         myAttribs:=CurrentNode.NodeAttributes;
         for i:=0 to length(myAttribs)-1 do
-        if CurrentNode.NodeAttributes[i].AttribName <> '' then
+        if (CurrentNode.NodeAttributes[i]<>nil)
+        and (CurrentNode.NodeAttributes[i].AttribName <> '') then
         begin
           dfltAttrib:=GetDefaultAttrib(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName);
           ro:=CurrentNode.NodeAttributes[i].AttribReadOnly;
           //exclude Suppressed properties that user shouldn't see
           if (FindSuppressedProperty(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName)<0)
           and (CurrentNode.NodeAttributes[i].AttribName<>'ParentName') then
+          begin
+            if (CurrentNode.NodeType<>'TXComposite')
+            or (IsADefaultAttrib(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName)) then
+            begin
+              ShowOn:=PropertiesNode;
+              if (CurrentNode.NodeType='TXCompositeIntf') then
+                HintText:=CurrentNode.NodeAttributes[i].AttribHint
+              else
+                HintText:= dfltAttrib.AttribHint;
+            end
+            else
+            begin
+              ShowOn:=InterfacePropsNode;
+              if (IntfNode<>nil)
+              and (IntfNode.HasAttribute(CurrentNode.NodeAttributes[i].AttribName)) then
+                HintText:=IntfNode.GetAttribute(CurrentNode.NodeAttributes[i].AttribName,false).AttribHint;
+            end;
+
             if CurrentNode.NodeAttributes[i].AttribType = 'Boolean' then
             begin
-              //showmessage('bool property '+CurrentNode.NodeAttributes[i].AttribName+' '+CurrentNode.NodeAttributes[i].AttribValue);
-              AddCheckBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
+              AddCheckBox(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
                       +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                       +IntToStr(i+2),
-                       CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,dfltAttrib.AttribHint);
+                       CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,HintText);
             end
             else
             begin
               AttribOptions:=LookupAttribOptions(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName);
               if AttribOptions<>nil then
               begin
-                AddComboBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
+                AddComboBox(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
                       +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                       +IntToStr(i+2),
                        CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,
-                       AttribOptions,dfltAttrib.AttribHint);
+                       AttribOptions,HintText);
               end
               else if CurrentNode.NodeAttributes[i].AttribType='Color' then
-                AddPropertyColorPicker(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
+                AddPropertyColorPicker(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
                       +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                       +IntToStr(i+2),
-                       CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,false,dfltAttrib.AttribHint)
+                       CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,false,HintText)
               else
-                AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
+                AddPropertyEditBox(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
                     +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                     +IntToStr(i+2),
-                     CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,false,dfltAttrib.AttribHint);
+                     CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,
+                     ro,(CurrentNode.NodeType='TXCompositeIntf'),
+                     HintText);
             end;
-
+          end;
         end;
         EditAttributeValue(PropertiesNode,'IsVisible','true');
-       end;
+        if CurrentNode.NodeType='TXComposite' then
+          EditAttributeValue(InterfacePropsNode,'IsVisible','true');
+
       end;
+    end
+    else if TabIndex='1' then
+    begin
       //------------------- Display the registered Events -----------------------
-      if EventsNode<>nil  then
+
+      if CurrentNode<>nil then
+      if ((CurrentNode.IsDynamic) or (CurrentNode=UIRootNode)) then
       begin
- //       EditAttributeValue('OITabs','TabIndex','1');     // raise the events tab (fudge...sigsiv avoidance...?)
-        if TabIndex='1' then
+        AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
+
+        for i:=0 to CurrentNode.MyEventTypes.count-1 do
         begin
-          {$ifdef JScript}
-          TXTabControl(OITabs.ScreenObject).TabIndex:=1;   //fudge. (browser)...make sure tab is still visible
-          {$endif}
-
-          if CurrentNode<>nil then
-          if ((CurrentNode.IsDynamic) or (CurrentNode=UIRootNode)) then
+          HintText:= CurrentNode.myEventHandlers[i].EventHint;
+          if (CurrentNode.NodeType='TXComposite')
+          and (IntfNode<>nil) then
           begin
-            AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
-
-              for i:=0 to CurrentNode.MyEventTypes.count-1 do
-              begin
-
-                AddEventEditBox(EventsNode,AttributePrefix+AttributeEditorNameDelimiter //OI__nodename__
+            // get the event hint from the underlying interface node
+            IntfEvent:=IntfNode.GetEvent(CurrentNode.MyEventTypes[i]);
+            if IntfEvent<>nil then
+              HintText:= IntfEvent.EventHint;
+          end;
+          AddEventEditBox(EventsNode,AttributePrefix+AttributeEditorNameDelimiter //OI__nodename__
                             +CurrentNode.MyEventTypes[i]+AttributeEditorNameDelimiter   //eventtype__
                             +IntToStr(i+2),                                             //suffix
                              CurrentNode.MyEventTypes[i],
                              CurrentNode.myEventHandlers[i].TheCode,
-                             true);
+                             HintText,
+                             //CanEditCode...
+                             (((CurrentNode.NodeType<>'TXComposite') and (CurrentNode.NodeType<>'TXCompositeIntf'))
+                             or ((CurrentNode.NodeType='TXCompositeIntf') and (CurrentNode.myEventHandlers[i].ReadOnlyInterface=true))
+                             or ((CurrentNode.NodeType='TXComposite') and (CurrentNode.myEventHandlers[i].ReadOnlyInterface=false))
+                             ),
+                             //EnableButton...
+                             ((CurrentNode.NodeType<>'TXComposite')
+                             or ((CurrentNode.NodeType='TXComposite') and (CurrentNode.myEventHandlers[i].ReadOnlyInterface=false))
+                             ),
+                             //CanDelete...
+                             (CurrentNode.NodeType='TXCompositeIntf')
+                             );
 
-              end;
-          end;
-          EditAttributeValue(EventsNode,'IsVisible','true');
         end;
       end;
- //     EditAttributeValue('OITabs','TabIndex',TabIndex);     // put back as it was
+      EditAttributeValue(EventsNode,'IsVisible','true');
+    end;
+
+    if CurrentNode.NodeType='TXComposite' then
+      EditAttributeValue(InterfaceTabNode,'IsVisible','true')
+    else
+      EditAttributeValue(InterfaceTabNode,'IsVisible','false');
+    if (CurrentNode.NodeType='TXCompositeIntf') then
+      EditAttributeValue(AddInterfacePropsButtonNode,'IsVisible','true')
+    else
+      EditAttributeValue(AddInterfacePropsButtonNode,'IsVisible','false');
   end;
 
   SuppressEvents:=s;
@@ -4550,11 +4473,11 @@ begin
 end;
 
 
-function PopulateResourceInspector(CurrentNode:TDataNode):String;
+procedure PopulateResourceInspector(CurrentNode:TDataNode);
 var AttributePrefix:string;
   i:integer;
   PropertiesNode,btnNode:TDataNode;
-  myAttribs,AttrParams:TNodeAttributesArray;
+  myAttribs:TNodeAttributesArray;
   ro:boolean;
   s:boolean;
 begin
@@ -4565,48 +4488,48 @@ begin
   and ((CurrentNode.NodeClass='RSS')
     or (CurrentNode.NodeType='TXComposite')) then
   begin
-    btnNode:=FindDataNodeById(systemnodetree,'ResourceTreeDelBtn','',true);
+    btnNode:=FindDataNodeById(UIRootNode,'ResourceTreeDelBtn','',true);
     TXButton(btnNode.ScreenObject).Enabled:=true;
-    btnNode:=FindDataNodeById(systemnodetree,'ResourceTreeLoadBtn','',true);
+    btnNode:=FindDataNodeById(UIRootNode,'ResourceTreeLoadBtn','',true);
     TXButton(btnNode.ScreenObject).Enabled:=true;
   end
   else
   begin
-    btnNode:=FindDataNodeById(systemnodetree,'ResourceTreeDelBtn','',true);
+    btnNode:=FindDataNodeById(UIRootNode,'ResourceTreeDelBtn','',true);
     TXButton(btnNode.ScreenObject).Enabled:=false;
-    btnNode:=FindDataNodeById(systemnodetree,'ResourceTreeLoadBtn','',true);
+    btnNode:=FindDataNodeById(UIRootNode,'ResourceTreeLoadBtn','',true);
     TXButton(btnNode.ScreenObject).Enabled:=false;
   end;
 
-  PropertiesNode:=FindDataNodeById(SystemNodeTree,ResourceEditorScrollboxName,'',true);
-  if PropertiesNode<>nil  then
-  begin
-    EditAttributeValue(PropertiesNode,'IsVisible','false');
-    DeleteNodeChildren(PropertiesNode);
-
-    if (CurrentNode<>nil) and (CurrentNode.NodeType<>'') then     // eg. on node headers (placeholders)
-    begin
-
-      AttributePrefix:='RI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
-      AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
-                                +'Type'+AttributeEditorNameDelimiter
-                                +'1','Type',CurrentNode.NodeType,true,true,'');
-
-      myAttribs:=CurrentNode.NodeAttributes;
-      for i:=0 to length(myAttribs)-1 do
-      begin
-        if CurrentNode.NodeAttributes[i].AttribName<>'ParentName' then
-        begin
-          ro:=CurrentNode.NodeAttributes[i].AttribReadOnly;
-          AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
-                    +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
-                    +IntToStr(i+2),
-                     CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,true,'');
-        end;
-      end;
-    end;
-    EditAttributeValue(PropertiesNode,'IsVisible','True');
-  end;
+//  PropertiesNode:=FindDataNodeById(UIRootNode,ResourceEditorScrollboxName,'',true);
+//  if PropertiesNode<>nil  then
+//  begin
+//    EditAttributeValue(PropertiesNode,'IsVisible','false');
+//    DeleteNodeChildren(PropertiesNode);
+//
+//    if (CurrentNode<>nil) and (CurrentNode.NodeType<>'') then     // eg. on node headers (placeholders)
+//    begin
+//
+//      AttributePrefix:='RI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
+//      AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
+//                                +'Type'+AttributeEditorNameDelimiter
+//                                +'1','Type',CurrentNode.NodeType,true,true,false,'');
+//
+//      myAttribs:=CurrentNode.NodeAttributes;
+//      for i:=0 to length(myAttribs)-1 do
+//      begin
+//        if CurrentNode.NodeAttributes[i].AttribName<>'ParentName' then
+//        begin
+//          ro:=CurrentNode.NodeAttributes[i].AttribReadOnly;
+//          AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
+//                    +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
+//                    +IntToStr(i+2),
+//                     CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,true,false,'');
+//        end;
+//      end;
+//    end;
+//    EditAttributeValue(PropertiesNode,'IsVisible','True');
+//  end;
   SuppressEvents:=s;
 end;
 
@@ -4617,7 +4540,7 @@ var
 begin
   // create a data node for the new unit, and add under CodeRootNode.
   // Dialog for name entry
-  NewName:=getname('Enter Unit Name:');
+  NewName:=GetComponentName('Enter Unit Name:');
 
   // Is the source node named uniquely?
   if (NewName<>'') and (ComponentNameIsUnique(NewName,'')) then
@@ -4684,7 +4607,7 @@ begin
     or (ObjectInspectorSelectedCodeTreeNode.NodeClass='NV')
     or (ObjectInspectorSelectedCodeTreeNode.NodeClass='SVG')
     or ((ObjectInspectorSelectedCodeTreeNode.NodeClass='Root')
-      and (ObjectInspectorSelectedCodeTreeNode.NodeName='UIRootNode'))
+      and (ObjectInspectorSelectedCodeTreeNode.NodeName=SystemRootName))
     then
     begin
       // selected node is UI so we are looking at some event handler code
@@ -4707,12 +4630,9 @@ begin
         begin
           ShowGPUEditor(ObjectInspectorSelectedCodeTreeNode,0);
         end;
-
       end;
-
     end
     else
-
       showmessage('Select a Code Node first - selected node is not an appropriate type');
 
   end
@@ -4769,11 +4689,26 @@ end;
 
 Procedure OIEncapsulate;
 var
-  fullstring,itemName:String;
+  fullstring,itemName,PromptString,DefaultString:String;
 begin
   // Take the current user-defined system, and store its structure in the resource tree under 'Composites', with
   // a name provided by the user, and save to local storage.
-  itemName:=getname('Enter Name of new Composite Item:');
+  DefaultString:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
+  if DefaultString='XIDESystem' then
+    DefaultString:='';
+  if pos('_xcmp',DefaultString)=length(DefaultString)-4 then
+  begin
+    Delete(DefaultString,length(DefaultString)-4,5);
+    PromptString:='Enter Name of Composite Item:';
+  end
+  else
+    PromptString:='Enter Name of new Composite Item:';
+  itemName:=GetValidItemName(PromptString,DefaultString );
+  if itemName='' then
+    EXIT;
+
+  //itemHint:=XIDEPrompt('Enter a hint text for this composite item:','');
+
   fullstring:=BuildSystemString(true);
   itemName:=itemName+'.xcmp';
   {$ifndef JScript}
@@ -4782,16 +4717,16 @@ begin
   WriteToLocalStore(itemName,fullstring);
 
   RebuildResourcesTree;
+
 end;
 
 procedure OIAddInterfaceElement;
 var
   myIntf:TXCompositeIntf;
   NewName,tabIndex:String;
-  ok:Boolean;
-  OITabs:TDataNode;
-  i:integer;
+  ok,IsReadOnly,tf:Boolean;
 begin
+  // for a TXCompositeIntf item, user can add interface properties, or bespoke events.
   if (ObjectInspectorSelectedNavTreeNode=nil)
   or (ObjectInspectorSelectedNavTreeNode.NodeType<>'TXCompositeIntf') then
     showmessage('Please select a Composite Interface (TXCompositeIntf) element first')
@@ -4799,92 +4734,32 @@ begin
   begin
     myIntf:=TXCompositeIntf(ObjectInspectorSelectedNavTreeNode.ScreenObject);
 
-    OITabs:=FindDataNodeById(SystemNodeTree,'OITabs','',true);
-    if OITabs<>nil then
-      tabIndex:=OITabs.GetAttribute('TabIndex',false).AttribValue;
+    tabIndex:=OITabs.GetAttribute('TabIndex',false).AttribValue;
 
     if tabIndex='0' then
     begin
 
-      // create a new attribute for the selected node
+      // create a new attribute/property for the selected node
       ok:=false;
-      while not ok do
-      begin
-        // Dialog for name entry
-        NewName:= XIDEPrompt('Enter Property Name',NewName);
-
-        ok:=true;
-         // Is the property named uniquely?
-        if (NewName<>'') then
-        begin
-        if (myIntf.PropertyNameIsUnique(NewName)) then
-          begin
-            ObjectInspectorSelectedNavTreeNode.AddAttribute(NewName,'String','',false);
-            PopulateObjectInspector(ObjectInspectorSelectedNavTreeNode);
-          end
-          else
-          begin
-            ok:=false;
-            showmessage(NewName+' already exists');
-          end;
-        end;
-      end;
+      // Dialog for name and type entry
+      IntfParamUnit.InterfaceElement := myIntf;
+      IntfParamUnit.ClearForm;
+      ShowXForm('IntfParamForm',true);
 
     end
     else
     begin
       // create a new event for the selected node
       ok:=false;
-      while not ok do
-      begin
-        // Dialog for name entry
-        NewName:= XIDEPrompt('Enter Event Name',NewName);
-
-        ok:=true;
-         // Is the event named uniquely?
-        if (NewName<>'') then
-        begin
-          if (myIntf.EventNameIsUnique(NewName)) then
-          begin
-            ObjectInspectorSelectedNavTreeNode.AddEvent(NewName,'','');
-            PopulateObjectInspector(ObjectInspectorSelectedNavTreeNode);
-          end
-          else
-          begin
-            ok:=false;
-            showmessage(NewName+' already exists');
-          end;
-        end;
-      end;
+      IntfEventUnit.InterfaceElement := myIntf;
+      IntfEventUnit.ClearForm;
+      ShowXForm('IntfEventForm',true);
 
     end;
   end;
 end;
 
 {$ifdef JScript}
-//procedure InitAutomatedCursor;
-//begin
-//  asm
-//  // Find the animation rule by name
-//   var ss = document.styleSheets[0];
-//   var anim;
-//     for (var i=0; i<ss.cssRules.length; i++) {
-//          //alert('i='+i+' name='+ss.cssRules[i].name);
-//   	if (ss.cssRules[i].name === 'anim') {
-//   	  anim = ss.cssRules[i];
-//   	  break;
-//           }
-//         }
-//      if (anim==null) {
-//        //alert('did not find anim');
-//        // Dynamically create a keyframe animation..... Initalise to top left corner
-//        document.styleSheets[0].insertRule("@keyframes anim {from {top: 0px;  left: 0px;} to {top: 0px;  left: 0px;}}");
-//        var AutomatedCursorDiv = document.getElementById("AutomatedCursor");
-//        AutomatedCursorDiv.style.animation = "anim 1s linear forwards";
-//        //AutomatedCursorDiv.style.animation = "anim 1s linear";
-//      }
-//  end;
-//end;
 
 function CheckForSavedSystemOnLoad:Boolean;
 var
@@ -4928,6 +4803,7 @@ begin
   AddAttribOptions('Root','ShowResources',ShowResourcesOptions);
 
   DesignMode:=true;
+  RunModeAttempts:=0;
   OIEventWrapper := TOIEventWrapper.Create;
   ObjectInspectorSelectedNavTreeNode:=nil;
   ObjectInspectorSelectedCodeTreeNode:=nil;

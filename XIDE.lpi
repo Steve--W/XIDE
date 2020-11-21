@@ -50,7 +50,7 @@
         <PackageName Value="FCL"/>
       </Item7>
     </RequiredPackages>
-    <Units Count="17">
+    <Units Count="19">
       <Unit0>
         <Filename Value="XIDE.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -161,6 +161,21 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="XIDESettings"/>
       </Unit16>
+      <Unit17>
+        <Filename Value="intfparamunit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="IntfParamForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="intfeventunit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="IntfEventForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="IntfEventUnit"/>
+      </Unit18>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -145,6 +145,8 @@ begin
   '                            Populate the given TXTable component from a 2D numeric array  '  + LineEnding +
   'function  GetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  '  + LineEnding +
   '                            Fetch the cells from the given TXTable component as a 2D string array  '  + LineEnding +
+  'function  GetTableDataForExcel(TableName:String):String;  '  + LineEnding +
+  '                            Fetch the cells from the given TXTable component ready for paste to a spreadsheet  '  + LineEnding +
   'function  Array2DToString(arr:T2DNumArray):String;'  + LineEnding +
   '                            Convert numeric 2D array to string form eg. [[...],...,[...]]  '  + LineEnding;
 

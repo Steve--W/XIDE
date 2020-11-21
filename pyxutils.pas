@@ -105,9 +105,8 @@ var
   arr:T2DNumArray;
   v:Variant;
   varri:TArgs;
-  i,j,l,l0:integer;
+  i,j,l:integer;
 begin
-  l0:=length(varr);
   setlength(arr,length(varr));
   for i:=0 to length(arr)-1 do
   begin
@@ -176,6 +175,10 @@ begin
   else if fname='LoadTableFromExcelCopy' then
   begin
     mmo.mmiLoadTableFromExcelCopy(fnArgs[0], fnArgs[1]);
+  end
+  else if fname='GetTableDataForExcel' then
+  begin
+    mmo.mmiGetTableDataForExcel(fnArgs[0]);
   end
   else if fname='LoadTableFromNumArray' then
   begin
@@ -360,8 +363,6 @@ end;
 
 procedure DoPy_InitEngine;
 var
-  pth:string;
-//  PythonVersion: TPythonVersion;
   ok:boolean;
 begin
   if Assigned(PythonEngine1) then
@@ -438,7 +439,6 @@ end;
 function PyodideScript:TStringList;
 var
   script:TStringList;
-  myCode:String;
 begin
   script:=TStringList.Create;
   script.add('<script type="application/javascript" >');
@@ -551,8 +551,7 @@ end;
 procedure RunInitialScript;
 var
   InitScript:TStringList;
-  txt:String;
-  FPUExceptionMask:TFPUExceptionMask;
+//  FPUExceptionMask:TFPUExceptionMask;
 begin
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
   InitScript:=TStringList.Create;
@@ -598,6 +597,8 @@ begin
   InitScript.add('  return RunXIDEFunc(''CopyFromClip'',(e,0))');
   InitScript.add('def LoadTableFromExcelCopy(TableName,CopiedString):');
   InitScript.add('  RunXIDEFunc(''LoadTableFromExcelCopy'',(TableName,CopiedString))');
+  InitScript.add('def GetTableDataForExcel(TableName):');
+  InitScript.add('  RunXIDEFunc(''GetTableDataForExcel'',(TableName))');
   InitScript.add('def LoadTableFromNumArray(TableName,NumArray):');
   InitScript.add('  RunXIDEFunc(''LoadTableFromNumArray'',(TableName,NumArray))');
   InitScript.add('def GetTableDataArray(TableName,SkipHeader):');
@@ -711,6 +712,8 @@ begin
   InitScript.add('  return pas.InterfaceTypes.CopyFromClip(e)');
   InitScript.add('def LoadTableFromExcelCopy(TableName,CopiedString):');
   InitScript.add('  pas.InterfaceTypes.LoadTableFromExcelCopy(TableName,CopiedString)');
+  InitScript.add('def GetTableDataForExcel(TableName):');
+  InitScript.add('  pas.InterfaceTypes.GetTableDataForExcel(TableName)');
   InitScript.add('def LoadTableFromNumArray(TableName,NumArray):');
   InitScript.add('  pas.InterfaceTypes.LoadTableFromNumArray(TableName,NumArray)');
   InitScript.add('def GetTableDataArray(TableName,SkipHeader):');

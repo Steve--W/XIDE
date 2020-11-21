@@ -18,7 +18,7 @@ unit XGPUCanvas;
 interface
 
 uses
-    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame, Math,
+    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame,
     UtilsJSCompile, XForm, XCode, XButton, XVBox, XTabControl, XMemo, XComboBox, EventsInterface,
     WebTranspilerUtils,
   {$ifndef JScript}
@@ -27,7 +27,7 @@ uses
     LCLType, gettext,
     {$ifdef Chromium}
     uCEFChromium, uCEFInterfaces, uCEFTypes, uCEFProcessMessage, uCEFMiscFunctions,
-    cefXUtils,
+//    cefXUtils,
     {$endif}
   {$else}
     webfilecache, pas2jswebcompiler,
@@ -340,7 +340,6 @@ procedure TXGPUCanvas.GPUProcessMessageReceived(
   const message: ICefProcessMessage; out Result: Boolean);
 var
   oText,sText:String;
-  oarr,sarr:T3DNumArray;
 begin
   case message.Name of
     'sendGPUarrays':
@@ -527,11 +526,10 @@ end;
 function TXGPUCanvas.GPUJSCode(AnimCode:TStringList):String;
 //function TXGPUCanvas.GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
 var
-  str,vstr,cma, plist, KName,tempstr:String;
+  str,vstr,plist, KName,tempstr:String;
   i,j,k,d:integer;
   vn:TNumArray;
   va:T2DNumArray;
-  vi:TIntArray;
   h,w,n:integer;
   xdims,ydims,zdims:TStringList;
 
@@ -1070,7 +1068,7 @@ begin
   begin
     {$ifndef JScript}
     TXGPUCanvas(myNode.ScreenObject).GPUStageArray:=AValue;
-    TXGPUCanvas(myNode).GPUStageString:='';
+    TXGPUCanvas(myNode.ScreenObject).GPUStageString:='';
     {$else}
     TXGPUCanvas(myNode).GPUStageArray:=AValue;
     TXGPUCanvas(myNode).GPUStageString:='';
@@ -1160,16 +1158,16 @@ begin
   end;
 end;
 
-function GetParam(NodeName:String; pindex:integer):Float;
-begin
-  showMessage('GetParam');
-  result:=0;
-end;
+//function GetParam(NodeName:String; pindex:integer):Float;
+//begin
+//  showMessage('GetParam');
+//  result:=0;
+//end;
 
 function TXGPUCanvas.GPUJSAnimationFooter:String;
 // This code is added only if the 'Animated' property is true...
 var
-  str,cma,plist:String;
+  str,plist:String;
 begin
 
   plist:=self.FullParamList;
@@ -1221,8 +1219,8 @@ end;
 function TXGPUCanvas.FetchAllAnimCode:TAnimCodeArray;
 var
   allcode:TAnimCodeArray;
-  bits,cdbits,dimbits:TStringList;
-  n,d:integer;
+  bits,cdbits:TStringList;
+  n:integer;
   RevisedAnimCode:String;
 begin
   // The property 'AnimationCode' contains a string which is a concatenation of:
@@ -1287,9 +1285,7 @@ var
   UserCodeParameterList:String;
   AllAnimationCode:TAnimCodeArray;
   TheAnimationCode:TStringList;
-  vstr:String;
-  v:TNumArray;
-  i,j,n:integer;
+  i,n:integer;
 begin
   PascalHeader:=TStringList.Create;
   PascalHeader.Add(' unit GPUCode; ');
@@ -1395,10 +1391,11 @@ function TXGPUCanvas.CompileGPUToJS(var GPUJSOutput:String):Boolean;
 var
   ProgPath, PasFileName,ObjectFileName,ExeFileName:String;
   UnitString:String;
-  Res,ok:Boolean;
-  args:TStringList;
+  ok:Boolean;
   prog:TStringList;
   {$ifdef JScript}
+  Res:Boolean;
+  args:TStringList;
   lWebFS : TPas2JSWebFS;
   {$endif}
 begin
@@ -1748,7 +1745,6 @@ end;
 function TXGPUCanvas.GetParamNumValue(pName:String):TNumArray;
 var
   i:integer;
-  tmp:String;
   pval:TNumArray;
 begin
   for i:=0 to length(ParamNumArray)-1 do
@@ -1762,7 +1758,6 @@ end;
 function TXGPUCanvas.GetConstIntValue(pName:String):integer;
 var
   i:integer;
-  tmp:String;
   pval:integer;
 begin
   for i:=0 to length(ConstIntArray)-1 do
@@ -1870,8 +1865,6 @@ end;
 procedure TXGPUCanvas.SetConstIntValue(pName:String;pValue:integer);
 var
   i:integer;
-  tmp:String;
-  myurl:string;
 begin
   for i:=0 to length(ConstIntArray)-1 do
     if uppercase(ConstIntArray[i].ConstName)=uppercase(pName) then

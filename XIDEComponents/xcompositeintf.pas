@@ -10,7 +10,7 @@ unit XCompositeIntf;
 interface
 
 uses
-    Classes, SysUtils, Types,NodeUtils,StringUtils,
+    Classes, SysUtils, NodeUtils,StringUtils,
     {$ifndef JScript}
     Forms, Controls, StdCtrls, LResources, Graphics, Dialogs, ExtCtrls, PropEdits, RTTICtrls,
     LazsUtils,
@@ -116,8 +116,6 @@ begin
 end;
 
 function TXCompositeIntf.GetName:string;
-var
-  myname:string;
 begin
   result:=inherited Name;
 end;
@@ -190,20 +188,18 @@ begin
 end;
 
 begin
-// this is the set of node attributes that each instance will have.
-//AddDefaultAttribute(myDefaultAttribs,'KeyName','String','','',false);
-//AddDefaultAttribute(myDefaultAttribs,'DataValue','String','','',false);
 
 {$ifndef JScript}
 RegisterClass(TXCompositeIntf);
 AddNodeFuncLookup('TXCompositeIntf',@CreateIntf);
 {$else}
 AddNodeFuncLookup('TXCompositeIntf',@CreateinterfaceObj,@CreateIntf);
+{$endif}
 SuppressDesignerProperty('TXCompositeIntf','Alignment');
 SuppressDesignerProperty('TXCompositeIntf','IsVisible');
 SuppressDesignerProperty('TXCompositeIntf','LabelPos');
 SuppressDesignerProperty('TXCompositeIntf','LabelText');
 SuppressDesignerProperty('TXCompositeIntf','Hint');
-{$endif}
+SuppressDesignerProperty('TXCompositeIntf','Border');
 end.
 

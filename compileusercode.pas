@@ -162,10 +162,9 @@ end;
 procedure WriteRTLIncFile(filepath,filename,suffix:String);
 var
   TheStream:TFileStream;
-  Incname,tempText,oneLine:string;
+  Incname:string;
   TxtLines:TStringList;
-  i,j:integer;
-  URI: TURI;
+  i:integer;
 begin
   // Load up the required file
   TxtLines:=TStringList.Create;
@@ -323,7 +322,7 @@ end;
 
 procedure GatherEventHeaders(RunMode,NameSpace:String;StartNode:TDataNode;UnitCode:TStringList;var n:integer);
 var
-    i,j:integer;
+    i:integer;
     tmp,Dflt:string;
 begin
   if StartNode.NameSpace= NameSpace then
@@ -356,7 +355,7 @@ end;
 
 procedure GatherEventHeadersForWorkerThreads(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
 var
-    i,j:integer;
+    i:integer;
     tmp,Dflt:string;
 begin
 
@@ -386,8 +385,8 @@ end;
 
 procedure GatherVarsForWorkerThreads1(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
 var
-    i,j:integer;
-    tmp,VarNames:string;
+    i:integer;
+    VarNames:string;
     VarNamesList:TStringList;
 begin
 
@@ -429,8 +428,8 @@ begin
 end;
 procedure GatherVarsForWorkerThreads2(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
 var
-    i,j:integer;
-    tmp,VarNames:string;
+    i:integer;
+    VarNames:string;
     VarNamesList:TStringList;
 begin
 
@@ -465,9 +464,8 @@ begin
 end;
 procedure GatherVarsForWorkerThreads3(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
 var
-    i,j:integer;
-    tmp,VarNames:string;
-    VarNamesList:TStringList;
+    i:integer;
+    VarNames:string;
 begin
 
   if (StartNode.IsDynamic)
@@ -486,13 +484,12 @@ end;
 
 procedure GatherEventCode(RunMode,NameSpace:String;Compiler:TObject;StartNode:TDataNode;UnitCode:TStringList);
 var
-    i,j:integer;
-    hdr,tmp,Dflt,nm,ns,et:string;
+    i:integer;
+    hdr,tmp,Dflt,ns:string;
     IncCode,InitCode:TStringList;
 begin
   if StartNode.NameSpace=NameSpace then
   begin
-    nm:=StartNode.NodeName;
     // user-created event code is held in the data nodes (node.myEventHandlers[i].TheCode)
     IncCode:=TStringList.Create;
     if (StartNode.IsDynamic) or (StartNode=UIRootNode) then
@@ -501,7 +498,6 @@ begin
       if (StartNode.NodeType<>'TXThreads')
       or (FoundString(StartNode.myEventTypes[i],'Thread')<>1) then
       begin
-        et:=StartNode.myEventTypes[i];
         tmp:=StartNode.myEventHandlers[i].TheCode;
         Dflt:=DfltEventCode;
         if (trim(tmp)<>'')
@@ -587,11 +583,10 @@ end;
 
 procedure GatherEventCodeForWorkerThreads(RunMode,NameSpace:String;Compiler:TObject;StartNode:TDataNode;CodeBlock:TStringList);
 var
-    i,j:integer;
-    hdr,tmp,Dflt,nm,et:string;
-    IncCode,InitCode:TStringList;
+    i:integer;
+    hdr,tmp,Dflt,et:string;
+    IncCode:TStringList;
 begin
-  nm:=StartNode.NodeName;
   // user-created event code is held in the data nodes (node.myEventHandlers[i].TheCode)
   IncCode:=TStringList.Create;
   if (StartNode.NodeType='TXThreads')
@@ -686,7 +681,6 @@ end;
 
 function AddPasUnit(UnitNode:TDataNode; MainUnitCode:TStringList;Compiler:TObject):String;
 var
-    j,k:integer;
     tmp,nm:string;
     UnitCode:TStringList;
 begin
@@ -721,7 +715,6 @@ end;
 
 procedure AddPyScript(UnitNode:TDataNode; PythonCode:TStringList);
 var
-    i:integer;
     tmp,nm:string;
 begin
   // Python Script code is all in attribute : Code
@@ -859,7 +852,7 @@ begin
 
 end;
 
-function ConstructNamespaceUnits(RunMode,NameSpace:String; Compiler:TObject; StartNode:TDataNode):String;
+procedure ConstructNamespaceUnits(RunMode,NameSpace:String; Compiler:TObject; StartNode:TDataNode);
 var
     i:integer;
     CompositeNameSpace:String;
@@ -1013,7 +1006,7 @@ end;
 
 function initialiseCodeToBeCompiled(RunMode:String; Compiler:TObject):String;    //RunMode is LazJS, LazDll or JSJS
 var
-    tmp,FirstUnitName:String;
+    FirstUnitName:String;
     i,n:integer;
 begin
  // delete old .inc and .pas files
@@ -1039,7 +1032,7 @@ begin
    PascalCode.Add('  contnrs, dateutils, rtlconsts, strutils, types, typinfo');
 
    FirstUnitName:=GatherUserUnits(RunMode,Compiler);
-   ConstructNamespaceUnits(RunMode,'',Compiler,UIRootItem);
+   ConstructNamespaceUnits(RunMode,'',Compiler,MainFormProjectRoot);
    PascalCode.Add(';');
    PascalCode.Add('');
 
@@ -1089,74 +1082,87 @@ begin
     PascalCode.Add( '  ' );
     PascalCode.Add( 'end.');
  end;
+ {$ifndef Python}
+ if PythonCodeExists then
+   showmessage('Warning: The system contains Python code.  These cannot be executed unless the XIDE framework is built with the ''Python'' option');
+ {$endif}
  result:=FirstUnitName;
 end;
 
 procedure GatherSourcedAttributes(StartNode:TDataNode);
 var
-  i:integer;
+  i,n:integer;
   CompositeNode:TDataNode;
-begin
-  if StartNode.IsDynamic then
+  NodesList:TNodesArray;
+  procedure CollectAll(StartNode:TDataNode);
+  var
+    i:integer;
   begin
-    for i:=0 to length(StartNode.NodeAttributes)-1 do
+    if StartNode.IsDynamic then
     begin
-      if StartNode.NodeAttributes[i].AttribSource.InputNodeName<>'' then
-      begin
-        setlength(SourcedAttribs,length(SourcedAttribs)+1);
-        SourcedAttribs[length(SourcedAttribs)-1].TheAttribute:=StartNode.NodeAttributes[i];
-        SourcedAttribs[length(SourcedAttribs)-1].TheNode:=StartNode;
-        SourcedAttribs[length(SourcedAttribs)-1].InProgress:=false;
-        SourcedAttribs[length(SourcedAttribs)-1].SourceNode:=FindDataNodeById(SystemNodeTree,StartNode.NodeAttributes[i].AttribSource.InputNodeName,
-                                                                              StartNode.NameSpace,true);
-      end;
-    end;
-    // if this node is a TXCompositeIntf (composite interface element) then each of its non-default attributes
-    // will need to be set up with values sourced from the element container (type TXComposite).
-    if StartNode.NodeType='TXCompositeIntf' then
-    begin
-      CompositeNode:=FindCompositeContainer(StartNode);
-      if CompositeNode<>nil then
       for i:=0 to length(StartNode.NodeAttributes)-1 do
-        if (not IsADefaultAttrib('TXCompositeIntf',StartNode.NodeAttributes[i].AttribName)) then
+      begin
+        if StartNode.NodeAttributes[i].AttribSource.InputNodeName<>'' then
         begin
           setlength(SourcedAttribs,length(SourcedAttribs)+1);
           SourcedAttribs[length(SourcedAttribs)-1].TheAttribute:=StartNode.NodeAttributes[i];
           SourcedAttribs[length(SourcedAttribs)-1].TheNode:=StartNode;
           SourcedAttribs[length(SourcedAttribs)-1].InProgress:=false;
-          SourcedAttribs[length(SourcedAttribs)-1].SourceNode:=FindCompositeContainer(StartNode);
-          SourcedAttribs[length(SourcedAttribs)-1].TheAttribute.AttribSource.InputAttribName:=StartNode.NodeAttributes[i].AttribName;
-          SourcedAttribs[length(SourcedAttribs)-1].TheAttribute.AttribSource.InputNodeName:=CompositeNode.NodeName;
+          SourcedAttribs[length(SourcedAttribs)-1].SourceNode:=FindDataNodeById(SystemNodeTree,
+                                                                               StartNode.NodeAttributes[i].AttribSource.InputNodeName,
+                                                                               StartNode.NodeAttributes[i].AttribSource.InputNameSpace,
+                                                                               true);
         end;
+      end;
     end;
-    // if this node is a TXComposite (composite element) then each of its non-default attributes
-    // will need to be set up with values sourced from an interface element internal to the composite (type TXCompositeIntf).
-    if StartNode.NodeType='TXComposite' then
+    for i:=0 to length(StartNode.ChildNodes)-1 do
     begin
-      for i:=0 to length(StartNode.NodeAttributes)-1 do
-      begin
-        if (not IsADefaultAttrib('TXComposite',StartNode.NodeAttributes[i].AttribName))
-        and (StartNode.NodeAttributes[i].AttribSource.InputAttribName='') then    // don't do this if there is already an explicit source
+      CollectAll(StartNode.ChildNodes[i]);
+    end;
+  end;
+begin
+  NodesList:=FindNodesOfType(StartNode,'TXCompositeIntf');
+  for n:=0 to length(NodesList)-1 do
+  begin
+  if NodesList[n].IsDynamic then
+  begin
+    // For any TXCompositeIntf (composite interface element) nodes, each of its non-default "input" attributes
+    // will need to be set up with values sourced from the element container (type TXComposite).
+    // NB. an input property has attribreadonly set to True on the TXCompositeIntf component.
+    // An output property has attribreadonly set to False on the TXCompositeIntf component.
+    CompositeNode:=FindCompositeContainer(NodesList[n]);
+    if CompositeNode<>nil then
+      for i:=0 to length(NodesList[n].NodeAttributes)-1 do
+        if (not IsADefaultAttrib('TXCompositeIntf',NodesList[n].NodeAttributes[i].AttribName))
+        and (NodesList[n].NodeAttributes[i].AttribReadOnly=true) then  //ie. an "input" property
         begin
-          CompositeNode:=FindInterfaceNode(StartNode,StartNode.NodeName,StartNode.NodeAttributes[i].AttribName);
-          if CompositeNode<>nil then
-          begin
-            setlength(SourcedAttribs,length(SourcedAttribs)+1);
-            SourcedAttribs[length(SourcedAttribs)-1].TheAttribute:=StartNode.NodeAttributes[i];
-            SourcedAttribs[length(SourcedAttribs)-1].TheNode:=StartNode;
-            SourcedAttribs[length(SourcedAttribs)-1].InProgress:=false;
-            SourcedAttribs[length(SourcedAttribs)-1].SourceNode:=FindInterfaceNode(StartNode,StartNode.NodeName,StartNode.NodeAttributes[i].AttribName);
-            SourcedAttribs[length(SourcedAttribs)-1].TheAttribute.AttribSource.InputAttribName:=StartNode.NodeAttributes[i].AttribName;
-            SourcedAttribs[length(SourcedAttribs)-1].TheAttribute.AttribSource.InputNodeName:=CompositeNode.NodeName;
-          end;
+          NodesList[n].NodeAttributes[i].AttribSource.InputAttribName:=NodesList[n].NodeAttributes[i].AttribName;
+          NodesList[n].NodeAttributes[i].AttribSource.InputNameSpace:=CompositeNode.NameSpace;
+          NodesList[n].NodeAttributes[i].AttribSource.InputNodeName:=CompositeNode.NodeName;
+        end;
+  end;
+  end;
+  NodesList:=FindNodesOfType(StartNode,'TXComposite');
+  for n:=0 to length(NodesList)-1 do
+  begin
+    // if this node is a TXComposite (composite element) then each of its non-default "output" attributes
+    // will need to be set up with values sourced from an interface element internal to the composite (type TXCompositeIntf).
+    for i:=0 to length(NodesList[n].NodeAttributes)-1 do
+    begin
+      if (not IsADefaultAttrib('TXComposite',NodesList[n].NodeAttributes[i].AttribName))
+      and (NodesList[n].NodeAttributes[i].AttribReadOnly=true) then //ie. an "output" property
+      begin
+        CompositeNode:=FindInterfaceNode(NodesList[n],NodesList[n].NodeName,NodesList[n].NodeAttributes[i].AttribName);
+        if CompositeNode<>nil then
+        begin
+          NodesList[n].NodeAttributes[i].AttribSource.InputAttribName:=NodesList[n].NodeAttributes[i].AttribName;
+          NodesList[n].NodeAttributes[i].AttribSource.InputNameSpace:=CompositeNode.NameSpace;
+          NodesList[n].NodeAttributes[i].AttribSource.InputNodeName:=CompositeNode.NodeName;
         end;
       end;
     end;
   end;
-  for i:=0 to length(StartNode.ChildNodes)-1 do
-  begin
-    GatherSourcedAttributes(StartNode.ChildNodes[i]);
-  end;
+  CollectAll(StartNode);
 end;
 
 {$ifndef JScript}
@@ -1177,7 +1183,6 @@ end;
 
 function CompileEventCode(MyCodeEditor:TXCode; RunMode:String):Boolean;
 var
-   TheStream : TFileStream;
    Lines, ExtraDirectives:TStringList;
    PASFileName:string;
    DLLFileName:string;

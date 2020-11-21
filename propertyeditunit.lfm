@@ -11,7 +11,7 @@ object PropertyEditForm: TPropertyEditForm
   LCLVersion = '2.1.0.0'
   object PropertyEditVBox1: TXVBox
     Name = 'PropertyEditVBox1'
-    Tag = 425463088
+    Tag = 417967768
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -32,18 +32,18 @@ object PropertyEditForm: TPropertyEditForm
     InheritColor = False
     object PropertyEditFormXTabControl11: TXTabControl
       Name = 'PropertyEditFormXTabControl11'
-      Tag = 425462752
+      Tag = 417967416
       Left = 2
       Height = 395
       Top = 2
       Width = 645
-      ActivePage = PropertyEditTabSheet2
+      ActivePage = PropertyEditTabSheet1
       Align = alTop
       Constraints.MaxHeight = 395
       Constraints.MaxWidth = 645
       Constraints.MinHeight = 395
       Constraints.MinWidth = 645
-      TabIndex = 1
+      TabIndex = 0
       TabOrder = 0
       IsContainer = True
       IsVisible = True
@@ -53,7 +53,7 @@ object PropertyEditForm: TPropertyEditForm
       Alignment = 'Left'
       object PropertyEditTabSheet1: TXTabSheet
         Name = 'PropertyEditTabSheet1'
-        Caption = 'Validation'
+        Caption = 'Details'
         ClientHeight = 367
         ClientWidth = 637
         AlignChildrenVertical = True
@@ -62,7 +62,7 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditTab1VBox1: TXVBox
           Name = 'PropertyEditTab1VBox1'
-          Tag = 425462672
+          Tag = 417967336
           Left = 0
           Height = 363
           Top = 0
@@ -119,10 +119,10 @@ object PropertyEditForm: TPropertyEditForm
           object PropertyEditType: TXEditBox
             Name = 'PropertyEditType'
             Tag = -1
-            Left = 0
+            Left = 4
             Height = 23
             Top = 31
-            Width = 637
+            Width = 629
             Align = alTop
             AutoSize = True
             myControl.Tag = -1
@@ -130,7 +130,7 @@ object PropertyEditForm: TPropertyEditForm
             myControl.AnchorSideLeft.Side = asrCenter
             myControl.AnchorSideTop.Side = asrCenter
             myControl.AnchorSideRight.Side = asrBottom
-            myControl.Left = 168
+            myControl.Left = 164
             myControl.Height = 23
             myControl.Top = 0
             myControl.Width = 300
@@ -146,7 +146,7 @@ object PropertyEditForm: TPropertyEditForm
             LabelPos = 'Left'
             IsVisible = True
             BgColor = clNone
-            SpacingAround = 0
+            SpacingAround = 4
             Border = False
             ItemValue = 'ptype'
             ReadOnly = True
@@ -154,100 +154,121 @@ object PropertyEditForm: TPropertyEditForm
             PasswordBox = False
             HasFocus = False
           end
-        end
-      end
-      object PropertyEditTabSheet2: TXTabSheet
-        Name = 'PropertyEditTabSheet2'
-        Caption = 'Source'
-        ClientHeight = 367
-        ClientWidth = 637
-        AlignChildrenVertical = True
-        IsContainer = True
-        IsVisible = True
-        BgColor = 13619376
-        object PropertyEditSourceHBox: TXHBox
-          Name = 'PropertyEditSourceHBox'
-          Tag = 425463040
-          Left = 0
-          Height = 363
-          Top = 0
-          Width = 637
-          Align = alTop
-          AutoSize = True
-          IsContainer = True
-          AlignChildrenVertical = False
-          Alignment = 'Left'
-          IsVisible = True
-          ContainerHeight = '100%'
-          BgColor = clNone
-          SpacingAround = 0
-          Border = False
-          InheritColor = True
-          object PropertyEditSourceBox: TXEditBox
-            Name = 'PropertyEditSourceBox'
+          object PropertyEditSourceHBox: TXHBox
+            Name = 'PropertyEditSourceHBox'
             Tag = -1
-            Left = 0
-            Height = 363
-            Top = 0
-            Width = 66
-            Align = alLeft
+            Left = 4
+            Height = 25
+            Top = 58
+            Width = 629
+            Align = alTop
             AutoSize = True
-            myControl.Tag = -1
+            IsContainer = True
+            AlignChildrenVertical = False
+            Alignment = 'Left'
+            IsVisible = True
+            BgColor = 13619376
+            SpacingAround = 4
+            Border = False
+            InheritColor = False
+            object PropertyEditSourceBox: TXEditBox
+              Name = 'PropertyEditSourceBox'
+              Tag = -1
+              Left = 0
+              Height = 25
+              Top = 0
+              Width = 583
+              Align = alLeft
+              AutoSize = True
+              myControl.Tag = 417967528
+              myControl.AnchorSideLeft.Side = asrBottom
+              myControl.AnchorSideTop.Control = PropertyEditSourceBox
+              myControl.AnchorSideBottom.Side = asrBottom
+              myControl.Left = 69
+              myControl.Height = 23
+              myControl.Top = 0
+              myControl.Width = 514
+              myControl.Constraints.MaxWidth = 514
+              myControl.Constraints.MinWidth = 514
+              myControl.TabOrder = 0
+              IsContainer = False
+              AlignChildrenVertical = True
+              Alignment = 'Top'
+              LabelText = 'Data Source'
+              LabelPos = 'Left'
+              IsVisible = True
+              BgColor = clNone
+              SpacingAround = 0
+              Border = False
+              ReadOnly = False
+              BoxWidth = '80%'
+              PasswordBox = False
+              HasFocus = False
+            end
+            object PropertyEditSourceBtn: TXButton
+              Name = 'PropertyEditSourceBtn'
+              Tag = -1
+              Left = 583
+              Height = 25
+              Top = 0
+              Width = 35
+              Align = alLeft
+              AutoSize = True
+              myControl.Tag = -1
+              myControl.AnchorSideLeft.Side = asrCenter
+              myControl.AnchorSideTop.Control = PropertyEditSourceBtn
+              myControl.Left = 0
+              myControl.Height = 25
+              myControl.Top = 0
+              myControl.Width = 35
+              myControl.AutoSize = True
+              myControl.Caption = '...'
+              myControl.TabOrder = 0
+              IsContainer = False
+              AlignChildrenVertical = True
+              Alignment = 'Top'
+              IsVisible = True
+              BgColor = clNone
+              SpacingAround = 0
+              Border = False
+              Caption = '...'
+              Enabled = True
+              HandleButtonClick = PropertyEditSourceBtnHandleButtonClick
+            end
+          end
+          object PropertyEditHint: TXEditBox
+            Name = 'PropertyEditHint'
+            Tag = -1
+            Left = 4
+            Height = 23
+            Top = 87
+            Width = 629
+            Align = alTop
+            AutoSize = True
+            myControl.Tag = 417967576
+            myControl.AnchorSideLeft.Control = PropertyEditHint
             myControl.AnchorSideLeft.Side = asrCenter
-            myControl.AnchorSideTop.Control = PropertyEditSourceBox
             myControl.AnchorSideTop.Side = asrCenter
-            myControl.AnchorSideBottom.Side = asrBottom
-            myControl.Left = -212
+            myControl.Left = 57
             myControl.Height = 23
-            myControl.Top = 1
-            myControl.Width = 500
-            myControl.Anchors = []
-            myControl.Constraints.MaxWidth = 500
-            myControl.Constraints.MinWidth = 500
+            myControl.Top = 0
+            myControl.Width = 514
+            myControl.Constraints.MaxWidth = 514
+            myControl.Constraints.MinWidth = 514
             myControl.TabOrder = 0
             IsContainer = False
             AlignChildrenVertical = True
-            Alignment = 'Top'
-            LabelText = 'Data Source'
+            Alignment = 'Centre'
+            LabelText = 'Hint'
             LabelPos = 'Left'
             IsVisible = True
             BgColor = clNone
-            SpacingAround = 0
+            SpacingAround = 4
             Border = False
             ReadOnly = False
-            BoxWidth = '500'
+            BoxWidth = '80%'
             PasswordBox = False
             HasFocus = False
-          end
-          object PropertyEditSourceBtn: TXButton
-            Name = 'PropertyEditSourceBtn'
-            Tag = -1
-            Left = 66
-            Height = 363
-            Top = 0
-            Width = 35
-            Align = alLeft
-            AutoSize = True
-            myControl.Tag = -1
-            myControl.AnchorSideLeft.Side = asrCenter
-            myControl.AnchorSideTop.Control = PropertyEditSourceBtn
-            myControl.Left = 0
-            myControl.Height = 25
-            myControl.Top = 0
-            myControl.Width = 35
-            myControl.AutoSize = True
-            myControl.Caption = '...'
-            myControl.TabOrder = 0
-            IsContainer = False
-            AlignChildrenVertical = True
-            Alignment = 'Top'
-            IsVisible = True
-            BgColor = clNone
-            SpacingAround = 0
-            Border = False
-            Caption = '...'
-            Enabled = True
-            HandleButtonClick = PropertyEditSourceBtnHandleButtonClick
           end
         end
       end
@@ -262,9 +283,11 @@ object PropertyEditForm: TPropertyEditForm
         BgColor = 13619376
         object PropertyEditVBox99: TXVBox
           Name = 'PropertyEditVBox99'
-          Tag = 425463072
+          Tag = 417967752
+          AnchorSideLeft.Control = PropertyEditTabSheet3
+          AnchorSideTop.Side = asrCenter
           Left = 0
-          Height = 363
+          Height = 391
           Top = 0
           Width = 637
           Align = alTop
@@ -306,7 +329,9 @@ object PropertyEditForm: TPropertyEditForm
           end
           object PropertyEditVBox66: TXVBox
             Name = 'PropertyEditVBox66'
-            Tag = 425463056
+            Tag = 417967736
+            AnchorSideLeft.Control = PropertyEditVBox99
+            AnchorSideTop.Side = asrCenter
             Left = 0
             Height = 387
             Top = 19

@@ -27,8 +27,7 @@ uCEFApplication,
 WebTranspilerUtils,HTMLUtils,
 {$endif}
 PyXUtils,WrapperPanel, XVBox, XHBox, XMemo, XButton,
-XLabel, XEditBox
-, EventsInterface;
+XLabel, XEditBox;
 
 type
 

@@ -1187,7 +1187,7 @@ end;
 
 
 Procedure SetCSSEditorStyles;
-var WhiteSpaceRule,indirectWhiteSpaceRule,spoof:string;
+var WhiteSpaceRule:string;
 begin
   WhiteSpaceRule:='.noChildren,.hasChildren { white-space: pre;}';
   // spoof:= '.noChildren,.hasChildren { white-space: normal;}';
@@ -1280,8 +1280,6 @@ begin
 end;
 
 procedure InitStyleTreeDisplay;
- var
-   str:String;
  begin
 //   str:=RecursivelyGenerateTheTreeDescriptionString(StyleTree);
    EditAttributeValue('StyleSheet','', 'TreeData' ,'["StyleSheet"]');

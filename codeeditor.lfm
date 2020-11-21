@@ -1,12 +1,12 @@
 object CodeEditForm: TCodeEditForm
-  Left = 911
-  Height = 604
-  Top = 258
-  Width = 772
+  Left = 852
+  Height = 593
+  Top = 228
+  Width = 887
   BorderWidth = 1
   Caption = 'XIDE Code Editor'
-  ClientHeight = 604
-  ClientWidth = 772
+  ClientHeight = 593
+  ClientWidth = 887
   Color = clSkyBlue
   OnCreate = FormCreate
   OnResize = FormResize
@@ -14,7 +14,7 @@ object CodeEditForm: TCodeEditForm
   LCLVersion = '2.1.0.0'
   object CodeEditFormXVBox1: TXVBox
     Name = 'CodeEditFormXVBox1'
-    Tag = 411728656
+    Tag = 417971768
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 1
@@ -61,18 +61,18 @@ object CodeEditForm: TCodeEditForm
     end
     object CodeEditMainTabs: TXTabControl
       Name = 'CodeEditMainTabs'
-      Tag = 411727744
+      Tag = 417970872
       Left = 2
       Height = 536
       Top = 17
       Width = 768
-      ActivePage = CodeEditMainCodeTab
+      ActivePage = CodeEditInitTab
       Align = alTop
       Constraints.MaxHeight = 536
       Constraints.MaxWidth = 768
       Constraints.MinHeight = 536
       Constraints.MinWidth = 768
-      TabIndex = 0
+      TabIndex = 1
       TabOrder = 0
       IsContainer = True
       IsVisible = True
@@ -92,7 +92,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEdit: TXCode
           Name = 'CodeEdit'
-          Tag = 411727648
+          Tag = 417970776
           Left = 0
           Height = 488
           Top = 0
@@ -141,7 +141,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEditInit: TXCode
           Name = 'CodeEditInit'
-          Tag = 411728640
+          Tag = 417971752
           Left = 0
           Height = 488
           Top = 0
@@ -149,10 +149,11 @@ object CodeEditForm: TCodeEditForm
           Align = alTop
           AutoSize = True
           myControl.Tag = -1
-          myControl.Left = 12
+          myControl.Left = 2
           myControl.Height = 484
-          myControl.Top = 6
+          myControl.Top = 2
           myControl.Width = 762
+          myControl.Align = alClient
           myControl.ClientHeight = 484
           myControl.ClientWidth = 762
           myControl.TabOrder = 0

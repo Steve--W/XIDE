@@ -22,9 +22,9 @@ uses
   {$ifndef JScript}
   Forms, Controls, StdCtrls, LResources, Graphics, Dialogs, ExtCtrls, PropEdits, RTTICtrls,
   LazsUtils, Dynlibs,
-    {$if defined ( windows)}
-    windows,
-    {$endif}
+//    {$if defined ( windows)}
+//    windows,
+//    {$endif}
   {$Else}
   HTMLUtils,
   {$endif}
@@ -206,8 +206,9 @@ begin
     self.MyEventTypes:=TStringList.Create;
     self.SetMyEventTypes;
 
-    SetLength(NewNode.myEventHandlers,self.myEventTypes.Count);
+    //SetLength(NewNode.myEventHandlers,self.myEventTypes.Count);
     NewNode.myEventTypes:=self.myEventTypes;
+    NewNode.InitialiseEventHandlers;
 
 
     AddChildToParentNode(SystemNodetree,NewNode,-1);
@@ -231,8 +232,6 @@ begin
 end;
 
 function TXThreads.GetName:string;
-var
-  myname:string;
 begin
   result:=inherited Name;
 end;
@@ -288,7 +287,7 @@ end;
 procedure TXThreads.DoneThread(Sender:TObject);
 var
   AnyThreadsActive :boolean;
-  CurrentThreadindex,i:integer;
+  i:integer;
   TiD:integer;
   ThreadName:string;
   ReturnString: string;
@@ -669,9 +668,9 @@ begin
   myNode.SetAttributeValue('Active',myBoolToStr(AValue),'Boolean');
   if (StartingUp=false) and (AValue=true) then
   begin
-    showmessage('calling event beginthreads');
+    //showmessage('calling event beginthreads');
     HandleEvent('BeginThreads',self.myNode.NodeName,self.myNode.NameSpace,'');  // do any user-initialisation
-    showmessage('calling startmythreads');
+    //showmessage('calling startmythreads');
     self.StartMyThreads;
   end;
 end;
@@ -702,7 +701,7 @@ begin
 end;
 
 begin
-  AddDefaultAttribute(myDefaultAttribs,'Active','Boolean','True','Set Active to start all threads',false);
+  AddDefaultAttribute(myDefaultAttribs,'Active','Boolean','False','Set Active to start all threads',false);
   AddDefaultAttribute(myDefaultAttribs,'MaxCopiesThread1','Integer','0','Number of repeats for the Thread1 event code',false);
   AddDefaultAttribute(myDefaultAttribs,'MaxCopiesThread2','Integer','0','Number of repeats for the Thread2 event code',false);
   AddDefaultAttribute(myDefaultAttribs,'MaxCopiesThread3','Integer','0','Number of repeats for the Thread3 event code',false);
