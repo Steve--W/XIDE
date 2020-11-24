@@ -498,6 +498,8 @@ begin
   script.add('    console.log("      https://github.com/iodide-project/pyodide/releases/download/0.14.3/pyodide-build-0.14.3.tar.bz2");');
   script.add('    console.log("   and also include the file loadlocal.js, which can be found at:");');
   script.add('    console.log("      https://github.com/iodide-project/pyodide/tree/6a2dd522f1eb4143f2630deae0a1fa9555546dfe/runlocal");');
+  script.add('    console.log("   Alternatively there is a pyodide_local folder containing minimum required files provided at:");');
+  script.add('    console.log("      https://github.com/Steve--W/XIDE");');
   script.add('    localErrDone = true;');
   script.add('    alert("cannot load pyodide - Python will be unavailable. See console for messages."); ');
   script.add('}} ');

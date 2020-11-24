@@ -209,7 +209,7 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
         <ShowDebugInfo Value="True"/>
       </Verbosity>
       <CustomOptions Value="-dChromium
-//-dPython"/>
+-dPython"/>
     </Other>
   </CompilerOptions>
   <Debugging>
