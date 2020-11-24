@@ -208,7 +208,7 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
       <Verbosity>
         <ShowDebugInfo Value="True"/>
       </Verbosity>
-      <CustomOptions Value="//-dChromium
+      <CustomOptions Value="-dChromium
 //-dPython"/>
     </Other>
   </CompilerOptions>

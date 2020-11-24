@@ -16,7 +16,6 @@ unit XIDEMain;
 {$INTERFACES CORBA}
 {$endif}
 
-
 interface
 
 uses
