@@ -1,0 +1,58 @@
+object Form1: TForm1
+  Left = 592
+  Height = 411
+  Top = 160
+  Width = 586
+  Caption = 'Form1'
+  ClientHeight = 411
+  ClientWidth = 586
+  OnCreate = FormCreate
+  LCLVersion = '2.1.0.0'
+  object DBGrid1: TDBGrid
+    Left = 168
+    Height = 238
+    Top = 42
+    Width = 376
+    Color = clWindow
+    Columns = <>
+    DataSource = DataSource1
+    TabOrder = 0
+  end
+  object DBNavigator1: TDBNavigator
+    Left = 199
+    Height = 25
+    Top = 306
+    Width = 241
+    BevelOuter = bvNone
+    ChildSizing.EnlargeHorizontal = crsScaleChilds
+    ChildSizing.EnlargeVertical = crsScaleChilds
+    ChildSizing.ShrinkHorizontal = crsScaleChilds
+    ChildSizing.ShrinkVertical = crsScaleChilds
+    ChildSizing.Layout = cclLeftToRightThenTopToBottom
+    ChildSizing.ControlsPerLine = 100
+    ClientHeight = 25
+    ClientWidth = 241
+    DataSource = DataSource1
+    Options = []
+    TabOrder = 1
+  end
+  object DataSource1: TDataSource
+    DataSet = MemDataset1
+    Left = 40
+    Top = 28
+  end
+  object MemDataset1: TMemDataset
+    FieldDefs = <    
+      item
+        Name = 'ff1'
+        DataType = ftString
+        Size = 10
+      end    
+      item
+        Name = 'ff2'
+        DataType = ftInteger
+      end>
+    Left = 117
+    Top = 37
+  end
+end

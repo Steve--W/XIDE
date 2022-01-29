@@ -28,7 +28,7 @@ interface
 uses
   Classes, SysUtils, StringUtils, StrUtils, NodeUtils,  UtilsJSCompile,
   webTranspilerUtils,
-  XComposite,
+  XComposite,XGPUCanvas,
 {$ifndef JScript}
   {$if defined ( windows)}
   Windows,                           // for CurrentThreadID
@@ -63,6 +63,7 @@ var
 function CompileEventCode(MyCodeEditor:TXCode;RunMode:String):Boolean;
 function   DfltUnitCode(UnitName,UnitType:String):string;
 function   DfltEventCode:string;
+function   DfltOpCode:string;
 function   DfltThreadEventCode(NodeName:String):string;
 function   DfltTreeNodeEventCode:string;
 function   DfltPythonCode:string;
@@ -71,11 +72,13 @@ procedure GatherSourcedAttributes(StartNode:TDataNode);
 {$ifdef JScript}
 procedure GatherAndRunPythonScriptsFromJS;
 {$endif}
+function RunPyScript(PyScriptCode:TStringList;nm:String):Boolean;
 procedure GatherAndRunPythonScriptsLater;
 {$endif}
 
 var
     ConfigfpcPath:String;
+    AllUserPyCode:String;
 
 {$ifndef JScript}
 {$else}
@@ -103,7 +106,7 @@ var
 
 
 implementation
-uses  XObjectInsp, PyXUtils;
+uses  XObjectInsp, PyXUtils, XDataModel;
 
 {$ifndef JScript}
 type
@@ -114,6 +117,8 @@ var
 {$endif}
 var
     PascalCode,ExportsList,NamespaceUnits,PyCodeFromComposites:TStringList;
+    AllGPUNodes:TNodesArray;
+
 
 
 {$ifndef JScript}
@@ -121,22 +126,30 @@ procedure DeleteDynamicIncFiles;
 var
   lSearchRec:TSearchRec;
   lPath:string;
+  procedure DeleteThem(aMask:String);
+  begin
+    if FindFirst(lPath+aMask,faAnyFile,lSearchRec) = 0 then
+    begin
+      try
+        repeat
+          SysUtils.DeleteFile(lPath+lSearchRec.Name);    //!! does not delete any files it thinks are open...
+        until SysUtils.FindNext(lSearchRec) <> 0;
+      finally
+        SysUtils.FindClose(lSearchRec);  // Free resources on successful find
+      end;
+    end;
+  end;
+
 begin
   if not DirectoryExists('tempinc') then
     CreateDir('tempinc');
 
   lPath := 'tempinc/';
+  DeleteThem('*.*');
 
-  if FindFirst(lPath+'*.*',faAnyFile,lSearchRec) = 0 then
-  begin
-    try
-      repeat
-        SysUtils.DeleteFile(lPath+lSearchRec.Name);    //!! does not delete any files it thinks are open...
-      until SysUtils.FindNext(lSearchRec) <> 0;
-    finally
-      SysUtils.FindClose(lSearchRec);  // Free resources on successful find
-    end;
-  end;
+  lPath := 'resources/xcomponents/';
+  DeleteThem('*.ppu');
+
 end;
 
 procedure CloseMyFile(FileName:String);
@@ -186,7 +199,6 @@ begin
   else
   begin
       // Substitute single-quotes in the text to be copied
-      //TxtLines.Text:=MyStringReplace(TxtLines.Text,'''','&myapos;',-1,-1);
       TxtLines.Text:=ReplaceStr(TxtLines.Text,'''','&myapos;');
       for i:=0 to TxtLines.Count-1 do
       begin
@@ -278,15 +290,13 @@ procedure LoadFPCConfig;
 var
   TheStream : TFileStream;
   TheLines:TStringList;
-  ProgPath:String;
 begin
   // pick up the last-used config file XIDERunSettings.dta
-  ProgPath:=ExtractFilePath(Application.ExeName);
   TheLines:=TStringList.Create;
-  if FileExists(ProgPath+'XIDERunSettings.dta') then
+  if FileExists(ProjectDirectory+'XIDERunSettings.dta') then
   begin
     try
-      TheStream:=TFileStream.Create(ProgPath +'XIDERunSettings.dta',fmOpenRead or fmShareDenyNone);
+      TheStream:=TFileStream.Create(ProjectDirectory +'XIDERunSettings.dta',fmOpenRead or fmShareDenyNone);
       TheLines.LoadFromStream(TheStream);
       TheStream.Free;
     except
@@ -316,6 +326,7 @@ begin
   end
   else
   begin
+    // JSJS
     result:=procName + '(e:TEventStatus;nodeID,myValue:String); ';
   end;
 end;
@@ -504,7 +515,7 @@ begin
         and (tmp<>Dflt) then
         begin
            // Insert a procedure containing the code for the event initialisation
-           hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'Init');
+           hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],'','Init');
            tmp:=trim(StartNode.myEventHandlers[i].InitCode);
            if not PythonCodeExists then
              PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
@@ -519,7 +530,7 @@ begin
            WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i]+'__Init','tempinc/', UnitCode, InitCode);
 
            // Insert a procedure containing the main code for the event
-           hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'Main');
+           hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],'','Main');
            tmp:=StartNode.myEventHandlers[i].TheCode;
            if not PythonCodeExists then
              PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
@@ -530,10 +541,16 @@ begin
            // Insert a control procedure to run the init and main code for the event
            tmp:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
            UnitCode.Add(tmp);
-
+(*
+           UnitCode.Add('var');
+           UnitCode.Add('  asyncWaiting:boolean;');
            UnitCode.Add('begin');
+           UnitCode.Add('  asyncWaiting := false; ');
+           UnitCode.Add('  if (e<>nil) then');
+           UnitCode.Add('    asyncWaiting := e.EventHasWaitingAsyncProcs;');
            UnitCode.Add('  AppMethods.mmiSetEventsNameSpace('''+NameSpace+''');');
-           UnitCode.Add('  if (e=nil) or (e.InitRunning=false) then');
+           UnitCode.Add('  if ((e=nil) or (e.InitDone=false))');
+           UnitCode.Add('  and (not asyncWaiting) then');
            UnitCode.Add('  begin');
            UnitCode.Add('    if (e=nil) then');
            UnitCode.Add('    begin');
@@ -542,28 +559,31 @@ begin
            UnitCode.Add('    end;');
             // If the event has initialisation code, run this first...
            UnitCode.Add('    e.InitRunning:=true;');
+           UnitCode.Add('    e.InitDone:=true;');
            UnitCode.Add('    '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Init(e,nodeID,myValue);');
-
-           UnitCode.Add('  end');
-           UnitCode.Add('  else');
            UnitCode.Add('    e.InitRunning:=false;');
+           UnitCode.Add('  end;');
 
            // If the initialisation code has called any async functions, these will have been logged in the
            // event status.  Do not continue with the main event code unless all of the async functions
            // have recorded completion.
-           UnitCode.Add('  if e.EventHasWaitingAsyncProcs = true then');
+           UnitCode.Add('  if e.AsyncProcsRunning.Count = 1 then');
+           UnitCode.Add('    e.ClearAsync(''ShowBusy'');');
+           UnitCode.Add('  if e.EventHasWaitingAsyncProcs = false then');
            UnitCode.Add('  begin');
-           UnitCode.Add('    if e.ClearAsync(''ShowBusy'') then');
-           UnitCode.Add('      AppMethods.mmiStartMain(e);');
-           UnitCode.Add('    EXIT;');
-           UnitCode.Add('  end');
-           UnitCode.Add('  else');
-           UnitCode.Add('    e.InitRunning:=false;');
-
-           // run the main event code
-           UnitCode.Add('  '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Main(e,nodeID,myValue);');
+           UnitCode.Add('        '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Main(e,nodeID,myValue);');
+           //UnitCode.Add('        AppMethods.mmiStartMain(e);');
+           UnitCode.Add('  end;');
 
            UnitCode.Add('end;');
+*)
+
+           UnitCode.Add('begin');
+           UnitCode.Add('  ExecuteEventHandler(e,nodeID,myValue,'
+                        +'@'+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Init'+','
+                        +'@'+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Main'+');');
+           UnitCode.Add('end;');
+
 
            {$ifndef JScript}
            if RunMode='LazDll' then
@@ -703,7 +723,7 @@ begin
   UnitCode.SaveToFile('tempinc/'+nm+'.pas');
   {$else}
   TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(nm+'.pas',UnitCode.Text);
-  XIDEUserUnits.add(nm+'.pas');
+  //??//XIDEUserUnits.add(nm+'.pas');
   {$endif}
 
   // add this unit to the uses list in the main module
@@ -722,7 +742,7 @@ begin
   if UnitNode.NameSpace<>'' then
     nm:=UnitNode.NameSpace+'__'+nm;
 
-  PythonCode.add('print(''running script '+nm+''')');
+  PythonCode.add('print(''executing script '+nm+''')');
 
   // add user-written unit code block
   tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
@@ -730,6 +750,39 @@ begin
 
 end;
 
+
+procedure AddExecFunc(Namespace:String;UnitCode:TStringList);
+begin
+  UnitCode.Add('type THandler = procedure(e:TEventStatus;nodeID:AnsiString;myValue:AnsiString); ');
+  UnitCode.Add('procedure ExecuteEventHandler(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString; initfunc,mainfunc:THandler); ' );
+  UnitCode.Add('var  ' );
+  UnitCode.Add('  asyncWaiting:boolean; ' );
+  UnitCode.Add('begin' );
+  UnitCode.Add('  asyncWaiting := false;' );
+  UnitCode.Add('  if (e<>nil) then' );
+  UnitCode.Add('    asyncWaiting := e.EventHasWaitingAsyncProcs;' );
+  UnitCode.Add('  AppMethods.mmiSetEventsNameSpace('''+Namespace+''');' );
+  UnitCode.Add('  if ((e=nil) or (e.InitDone=false)) ' );
+  UnitCode.Add('  and (not asyncWaiting) then ' );
+  UnitCode.Add('  begin ' );
+  UnitCode.Add('    if (e=nil) then' );
+  UnitCode.Add('    begin ' );
+  UnitCode.Add('      e:=TEventStatus.Create(e.eventType,nodeID);' );
+  UnitCode.Add('      e.NameSpace:='''+Namespace+''';' );
+  UnitCode.Add('    end;' );
+  UnitCode.Add('    e.InitRunning:=true; ' );
+  UnitCode.Add('    e.InitDone:=true;' );
+  UnitCode.Add('    initfunc(e,nodeID,myValue);' );
+  UnitCode.Add('    e.InitRunning:=false;' );
+  UnitCode.Add('  end;' );
+  UnitCode.Add('  if e.AsyncProcsRunning.Count = 1 then' );
+  UnitCode.Add('    e.ClearAsync(''ShowBusy'');' );
+  UnitCode.Add('  if e.EventHasWaitingAsyncProcs = false then ' );
+  UnitCode.Add('  begin ' );
+  UnitCode.Add('    mainfunc(e,nodeID,myValue);' );
+  UnitCode.Add('  end;' );
+  UnitCode.Add('end;' );
+end;
 
 function GatherUserUnits(RunMode:String; Compiler:TObject):String;
 var
@@ -742,7 +795,7 @@ begin
   // create a pas file on disk for each unit, and insert the unit name for the dll 'uses' clause
 
   {$ifdef JScript}
-  XIDEUserUnits.clear;
+  //??//XIDEUserUnits.clear;
   {$endif}
 
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
@@ -826,6 +879,7 @@ begin
 
   //GatherUserFuncs(RunMode,NameSpace,Compiler,CodeRootNode,UnitCode,n);
 
+  AddExecFunc(NameSpace,UnitCode);
   GatherEventCode(RunMode,NameSpace,Compiler,SystemNodeTree,UnitCode);
 
   AddUnitCodeLine('    ' );
@@ -875,46 +929,87 @@ begin
 
 end;
 
+procedure ConstructDataModelUnits(RunMode:String);
+begin
+  ConstructPascalDM(RunMode,PascalCode);
+end;
+
+function ConstructGPUUnits(RunMode:String; Compiler:TObject):Boolean;
+// Each XGPUCanvas widget contains a set of 'animation code' kernels, written in pascal.
+// Build a separate pascal unit for each GPU widget, which can be called at runtime to
+// provide a GPU emulation mode.
+var
+  i:integer;
+  txt:String;
+  ok:Boolean;
+begin
+  result:=true;
+  AllGPUNodes := NodeUtils.FindNodesOfType(UIRootNode,'TXGPUCanvas');
+  for i:=0 to length(AllGPUNodes)-1 do
+  begin
+    ok:=TXGPUCanvas(AllGPUNodes[i].ScreenObject).BuildPascalAnimationUnit(Compiler,RunMode);
+    if ok then
+    begin
+      txt:=TXGPUCanvas(AllGPUNodes[i].ScreenObject).GeneratedPascalUnit;
+      // add this unit to the uses list in the main module
+      PascalCode.Add(',GPUCode'+AllGPUNodes[i].NodeName);
+    end
+    else
+    begin
+      result:=false;
+      EXIT;
+    end;
+  end;
+end;
+
 {$ifdef Python}
-procedure TPyProcs.GatherAndRunPythonScripts(dummy:PtrInt);
+function RunPyScript(PyScriptCode:TStringList;nm:String):Boolean;
 var
     ok:Boolean;
-    i,j:integer;
-    tmp,nm:string;
-    lines:TStringList;
-    UnitNode:TdataNode;
-    PyCode:TStringList;
-    function RunPyScript(PyScriptCode:TStringList):Boolean;
-    var
-        ok:Boolean;
-    begin
-      ok:=true;
-      {$ifndef JScript}
-      try
-      PythonEngine1.ExecStrings( PyScriptCode );
-      except
-        on E: Exception do
-        begin
-          showmessage('Python error in '+nm+' : '+e.Message);
-          ok:=false;
-        end;
+    tmp:string;
+begin
+  ok:=true;
+  if PyScriptCode.Count > 0 then
+  begin
+  {$ifndef JScript}
+    try
+    PythonEngine1.ExecStrings( PyScriptCode );
+    except
+      on E: Exception do
+      begin
+        showmessage('Python error in '+nm+' : '+e.Message);
+        ok:=false;
       end;
-      {$else}
-      tmp:=PyScriptCode.Text;
-      asm
-      try {
-      pyodide.runPython(tmp);
-      } catch(err) { alert(err.message+'  in '+nm);
-           ok=false;
-           }
-      end;
-      {$endif}
-      result:=ok;
     end;
+    {$else}
+    tmp:=PyScriptCode.Text;
+    asm
+    try {
+    pyodide.runPython(tmp);
+    } catch(err) { alert(err.message+'  in '+nm);
+         ok=false;
+         }
+    end;
+    {$endif}
+  end;
+  result:=ok;
+end;
+
+procedure TPyProcs.GatherAndRunPythonScripts(dummy:PtrInt);
+var
+  ok:Boolean;
+  i,j:integer;
+  tmp,nm:string;
+  lines:TStringList;
+  UnitNode:TdataNode;
+  PyCode:TStringList;
+  txt:String;
 
 begin
   {$ifndef JScript}
   Screen.Cursor := crHourglass;
+  {$else}
+  asm console.log('GatherAndRunPythonScripts'); end;
   {$endif}
 
   ok:=true;
@@ -922,17 +1017,13 @@ begin
   Lines:=TStringList.Create;
   PyCode:=TStringList.Create;
 
-  // scripts for the main system are held under the root node CodeRootNode.
-  // There may be other scripts held within composite components (already gathered into PyCodeFromComposites).
-  if PyCodeFromComposites.Count>0 then
-     ok:=RunPyScript(PyCodeFromComposites);
-
+  PyCode.Clear;
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
-  if ok then
   begin
-    PyCode.Clear;
-    if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
+    if ok then
     begin
+      if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
+      begin
        PythonCodeExists:=true;
        UnitNode:=CodeRootNode.ChildNodes[i];
        // code is all in attribute : Code
@@ -944,12 +1035,19 @@ begin
        Lines:=StringSplit(tmp,LineEnding);
        for j:=0 to Lines.Count-1 do
          PyCode.add(Lines[j]);
+      end;
     end;
-
-    if PyCode.Count>0 then
-    begin
-      ok:=RunPyScript(PyCode);
-    end;
+  end;
+  if PythonCodeExists then
+  begin
+    AllUserPyCode:=PyCode.Text;
+    // scripts for the main system are held under the root node CodeRootNode.
+    // There may be other scripts held within composite components (already gathered into PyCodeFromComposites).
+    ok:=RunPyScript(PyCodeFromComposites,'');
+    ok:=RunPyScript(PyCode,'');
+    {$ifdef JScript}
+    asm console.log('done GatherAndRunPythonScripts'); end;
+    {$endif}
   end;
 
 
@@ -1004,10 +1102,10 @@ end;
 
 {$endif}
 
-function initialiseCodeToBeCompiled(RunMode:String; Compiler:TObject):String;    //RunMode is LazJS, LazDll or JSJS
+function initialiseCodeToBeCompiled(RunMode:String; Compiler:TObject; var FirstUnitName:String):Boolean;    //RunMode is LazJS, LazDll or JSJS
 var
-    FirstUnitName:String;
     i,n:integer;
+    ok:Boolean;
 begin
  // delete old .inc and .pas files
   {$ifndef JScript}
@@ -1033,6 +1131,13 @@ begin
 
    FirstUnitName:=GatherUserUnits(RunMode,Compiler);
    ConstructNamespaceUnits(RunMode,'',Compiler,MainFormProjectRoot);
+   ConstructDataModelUnits(RunMode);
+   ok:=ConstructGPUUnits(RunMode,Compiler);
+   if not ok then
+   begin
+     result:=ok;
+     EXIT;
+   end;
    PascalCode.Add(';');
    PascalCode.Add('');
 
@@ -1042,6 +1147,7 @@ begin
    PascalCode.Add('implementation' );
    PascalCode.Add('');
 
+   AddExecFunc('',PascalCode);
    GatherEventCode(RunMode,'',Compiler,SystemNodeTree,PascalCode);
 
    PascalCode.Add('    ' );
@@ -1062,10 +1168,18 @@ begin
    PascalCode.Add('  Classes, SysUtils, strutils, Math, EventsInterface, InterfaceTypesDll ');
    FirstUnitName:=GatherUserUnits(RunMode,nil);
    ConstructNamespaceUnits(RunMode,'',nil,SystemNodeTree);
+   ConstructDataModelUnits(RunMode);
+   ok:=ConstructGPUUnits(RunMode,Compiler);
+   if not ok then
+   begin
+     result:=ok;
+     EXIT;
+   end;
    PascalCode.Add(';');
    PascalCode.Add('');
    PascalCode.Add('');
 
+   AddExecFunc('',PascalCode);
    GatherEventCode(RunMode,'',nil,SystemNodeTree,PascalCode);
 
    PascalCode.Add( '    ' );
@@ -1086,7 +1200,7 @@ begin
  if PythonCodeExists then
    showmessage('Warning: The system contains Python code.  These cannot be executed unless the XIDE framework is built with the ''Python'' option');
  {$endif}
- result:=FirstUnitName;
+ result:=ok;
 end;
 
 procedure GatherSourcedAttributes(StartNode:TDataNode);
@@ -1108,7 +1222,8 @@ var
           SourcedAttribs[length(SourcedAttribs)-1].TheAttribute:=StartNode.NodeAttributes[i];
           SourcedAttribs[length(SourcedAttribs)-1].TheNode:=StartNode;
           SourcedAttribs[length(SourcedAttribs)-1].InProgress:=false;
-          SourcedAttribs[length(SourcedAttribs)-1].SourceNode:=FindDataNodeById(SystemNodeTree,
+          //SourcedAttribs[length(SourcedAttribs)-1].SourceNode:=FindDataNodeById(SystemNodeTree,
+          SourcedAttribs[length(SourcedAttribs)-1].SourceNode:=FindDataNodeById(UIRootNode,
                                                                                StartNode.NodeAttributes[i].AttribSource.InputNodeName,
                                                                                StartNode.NodeAttributes[i].AttribSource.InputNameSpace,
                                                                                true);
@@ -1181,133 +1296,93 @@ begin
 
 end;
 
-function CompileEventCode(MyCodeEditor:TXCode; RunMode:String):Boolean;
+procedure RunFPCCompiler(MyCodeEditor:TXCode; DLLFileName,PASFileName:String);
 var
-   Lines, ExtraDirectives:TStringList;
-   PASFileName:string;
-   DLLFileName:string;
-   ProgPath:String;
-   i:integer;
-   FoundError,FoundFatal:Boolean;
+    Lines:TStringList;
 begin
-  Screen.Cursor := crHourglass;
-  PythonCodeExists:=false;
-
-  ExtraDirectives:=TStringList.Create;
-
-  ProgPath:=ExtractFilePath(Application.ExeName);
-  XIDEProjectDir:=ProgPath;
-
   Lines:=TStringList.Create;
-  DllName:=MainUnitName+'Events';
+  SysUtils.DeleteFile('resources/project/'+DLLFileName);
+  SysUtils.DeleteFile('fpcerrors.txt');
+  SysUtils.DeleteFile('fpcdebug.txt');
 
-  // clean up from previous runs
-  MyCodeEditor.MessageLines:='';
+  //Unload the lib, if already loaded
+  if MyLibC <>  DynLibs.NilHandle then
+    if FreeLibrary(MyLibC) then
+      MyLibC:= DynLibs.NilHandle;
 
-  PASFileName:= DllName+'.pas';
-  SysUtils.DeleteFile('resources/project/'+PASFileName);
-  SysUtils.DeleteFile('resources/project/'+DllName+'.o');
+  // create the TProcess object
+  AProcess := TProcess.Create(nil);
 
-  InitialiseCodeToBeCompiled(RunMode,nil);
-  MyCodeEditor.ItemValue:=PascalCode.Text;
-  // save the text to be compiled to the .pas file
-  MyCodeEditor.TheEditor.Lines.SaveToFile('resources/project/'+PASFileName);
+  // Tell the new AProcess what the command to execute is.
+  // Use the Free Pascal compiler
+  AProcess.Executable:= ConfigfpcPath+'/fpc';
 
-  if RunMode = 'LazJS' then
-  begin
-    // run the pas2js compiler just for the events unit to check for errors
-    {$ifdef Python}
-    ExtraDirectives.add('-dPython');
-    {$endif}
-    TranspileMyProgram(DllName,ProgPath,'resources/project/',MyCodeEditor,false,ExtraDirectives);
-    // retrieve the list of functions to be shown under the code tree
-    RebuildCodeTree;  //xpparser.XIDEProcsList;
-  end
+  // add parameters
+  AProcess.Parameters.Add('@'+ConfigfpcPath+'/fpc.cfg');
 
-  else if RunMode = 'LazDll' then
-  begin
-    // run the free pascal compiler (FPC) to create the dll
-    // (from http://wiki.freepascal.org/Executing_External_Programs#TProcess)
-
-    DLLFileName:= DllName+'.'+SharedSuffix;
-    {$ifdef linux}
-    DLLFileName:='lib'+DLLFileName;
-    {$endif}
-    SysUtils.DeleteFile('resources/project/'+DLLFileName);
-    SysUtils.DeleteFile('fpcerrors.txt');
-    SysUtils.DeleteFile('fpcdebug.txt');
-
-    //Unload the lib, if already loaded
-    if MyLibC <>  DynLibs.NilHandle then
-      if FreeLibrary(MyLibC) then
-        MyLibC:= DynLibs.NilHandle;
-
-    // create the TProcess object
-    AProcess := TProcess.Create(nil);
-
-    // Tell the new AProcess what the command to execute is.
-    // Use the Free Pascal compiler
-    AProcess.Executable:= ConfigfpcPath+'/fpc';
-
-    // add parameters
-    AProcess.Parameters.Add('@'+ConfigfpcPath+'/fpc.cfg');
-
-    AProcess.Parameters.Add('resources/project/'+PASFileName);
-    AProcess.Parameters.Add('-Fu./resources/xcomponents');      // for EventsInterface.pas
-    AProcess.Parameters.Add('-Fu./tempinc');
-    AProcess.Parameters.Add('-Fi./tempinc');
-    AProcess.Parameters.Add('-Fefpcerrors.txt');
-    AProcess.Parameters.Add('-dDll');
-    AProcess.Parameters.Add('-gl');
-    //AProcess.Parameters.Add('-debug-log=DllDebugLog.log');
-    AProcess.Parameters.Add('-vewilv');              //verbose     //v: writes to fpcdebug.txt
-    AProcess.Parameters.Add('-Xg');              //debugging    //compiler debugging
-    AProcess.Parameters.Add('-B');                //build all units
-    AProcess.Parameters.Add('-Cr');               //range checking
+  AProcess.Parameters.Add('resources/project/'+PASFileName);
+  AProcess.Parameters.Add('-Fu./resources/xcomponents');      // for EventsInterface.pas
+  AProcess.Parameters.Add('-Fu./tempinc');
+  AProcess.Parameters.Add('-Fi./tempinc');
+  AProcess.Parameters.Add('-Fefpcerrors.txt');
+  AProcess.Parameters.Add('-dDll');
+  AProcess.Parameters.Add('-gl');
+  //AProcess.Parameters.Add('-debug-log=DllDebugLog.log');
+  AProcess.Parameters.Add('-vewilv');              //verbose     //v: writes to fpcdebug.txt
+  AProcess.Parameters.Add('-Xg');              //debugging    //compiler debugging
+  AProcess.Parameters.Add('-B');                //build all units
+  AProcess.Parameters.Add('-Cr');               //range checking
 //    AProcess.Parameters.Add('-k -R ./');               //pass to linker
-    //AProcess.Parameters.Add('-gw');
+  //AProcess.Parameters.Add('-gw');
 
-    {$ifdef linux}
-    AProcess.Parameters.Add('-fPIC');              // Generate PIC code
-    {$endif}
+  {$ifdef linux}
+  AProcess.Parameters.Add('-fPIC');              // Generate PIC code
+  {$endif}
 
-    // We will define an option for when the program
-    // is run. This option will make sure that our program
-    // does not continue until the program we will launch
-    // has stopped running.
-    // see for bug fix ..... http://wiki.freepascal.org/Executing_External_Programs#Reading_large_output
-    //AProcess.Options := AProcess.Options + [poWaitOnExit, poUsePipes, poNoConsole];
-    //AProcess.Options := AProcess.Options + [poWaitOnExit, poUsePipes, poNewConsole];
-    AProcess.Options := AProcess.Options + [poWaitOnExit, poUsePipes];
+  // We will define an option for when the program
+  // is run. This option will make sure that our program
+  // does not continue until the program we will launch
+  // has stopped running.
+  // see for bug fix ..... http://wiki.freepascal.org/Executing_External_Programs#Reading_large_output
+  //AProcess.Options := AProcess.Options + [poWaitOnExit, poUsePipes, poNoConsole];
+  //AProcess.Options := AProcess.Options + [poWaitOnExit, poUsePipes, poNewConsole];
+  AProcess.Options := AProcess.Options + [poWaitOnExit, poUsePipes];
 
-    Lines.clear;
-    // Now let AProcess run the program
+  Lines.clear;
+  // Now let AProcess run the program
+  try
     try
-      try
-      AProcess.Execute;
-      except
-        on E:Exception do
-        begin
-          showmessage('Unable to execute process fpc.exe.  Check Run Settings. '+e.Message);
-          MyCodeEditor.MessageLines:='Error: Unable to execute process fpc.exe.  Check Run Settings. '+e.Message;
-        end;
-      end;
-    finally
-      // Now read the output of fpc into a memo
-      if FileExists('fpcerrors.txt') then
+    AProcess.Execute;
+    except
+      on E:Exception do
       begin
-        Lines.LoadFromFile('fpcerrors.txt');
-        MyCodeEditor.MessageLines:=Lines.Text;
-      end
-      else
-      begin
-        MyCodeEditor.MessageLines:='Error: Cannot find fpc output file fpcerrors.txt.  Check Run Settings.';
+        showmessage('Unable to execute process fpc.exe.  Check Run Settings. '+e.Message);
+        MyCodeEditor.MessageLines:='Error: Unable to execute process fpc.exe.  Check Run Settings. '+e.Message;
       end;
     end;
-    // This is not reached until process stops running.
-    AProcess.Free;
+  finally
+    // Now read the output of fpc into a memo
+    if FileExists('fpcerrors.txt') then
+    begin
+      Lines.LoadFromFile('fpcerrors.txt');
+      MyCodeEditor.MessageLines:=Lines.Text;
+    end
+    else
+    begin
+      MyCodeEditor.MessageLines:='Error: Cannot find fpc output file fpcerrors.txt.  Check Run Settings.';
+    end;
   end;
+  // This is not reached until process stops running.
+  AProcess.Free;
+  Lines.Free;
 
+end;
+
+function CheckForCompilationErrors(MyCodeEditor:TXCode;DllFileName,RunMode:String):Boolean;
+var
+  FoundError,FoundFatal:Boolean;
+  i:integer;
+begin
   // check messages for errors
   FoundError:=false;
   FoundFatal:=false;
@@ -1326,10 +1401,6 @@ begin
   and (not FileExists('resources/project/'+DLLFileName)) then
     FoundError:=true;
 
-  Lines.Free;
-  ExtraDirectives.Free;
-  Screen.Cursor := crDefault;
-
   if (FoundError) or (FoundFatal) then
     result:=false
   else
@@ -1337,6 +1408,70 @@ begin
 
 end;
 
+function CompileEventCode(MyCodeEditor:TXCode; RunMode:String):Boolean;
+var
+   ExtraDirectives:TStringList;
+   PASFileName,FirstUnitName:string;
+   DLLFileName:string;
+   i:integer;
+   ok:Boolean;
+begin
+  Screen.Cursor := crHourglass;
+  PythonCodeExists:=false;
+
+  ExtraDirectives:=TStringList.Create;
+
+  XIDEProjectDir:=ProjectDirectory;   // see xpparser
+
+  DllName:=MainUnitName+'Events';
+
+  // clean up from previous runs
+  MyCodeEditor.MessageLines:='';
+
+  PASFileName:= DllName+'.pas';
+  SysUtils.DeleteFile('resources/project/'+PASFileName);
+  SysUtils.DeleteFile('resources/project/'+DllName+'.o');
+
+  ok:=InitialiseCodeToBeCompiled(RunMode,nil,FirstUnitName);
+  if ok then
+  begin
+    MyCodeEditor.ItemValue:=PascalCode.Text;
+    // save the text to be compiled to the .pas file
+    MyCodeEditor.TheEditor.Lines.SaveToFile('resources/project/'+PASFileName);
+
+    if RunMode = 'LazJS' then
+    begin
+      // run the pas2js compiler just for the events unit to check for errors
+      {$ifdef Python}
+      ExtraDirectives.add('-dPython');
+      {$endif}
+      TranspileMyProgram(DllName,ProjectDirectory,'resources/project/',MyCodeEditor,false,ExtraDirectives);
+      // retrieve the list of functions to be shown under the code tree
+      RebuildCodeTree;  //xpparser.XIDEProcsList;
+    end
+
+    else if RunMode = 'LazDll' then
+    begin
+      // run the free pascal compiler (FPC) to create the dll
+      // (from http://wiki.freepascal.org/Executing_External_Programs#TProcess)
+      DLLFileName:= DllName+'.'+SharedSuffix;
+      {$ifdef linux}
+      DLLFileName:='lib'+DLLFileName;
+      {$endif}
+      RunFPCCompiler(MyCodeEditor,DLLFileName,PASFileName);
+    end;
+
+    ok := CheckForCompilationErrors(MyCodeEditor,DllFileName,RunMode);
+
+  end;
+
+  ExtraDirectives.Free;
+
+  Screen.Cursor := crDefault;
+
+  result:=ok;
+
+end;
 
 {$else}
 
@@ -1395,7 +1530,7 @@ var
   args,JSOutputLines,JSKeep : TStringList;
   Res,PasModuleExists : Boolean;
   lWebFS : TPas2JSWebFS;
-  NSUnits:array of String;
+  NSUnits,GPUUnits:array of String;
 begin
   PythonCodeExists:=false;
   NamespaceUnits.Clear;
@@ -1407,11 +1542,13 @@ begin
 
   //.....Run the compiler .......
 
-    MyWebCompiler.Compiler.Log.OnLog:=@MyWebCompiler.DoLog;
+  MyWebCompiler.Compiler.Log.OnLog:=@MyWebCompiler.DoLog;
 
-    MyWebCompiler.Compiler.WebFS.LoadBaseURL:='';
+  MyWebCompiler.Compiler.WebFS.LoadBaseURL:='';
 
-    FirstUnitName:=InitialiseCodeToBeCompiled(RunMode,MyWebCompiler.Compiler); // populates PascalCode stringlist, and builds user units
+  ok:=InitialiseCodeToBeCompiled(RunMode,MyWebCompiler.Compiler,FirstUnitName); // populates PascalCode stringlist, and builds user units
+  if ok then
+  begin
     MyCodeEditor.ItemValue:=PascalCode.Text;
 
     Res:=False;
@@ -1461,14 +1598,17 @@ begin
     begin
       //showmessage('compiler all done - success');
 
-    // First De-register the events unit, plus any other user units used
-    SetLength(NSUnits,NamespaceUnits.Count);
-    for i:=0 to NamespaceUnits.Count-1 do
-    begin
-      NSUnits[i]:=NamespaceUnits[i];
-    end;
-    asm
-    try {
+      // First De-register the events unit, plus any other user units used
+      SetLength(NSUnits,NamespaceUnits.Count);
+      for i:=0 to NamespaceUnits.Count-1 do
+        NSUnits[i]:=NamespaceUnits[i];
+      SetLength(GPUUnits,length(AllGPUNodes));
+      for i:=0 to length(AllGPUNodes)-1 do
+      begin
+        GPUUnits[i]:=AllGPUNodes[i].NodeName;
+      end;
+      asm
+      try {
       var hd=document.head;
       var div=document.getElementById('UserEventCodeContainer');
       if (div==null) {
@@ -1494,79 +1634,98 @@ begin
         for (i=0; i<NSUnits.length; i++) {
           pas[NSUnits[i]]=null;
         }
+        // and any TXGPUCanvas (emulation) units....
+        for (i=0; i<GPUUnits.length; i++) {
+          pas[GPUUnits[i]]=null;
+          pas['GPUCode'+GPUUnits[i]]=null;
+        }
         // and the worker threads unit ....
         pas[pas.Events.DllName+'Threads']=null;
+
+        // and the DataModel unit ....
+        var DMRoot=pas.XDataModel.DMRoot;
+        console.log('removing unit DMRoot');
+        pas['DMRoot']=null;
+
+        //for (var i=0; i<DMRoot.ChildNodes.length; i++) {
+        //     if (DMRoot.ChildNodes[i].NodeType=='DMPkg')
+        //        {
+        //         console.log('removing unit '+DMRoot.ChildNodes[i].NodeName);
+        //         pas[DMRoot.ChildNodes[i].NodeName]=null;
+        //         }
+        //   }
+
         }
       } catch(err) { alert(err.message + ' in CompileEventCode (units de-registration) ');     div.innerHTML=''; ok=false;}
-     end;
+      end;
 
 
-    // Capture the output from the Pas2JS compiler
-    JSOutput:=MyWebCompiler.Compiler.WebFS.GetFileContent(DllName+'.js');
+      // Capture the output from the Pas2JS compiler
+      JSOutput:=MyWebCompiler.Compiler.WebFS.GetFileContent(DllName+'.js');
 
-    // Delete from the JS file all units that already exist in the main page...
-    if FirstUnitName='' then FirstUnitName:=DllName;
+      // Delete from the JS file all units that already exist in the main page...
+      if FirstUnitName='' then FirstUnitName:=DllName;
 
-    // pas2js has produced a JS output file including all referenced rtl units.
-    // Chop up the output into separate modules, and retain only those rtl modules
-    // that are not already registered...
-    JSOutputLines:=TStringList.Create;
-    JSOutputLines.Text:=JSOutput;
-    JSKeep:=TStringList.Create;
+      // pas2js has produced a JS output file including all referenced rtl units.
+      // Chop up the output into separate modules, and retain only those rtl modules
+      // that are not already registered...
+      JSOutputLines:=TStringList.Create;
+      JSOutputLines.Text:=JSOutput;
+      JSKeep:=TStringList.Create;
 
-    PasModuleExists:=false;
+      PasModuleExists:=false;
 
-    CurrentUnitName:='.';
-    while (CurrentUnitName<>'')
-    and (CurrentUnitName<>FirstUnitName) do
-    begin
-      i:=LocateNexTModule(JSOutputLines);
-      CurrentUnitName:=ExtractModuleName(JSOutputLines[i]);
-      //showmessage('i='+inttostr(i)+' checking module '+CurrentUnitName);
-      if (i-1) > 0 then
-        for j:=0 to i-1 do
-        begin
-          if PasModuleExists=false then
-            JSKeep.Add(JSOutputLines[0]);
-          JSOutputLines.Delete(0);
-        end;
-      //deal with this module...
-      if (CurrentUnitName<>FirstUnitName) then
+      CurrentUnitName:='.';
+      while (CurrentUnitName<>'')
+      and (CurrentUnitName<>FirstUnitName) do
       begin
-        PasModuleExists:=true;
-        asm
-        //alert(pas[CurrentUnitName]);
+        i:=LocateNexTModule(JSOutputLines);
+        CurrentUnitName:=ExtractModuleName(JSOutputLines[i]);
+        //showmessage('i='+inttostr(i)+' checking module '+CurrentUnitName);
+        if (i-1) > 0 then
+          for j:=0 to i-1 do
+          begin
+            if PasModuleExists=false then
+              JSKeep.Add(JSOutputLines[0]);
+            JSOutputLines.Delete(0);
+          end;
+        //deal with this module...
+        if (CurrentUnitName<>FirstUnitName) then
+        begin
+          PasModuleExists:=true;
+          asm
+          //alert(pas[CurrentUnitName]);
           if (pas[CurrentUnitName]==undefined) {
              PasModuleExists = false;
           }
+          end;
+          if PasModuleExists = false then
+          begin
+            //showmessage('keeping module '+CurrentUnitName);
+            JSKeep.Add(JSOutputLines[0]);
+          end;
+          JSOutputLines.Delete(0);
         end;
-        if PasModuleExists = false then
-        begin
-          //showmessage('keeping module '+CurrentUnitName);
-          JSKeep.Add(JSOutputLines[0]);
-        end;
-        JSOutputLines.Delete(0);
       end;
+
+      //tmp:=JSKeep.Text;
+      //asm alert( tmp); end;
+
+      JSOutput:=JSKeep.Text + JSOutputLines.Text;
+      JSOutputLines.Free;
+      JSKeep.Free;
     end;
 
-    //tmp:=JSKeep.Text;
-    //asm alert( tmp); end;
+    //EditAttributeValue('XMemo1','','ItemValue',JSOutput);        //!!!! temporary for debugging
 
-    JSOutput:=JSKeep.Text + JSOutputLines.Text;
-    JSOutputLines.Free;
-    JSKeep.Free;
-  end;
+    ok:=res;
+    if res=true then
+    begin
 
-  //EditAttributeValue('XMemo1','','ItemValue',JSOutput);        //!!!! temporary for debugging
+      //showmessage('Events compilation done.  Output='+JSOutput);
 
-  ok:=res;
-  if res=true then
-  begin
-
-    //showmessage('Events compilation done.  Output='+JSOutput);
-
-    // Inject the generated JS script
-     asm
+      // Inject the generated JS script
+      asm
       try {
         //alert('inject script : '+ pas.CompileUserCode.JSOutput);
         var script = document.createElement('script');
@@ -1590,15 +1749,16 @@ begin
         } catch(err) { alert(err + ' in CompileEventCode (module registration) ');     div.innerHTML=''; ok=false;}
         //} catch(err) { alert(err.name+' '+err.at+' '+err.text+' '+err.message + ' in CompileEventCode 2 ');     div.innerHTML=''; ok=false;}
 
+      end;
     end;
+
+    // retrieve the list of functions to be shown under the code tree
+    RebuildCodeTree;  //pparser.XIDEProcsList;
+
+    //....decide if there are errors or not .......
+    if ok=false then showmessage('Compilation failed')
+    else showmessage('Compilation successful');
   end;
-
-  // retrieve the list of functions to be shown under the code tree
-  RebuildCodeTree;  //pparser.XIDEProcsList;
-
-  //....decide if there are errors or not .......
-  if ok=false then showmessage('Compilation failed')
-  else showmessage('Compilation successful');
   result:=ok;
 end;
 
@@ -1613,7 +1773,7 @@ begin
           +'{$endif}'+ LineEnding
           + 'interface '+ LineEnding
           + 'uses Classes, Sysutils,'+ LineEnding
-          + '   Math, contnrs, dateutils, rtlconsts, {rtti,} strutils, types, typinfo,'+ LineEnding
+          + '   Math, contnrs, dateutils, rtlconsts, strutils, types, typinfo,EventsInterface,'+ LineEnding
           + '{$ifdef Dll} InterfaceTypesDll; {$else} InterfaceTypes; {$endif} ' + LineEnding
           + LineEnding
           + 'implementation ' + LineEnding
@@ -1628,6 +1788,12 @@ begin
 end;
 
 function   DfltEventCode:string;
+begin
+  result:= 'begin' + LineEnding +
+            ' ' + LineEnding +
+            'end;' + LineEnding;
+end;
+function   DfltOpCode:string;
 begin
   result:= 'begin' + LineEnding +
             ' ' + LineEnding +

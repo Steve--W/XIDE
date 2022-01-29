@@ -20,7 +20,8 @@ uses
   {$ifdef Python}
   PyXUtils,PythonEngine,
   {$endif}
-  CEFXUtils, FrameViewer09, XGPUEditor, XIDESettings, intfparamunit, IntfEventUnit;
+  CEFXUtils, FrameViewer09, XGPUEditor, XIDESettings, intfparamunit,
+  IntfEventUnit, XDataModel;
 
 {$R *.res}
 {$ifdef Chromium}

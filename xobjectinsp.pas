@@ -30,16 +30,17 @@ uses
   XHBox, XVBox, XCode,XColorPicker,
   XTree,  XButton, XScrollBox, XEditBox, XCheckBox, XComboBox, XTabControl,
   XForm, XTable, XMemo, XMenu, CodeEditor, PropertyEditUnit, EventsInterface,
-  XGPUCanvas, XGPUEditor, XCompositeIntf, StylesUtils,IntfParamUnit,IntfEventUnit;
+  XGPUCanvas, XGPUEditor, XCompositeIntf, XDBTable, StylesUtils,IntfParamUnit,IntfEventUnit;
 
 {$ifdef JScript}
 function CheckForSavedSystemOnLoad:Boolean;
 procedure ShowXFormForDesign(XFormName:String);
-procedure CompleteToggleToRunMode(ok:boolean);
+procedure ToggleToRunModeAfterCompile(ok:boolean);
 procedure BrowserSaveData(TheData:String);
 procedure ContinueToggleToRunMode;
 procedure CompleteDeployFromBrowser(deployname:String);
 procedure InitialiseComposites;
+procedure CompleteToggleToRunMode(ok:Boolean);
 {$endif}
 
 {$ifndef JScript}
@@ -71,6 +72,8 @@ type
 procedure DumpFullNodeTree;
 procedure InitialiseXIDE;
 function XIDEConfirm(promptString:String):boolean;
+function GetTreeTextHierarchy(StartNode,TopRootNode:TDataNode):String;
+function GetTreeTextHierarchyWithIndices(StartNode,TopRootNode:TDataNode):String;
 procedure SetupAvailableResources;
 procedure RebuildNavigatorTree;
 procedure RebuildCodeTree;
@@ -140,6 +143,11 @@ procedure OIAddInterfaceElement;
 procedure DiscoverSavedSystems(var NamesList:TStringList);
 procedure OICodeSearch;
 function NameStringIsValid(nm:String):Boolean;
+function CanAddChildToParent(ParentNode,SourceNode:TDataNode):Boolean;
+function GetValidItemName(PromptString,DefaultString:String):String;
+function ComponentNameIsUnique(ScreenObjectName,NameSpace:string):Boolean;
+procedure SetScreenToDesignMode;
+procedure CheckForPythonCode;
 
 
 const
@@ -158,7 +166,7 @@ const
 var
   MainFormProjectRoot:TDataNode;
   DesignMode:Boolean;
-  NavTreeComponent,ResourcesNodeTree, ResourceTreeComponent, CodeTreeComponent:TDataNode;
+  NavTreeComponent,DataTreeComponent,ResourcesNodeTree, ResourceTreeComponent, CodeTreeComponent:TDataNode;
   OIEventWrapper:TOIEventWrapper;
   LastLazUserInterfaceItemSelected,LastHTMLUserInterfaceItemSelected:String;
   LastHTMLUserInterfaceItemHadBorder:Boolean;
@@ -168,7 +176,7 @@ var
   RunModeAttempts:integer;
 
   PropertiesNode, InterfacePropsNode, InterfaceTabNode, EventsNode,
-    AddInterfacePropsButtonNode, OITabs : TDataNode;
+    AddInterfacePropsButtonNode, OITabs, DMAttribsNode : TDataNode;
 
   {$ifndef JScript}
   UITopControl:TWinControl;
@@ -177,12 +185,12 @@ var
   CompositesString:String;
   {$endif}
 
-
-implementation
-uses PasteDialogUnit, PyXUtils, XIDEMain;
-
 const
   AttributeEditorNameDelimiter:string = '__';
+
+implementation
+uses PasteDialogUnit, PyXUtils, XDataModel, XIDEMain;
+
 
   //SandraMode:Boolean = true;
 
@@ -208,6 +216,47 @@ begin
   result:=ok;
 end;
 
+function GetTreeTextHierarchy(StartNode,TopRootNode:TDataNode):String;
+var
+  ParentNode:TDataNode;
+  treeText:String;
+begin
+  treeText:=StartNode.NodeType+'('+StartNode.NodeName+')';
+  ParentNode:=StartNode.NodeParent;
+  while (ParentNode<>nil) and (ParentNode<>TopRootNode.NodeParent) do
+  begin
+    treeText:=ParentNode.NodeType+'('+ParentNode.NodeName+')'+'/'+treeText;
+    ParentNode:=ParentNode.NodeParent;
+  end;
+  result:=treeText;
+end;
+function GetTreeTextHierarchyWithIndices(StartNode,TopRootNode:TDataNode):String;
+var
+  ParentNode:TDataNode;
+  treeText:String;
+  thisindex:integer;
+begin
+  treeText:='';
+  //{$ifdef JScript}asm console.log('GetTreeTextHierarchyWithIndices StartNode='+StartNode.NodeName); end; {$endif}
+  if StartNode.NodeParent <> nil then
+    thisindex:=StartNode.NodeParent.GetChildIndex(StartNode)
+  else
+    thisindex:=0;
+  treeText:= intToStr(thisindex) + '~:~' + StartNode.NodeType+'('+StartNode.NodeName+')';
+  ParentNode:=StartNode.NodeParent;
+  //{$ifdef JScript}asm console.log('GetTreeTextHierarchyWithIndices ParentNode=',ParentNode); end; {$endif}
+  while (ParentNode<>nil) and (ParentNode<>TopRootNode.NodeParent) do
+  begin
+    if ParentNode.NodeParent <> nil then
+      thisindex:=ParentNode.NodeParent.GetChildIndex(ParentNode)
+    else
+      thisindex:=0;
+    treeText:= intToStr(thisindex) + '~:~' + ParentNode.NodeType+'('+ParentNode.NodeName+')'+'~/~'+treeText;
+    ParentNode:=ParentNode.NodeParent;
+  end;
+  result:=treeText;
+end;
+
 Function ConstructSystemTreeString(CurrentItem:TDataNode; level:Integer; IncludeTypes,IncludeProperties:boolean;
                                    Exclusions:TStringList;PropType:String):String;
 // Recursive
@@ -226,6 +275,7 @@ begin
     or ((CurrentItem.NodeClass='UI') and (CurrentItem.NodeType='TXForm') and (CurrentItem.NodeName = MainForm.Name))
     or ((CurrentItem.NodeClass='UI') and (CurrentItem.NodeType='TXMainMenu'))
     or ((CurrentItem.NodeClass='NV') and (CurrentItem.IsDynamic=true))
+    or (CurrentItem.NodeClass='DM')
     or (CurrentItem=SystemNodeTree)
     or (CurrentItem=ResourcesNodeTree)
     or (CurrentItem=CodeRootNode)
@@ -247,7 +297,7 @@ begin
         if level = 0 then ArrayString:=' ';
 
         if (IncludeProperties)
-        and ((CurrentItem.NodeClass='UI') or (CurrentItem.NodeClass='NV'))
+        and ((CurrentItem.NodeClass='UI') or (CurrentItem.NodeClass='NV') or (CurrentItem.NodeClass='DM'))
         and (length(CurrentItem.NodeAttributes)>0) then
           InsertingAttributes:=true
         else
@@ -533,14 +583,13 @@ begin
   if RRoot=nil then
   begin
     ResourcesNodeTree:=AddChildToDataNode(SystemNodeTree,'ResourceRoot',ResourceDataRootName,'','',emptyAttribs,-1);
-    ResourcesNodeTree.AddAttribute('ParentName','String', SystemRootName,true);
+    //ResourcesNodeTree.AddAttribute('ParentName','String', SystemRootName,true);
     // This represents the set of library 'resource' elements that are available in the resources tree
   end;
 end;
 
 function RegisterResource(ClassName,ScreenObjectType,ScreenObjectName,ParentName:string; Hint:String):TDataNode;  overload;
  var
-      dfltAttribs:TDefaultAttributesArray;
       myAttribs:TNodeAttributesArray;
       myparent,myself:TDataNode;
       n,i:integer;
@@ -551,15 +600,6 @@ function RegisterResource(ClassName,ScreenObjectType,ScreenObjectName,ParentName
     if myparent<>nil
     then
     begin
-      //dfltAttribs:=GetDefaultAttribs(ScreenObjectType);
-      //setlength(myAttribs,length(dfltAttribs));
-      //for i:=0 to length(dfltAttribs)-1 do
-      //begin
-      //  myAttribs[i]:=TNodeAttribute.Create(nil,dfltAttribs[i].AttribName);
-      //  myAttribs[i].AttribType:=dfltAttribs[i].AttribType;
-      //  myAttribs[i].AttribReadOnly:=dfltAttribs[i].AttribReadOnly;
-      //  myAttribs[i].AttribValue:=dfltAttribs[i].AttribValue;
-      //end;
       setlength(myAttribs,1);
       myAttribs[0]:=TNodeAttribute.Create(nil,'Hint');
       myAttribs[0].AttribType:='String';
@@ -570,8 +610,8 @@ function RegisterResource(ClassName,ScreenObjectType,ScreenObjectName,ParentName
 
       if myself<>nil then
       begin
-        mySelf.AddAttribute('ParentName', ParentName,'String',true);
-        mySelf.SetAttributeValue('ParentName', ParentName,'String');
+        //mySelf.AddAttribute('ParentName', ParentName,'String',true);
+        //mySelf.SetAttributeValue('ParentName', ParentName,'String');
 
         // myself is a local variable.  Re-assign it to the childnodes array.
         TempChildNodes:= myparent.ChildNodes;
@@ -589,7 +629,7 @@ var
 begin
   setLength(emptyAttribs,0);
   ResourcesNodeTree:=AddChildToDataNode(SystemNodeTree,'ResourceRoot',ResourceDataRootName,'','',emptyAttribs,-1);
-  ResourcesNodeTree.AddAttribute('ParentName','String', SystemRootName,true);
+  //ResourcesNodeTree.AddAttribute('ParentName','String', SystemRootName,true);
   RegisterResource('RUI','','Composites','ResourceRoot','');
 end;
 
@@ -609,6 +649,7 @@ begin
     {$else}
     BrowserSaveData(TheData);
     {$endif}
+    SaveLocalDB;
 
     ObjectInspectorSelectedNavTreeNode:=NavSelected;
     ObjectInspectorSelectedNavTreeNode:=CodeSelected;
@@ -621,9 +662,8 @@ var
   sysname:string;
 begin
   sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
-  //showmessage('saving system '+sysname);
   asm
-   //alert('saving local XIDESavedData'+sysname);
+   //console.log('saving local XIDESavedData'+sysname);
    pas.HTMLUtils.WriteToLocalStore("XIDESavedData"+sysname,TheData);
   end;
 end;
@@ -634,6 +674,7 @@ begin
   //OITabs:=FindDataNodeById(SystemNodeTree,'OITabs','',true);
   OITabs:=FindDataNodeById(UIRootNode,'OITabs','',true);
   PropertiesNode:=FindDataNodeById(OITabs,PropertyEditorScrollboxName,'',true);
+  DMAttribsNode:=FindDataNodeById(UIRootNode,DMAttribsScrollboxName,'',true);
   InterfacePropsNode:=FindDataNodeById(OITabs,CompositePropsScrollboxName,'',true);
   EventsNode:=FindDataNodeById(OITabs,EventsEditorScrollboxName,'',true);
   InterfaceTabNode:=FindDataNodeById(OITabs,CompositePropsTabName,'',true);
@@ -644,6 +685,7 @@ begin
   // Populate navigator and code tree from SystemNodeTree
   RebuildNavigatorTree;
   RebuildCodeTree;
+  RebuildDMTree;
 
   {$ifndef JScript}
   ConsoleNode:=FindDataNodeById(UIRootNode,'XMemo1','',true);
@@ -810,6 +852,7 @@ begin
   RegisterResource('RUI','TXEditBox','TXEditBox','Text','Editable text box');
   RegisterResource('RUI','TXMemo','TXMemo','Text','Editable multi-line text box');
   RegisterResource('RUI','TXTable','TXTable','Text','2D Tabular data display');
+  RegisterResource('RUI','TXDBTable','TXDBTable','Text','2D Tabular dataset display');
 
   //{$ifdef Python}
   ////AddAttrib(AttrParams,'Language','String','Python',false);
@@ -972,7 +1015,7 @@ var
   founditem:TDataNode;
 begin
   myresult:=true;
-  founditem:=FindDataNodeById(SystemNodeTree,ScreenObjectName,NameSpace,false);
+  founditem:=FindDataNodeById(SystemNodeTree,ScreenObjectName,NameSpace,false);    //UIRootNode??
   if (founditem<>nil)
   then
   begin
@@ -1135,26 +1178,32 @@ begin
 
   // ok we have raised the relevant form, and highlighted the object.
   // Now check up the parent list in case it's on a closed tab page...
-  ParentNode:=FindParentOfNode(SystemNodeTree,CurrentNode);
-  while (ParentNode<>nil) and (ParentNode.NodeType<>'TXForm') do
+  //ParentNode:=FindParentOfNode(SystemNodeTree,CurrentNode);
+  ParentNode:=CurrentNode.NodeParent;
+  while (ParentNode<>nil)
+  and (ParentNode.NodeType<>'TXForm')
+  and (ParentNode.NodeName<>'ApplicationRoot')
+  and (ParentNode<>UIRootNode) do
   begin
     if ParentNode.NodeType='TXTabSheet' then
     begin
       TabPage:=TXTabSheet(ParentNode.ScreenObject);
-      ParentNode:=FindParentOfNode(SystemNodeTree,ParentNode);
+      //ParentNode:=FindParentOfNode(SystemNodeTree,ParentNode);
+      ParentNode:=ParentNode.NodeParent;
       {$ifndef JScript}
       TXTabControl(ParentNode.ScreenObject).ActivePage:=TabPage;
       {$else}
       ChangeTabPage(TabPage.NodeName,ParentNode.NodeName,'',TabPage);
       {$endif}
     end;
-    ParentNode:=FindParentOfNode(SystemNodeTree,ParentNode);
+    //ParentNode:=FindParentOfNode(SystemNodeTree,ParentNode);
+    ParentNode:=ParentNode.NodeParent;
   end;
 
 end;
 
 procedure RefreshObjectInspector(CurrentNode:TDataNode);
-var AttributePrefix:string;
+var Prefix1,AttributePrefix:string;
   i:integer;
   WidgetNode:TDataNode;
   myAttribs:TNodeAttributesArray;
@@ -1168,8 +1217,11 @@ begin
 
   if (CurrentNode<>nil)  then
   begin
-
-      AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
+      if CurrentNode.NodeClass='DM' then
+        Prefix1:='DM'
+      else
+        Prefix1:='OI';
+      AttributePrefix:=Prefix1+AttributeEditorNameDelimiter+CurrentNode.NodeName;
       myAttribs:=CurrentNode.NodeAttributes;
 
       for i:=0 to length(myAttribs)-1 do
@@ -1269,11 +1321,13 @@ begin
     okToContinue:=false;
   {$endif}
 
-   //!! Should to operate this by node id, not text  :: HOWEVER, in the nav tree, node texts are all unique.
+   //!! Should operate this by node id, not text  :: HOWEVER, in the nav tree, node texts are all unique.
   //showmessage('DoSelectNavTreeNode '+CurrentNode.NodeClass+' '+CurrentNode.NodeType+' '+CurrentNode.NodeName+' ');
   if (DesignMode) and (okToContinue) then
   begin
-     {$ifdef Chromium}
+    XDBTable.SetDSNameOptions(DMRoot);
+
+    {$ifdef Chromium}
      {$ifndef JScript}
      // For an SVG container, inspect the Title, and switch to a child SVG node, if appropriate.
      if CurrentNode.NodeType='TXSVGContainer' then
@@ -1283,9 +1337,9 @@ begin
          CurrentNode:=IFrameNode;
      end;
      {$endif}
-     {$endif}
+    {$endif}
 
-      mynodeText := CurrentNode.NodeType+'('+CurrentNode.Nodename+')';
+     mynodeText := CurrentNode.NodeType+'('+CurrentNode.Nodename+')';
      //showmessage('mynodeText='+mynodeText);
 
      TreeInFocus := UIRootNode;
@@ -1312,7 +1366,6 @@ begin
      else  if (refresh) then
      begin
        // just refresh all the displayed property values
-      // showmessage('RefreshObjectInspector');
        RefreshObjectInspector(CurrentNode);
      end;
 
@@ -1422,11 +1475,18 @@ UIRootNode
   //showmessage('ConstructSystemTreeString for nav');
   newtreestring:= ConstructSystemTreeString(UIRootNode,0,true,false,nil,'');
   {$ifndef JScript}
- // WriteToFile('navtree.txt',newtreestring);
+  // WriteToFile('navtree.txt',newtreestring);
   TXTree(NavTreeComponent.ScreenObject).TreeData:=newtreestring;
   {$else}
   TXTree(NavTreeComponent).TreeData:=newtreestring;
   {$endif}
+
+  // set hints for the special attributes on UIRootNode
+  UIRootNode.GetAttribute('DeploymentMode',false).AttribHint:='When the designed system is deployed to html (menu System>Deploy) it is set up to start in design mode or run mode ';
+  UIRootNode.GetAttribute('DBVersion',false).AttribHint:='Latest iteration number of the local database built from data description on entry to run mode ';
+  UIRootNode.GetAttribute('PythonPackages',false).AttribHint:='Python packages to be loaded in the browser (pyodide) environment (; delimited, eg numpy;matplotlib). ';
+
+
   if ObjectInspectorSelectedNavTreeNode<>nil then
   begin
     //showmessage('selecting node '+ObjectInspectorSelectedNavTreeNode.nodename);
@@ -1554,6 +1614,7 @@ begin
       {$endif}
       ParentId:=TreeLabelToID(ParentText,'CodeTree',p1);
       CurrentNode:=FindDataNodeById(SystemNodeTree,ParentId,'',true);
+      //CurrentNode:=FindDataNodeById(UIRootNode,ParentId,'',true);
       if (CurrentNode<>nil)
       and (CurrentNode.NodeType='PasUnit') then
       begin
@@ -1695,7 +1756,7 @@ begin
   result:=Deleted;
 end;
 
-procedure CutItemQuietly(InTree,SelectedNode:TDataNode);
+function CutItemQuietly(InTree,SelectedNode:TDataNode):TDataNode;
 begin
   ObjectInspectorSourceNode:=CopyNode(SelectedNode,true);
   //ShowMessage('cutting '+ObjectInspectorSourceNode.NodeName);
@@ -1703,11 +1764,13 @@ begin
   DeleteItemQuietly(InTree,SelectedNode);
   //ShowMessage('finished cutting.  oi node is '+ObjectInspectorSourceNode.NodeName);
   XIDEForm.OIPaste.Hint:='Ready to paste UI node '+ObjectInspectorSourceNode.NodeName;
+  result:=ObjectInspectorSourceNode;
 end;
 
 procedure CutItem(InTree,SelectedNode:TDataNode);
 var
    myName:string;
+   cutNode:TDataNode;
 begin
   //ShowMessage('cutitem.  selectednode='+SelectedNode.NodeName);
   if  (SelectedNode=nil) or (SelectedNode.NodeName='') then
@@ -1723,17 +1786,18 @@ begin
       else
       begin
         myName:=SelectedNode.NodeName;
-        CutItemQuietly(InTree,SelectedNode);
+        cutNode:=CutItemQuietly(InTree,SelectedNode);
 
         if designMode then
         begin
-          SaveSystemData;
+          SaveSystemData;  // this clears ObjectInspectorSourceNode
 
           if InTree.NodeName=SystemRootName then
           begin
             RebuildNavigatorTree;
             RebuildCodeTree;
           end;
+          ObjectInspectorSourceNode:=cutNode;
         end;
         ShowMessage('Node '+ myName +' ready to paste');
 
@@ -1836,6 +1900,14 @@ begin
     ShowMessage('Only XForm and Non-Visual items can be added to the UI Root Node - please select another container')
   else if (SourceNode.NodeClass='UI') and (ParentNode.NodeType='TXForm') and (ParentNode.NodeName=MainForm.Name) then
     ShowMessage('In the main form, UI items can only be added within the UI Root Node')
+  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType='DMRoot') and (SourceNode.NodeType<>'DMClass') then
+    ShowMessage('Only a DMClass can be inserted under a DMRoot element')
+  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMContains') then
+    ShowMessage('A DMContains can only be inserted under a DMClass element')
+  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMOp') then
+    ShowMessage('A DMOp can only be inserted under a DMClass element')
+  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMRef') then
+    ShowMessage('A DMRef can only be inserted under a DMClass element')
   else
     // all ok - go ahead and paste
     result:=true;
@@ -2028,7 +2100,8 @@ begin
     else
     begin
       // ShowMessage('paste as sibling');
-      ParentNode:=FindParentOfNode(SystemNodeTree,NavTreeDestinationNode);
+      //ParentNode:=FindParentOfNode(SystemNodeTree,NavTreeDestinationNode);
+      ParentNode:=NavTreeDestinationNode.NodeParent;
       TreePos:=ParentNode.GetChildIndex(NavTreeDestinationNode);
     end;
 
@@ -2126,6 +2199,7 @@ begin
   TXButton(btnNode.ScreenObject).Enabled:=false;
 end;
 
+
 procedure ClearInspectors;
 begin
   if NavTreeComponent.ScreenObject <>nil then
@@ -2138,6 +2212,7 @@ begin
     PopulateObjectInspector(nil);
     ClearResourceInspector;
     ObjectInspectorSelectedNavTreeNode:=nil;
+    DMClearSelection;
 
     TXTree(CodeTreeComponent.ScreenObject).DeSelectNode;
     ObjectInspectorSelectedCodeTreeNode:=nil;
@@ -2289,9 +2364,20 @@ begin
     end;
   end;
 
+  // and add any data model elements
+  StartNode:=DMRoot;
+  if StartNode=nil then
+  begin
+    showmessage('oops. cannot find node DMRoot in BuildSystemString');
+    EXIT;
+  end;
+  for i:=0 to length(StartNode.ChildNodes)-1 do
+  begin
+    systemstring:=systemstring+NodeTreeToXML(StartNode.ChildNodes[i],DMRoot,true,false);
+  end;
+
   if not Encapsulate then
   begin
-//  showmessage('8');
     // add the tree 'StyleSheet' so that its data is preserved with the user's project
     StyleTreeParent:=FindDataNodeById(systemnodetree,'StyleDesigner','',true);
     systemstring:=systemstring+NodeTreeToXML(StylesNode,StyleTreeParent,false,false);
@@ -2312,21 +2398,29 @@ end;
 
 Procedure SaveSystemToFile;
 var
-  fullstring,sysname:String;
+  fullstring,oldname,sysname,storename:String;
 begin
-  sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
-  sysname:=GetValidItemName('Enter System Name',sysname);
+  oldname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
+  sysname:=GetValidItemName('Enter System Name',oldname);
   if sysname='' then
     EXIT;
 
   SetSystemName(sysname);
-  sysname:=sysname+'.xide';
+  storename:=sysname+'.xide';
   {$ifndef JScript}
-  sysname:='SavedSystems/'+sysname;
+  storename:='SavedSystems/'+storename;
   {$endif}
   fullstring:=BuildSystemString(false);
-  WriteToLocalStore(sysname,fullstring);
+  WriteToLocalStore(storename,fullstring);
   RebuildResourcesTree;
+
+  if sysname<>oldname then
+  begin
+    // copy any existing stored datasets
+    // (desktop)...create new directory, and copy contents
+    // (browser)...copy local database to new name (NB. Async function)
+    DBSaveAs(oldname,sysname);
+  end;
 end;
 
 function isValidSystemData(SystemDescription:string):boolean;
@@ -2349,7 +2443,6 @@ begin
   result:=MatchFound;
 end;
 
-{$ifndef Python}
 procedure CheckEventCode(StartNode:TDataNode);
 var
   i:integer;
@@ -2376,7 +2469,6 @@ begin
       CheckEventCode(StartNode.ChildNodes[i]);
 
 end;
-
 procedure CheckForPythonCode;
 var
   i:integer;
@@ -2396,6 +2488,13 @@ begin
     CheckEventCode(SystemNodeTree);
   end;
 
+end;
+
+{$ifndef Python}
+
+procedure CheckForPythonCode2;
+begin
+  CheckForPythonCode;
   if PythonCodeExists then
     showmessage('Warning: The loaded system contains Python code.  These cannot be executed unless the XIDE framework is built with the ''Python'' option');
 end;
@@ -2407,6 +2506,7 @@ var
    myTimer:tTimer;
    myTag:TLoadTimerTag;
    glb:Boolean;
+   i:integer;
 begin
   glb:=GlobalSuppressFrameDisplay;
   GlobalSuppressFrameDisplay:=true;
@@ -2419,6 +2519,11 @@ begin
   myTag:=TLoadTimerTag(myTimer.Tag);
   XMLToNodeTree(myTag.systemstring,UIRootNode);
 
+  {$ifdef JScript}
+  i:=length(DMRoot.ChildNodes);
+  asm console.log('DoXMLToNodeTree 1. DMRoot numchildnodes=',i); end;
+  {$endif}
+
   if myTag.SysName<>'' then
   begin
     SetSystemName(myTag.SysName);
@@ -2426,9 +2531,22 @@ begin
 
   RebuildResourcesTree;
   RedisplayResourceTree;
+{$ifdef JScript}
+i:=length(DMRoot.ChildNodes);
+asm console.log('DoXMLToNodeTree 2. DMRoot numchildnodes=',i); end;
+{$endif}
 
   RebuildNavigatorTree;
+{$ifdef JScript}
+i:=length(DMRoot.ChildNodes);
+asm console.log('DoXMLToNodeTree 3. DMRoot numchildnodes=',i); end;
+{$endif}
   RebuildCodeTree;
+{$ifdef JScript}
+i:=length(DMRoot.ChildNodes);
+asm console.log('DoXMLToNodeTree 4. DMRoot numchildnodes=',i); end;
+{$endif}
+  RebuildDMTree;
   SelectNavTreeNode(MainFormProjectRoot,true);
 
   //make sure UIRoot width attribute is still at 60% (design mode)
@@ -2438,7 +2556,7 @@ begin
   //  MainFormProjectRoot.SetAttributeValue('ContainerWidth','80%');
 
   {$ifndef Python}
-  CheckForPythonCode;
+  CheckForPythonCode2;
   {$endif}
 
   GlobalSuppressFrameDisplay:=glb;
@@ -2514,7 +2632,7 @@ begin
 
     SelectNavTreeNode(MainFormProjectRoot,true);
     {$ifndef Python}
-    CheckForPythonCode;
+    CheckForPythonCode2;
     {$endif}
 
    end
@@ -2535,11 +2653,10 @@ var
 begin
   {$ifndef JScript}
   myTree:=TXTree(NavTreeComponent.ScreenObject);
-  NodeText:=myTree.SelectedNodeText;
   {$else}
   myTree:=TXTree(NavTreeComponent);
-  NodeText:=myTree.SelectedNodeText;
   {$endif}
+  NodeText:=myTree.SelectedNodeText;
   TreeNodeId:=TreeLabelToID(NodeText,'NavTree',p1);
 
   //NodeID is the Navigator Ttree object clicked on    eg. NavigationTreeContents   or in html, the name of the node...
@@ -2668,8 +2785,12 @@ begin
   // if an intra-tree drag/drop, then cut the source node first
   // find the original source node (still in the nav tree)
   OriginalSource:=FindDataNodeById(SystemNodeTree,ObjectInspectorSourceNode.NodeName,'',false);
-  OriginalParent:=FindParentOfNode(SystemNodeTree,OriginalSource,true);
-  OriginalPos:=OriginalParent.GetChildIndex(OriginalSource);
+  //OriginalParent:=FindParentOfNode(SystemNodeTree,OriginalSource,true);
+  if (OriginalSource<>nil) then
+  begin
+    OriginalParent:=OriginalSource.NodeParent;
+    OriginalPos:=OriginalParent.GetChildIndex(OriginalSource);
+  end;
   if (OriginalSource<>nil)
   and (OriginalSource <> ObjectInspectorSelectedNavTreeNode)
   and (OriginalSource.IsDynamic=true)
@@ -2697,7 +2818,8 @@ begin
   thisNode:=ObjectInspectorSelectedNavTreeNode;
   if thisNode<>nil then
   begin
-    myParent:=FindParentOfNode(SystemNodeTree,thisNode);
+    //myParent:=FindParentOfNode(SystemNodeTree,thisNode);
+    myParent:=thisNode.NodeParent;
     if myParent<>nil then
     begin
       for i:=0 to length(myParent.ChildNodes)-1 do
@@ -2766,12 +2888,14 @@ procedure OICopyToNewParent(nodeId,NameSpace:string;NewParentId:string;NewName:S
 // Interface function (available to user code block) to copy a node in the nav tree to the given parent.
 var
   OriginalSource, DestNode:TDataNode;
+  s:boolean;
 begin
   // find the source node
   OriginalSource:=FindDataNodeById(UIRootNode,NodeId,NameSpace,false);
   if (OriginalSource<>nil) then
   begin
-
+    s:=SuppressEvents;
+    SuppressEvents:=true;
     TreeInFocus:=UIRootNode;
     // find the new parent node
     DestNode:=FindDataNodeById(UIRootNode,NewParentId,NameSpace,true);
@@ -2792,6 +2916,7 @@ begin
     end
     else
       showmessage('MoveComponent:  Cannot find destination node '+NewParentId);
+    SuppressEvents:=s;
   end
   else
     showmessage('MoveComponent:  Cannot find source node '+nodeId);
@@ -2945,10 +3070,12 @@ procedure OISystemLoad(e:TEventStatus;nodeId:string);
 var
   SystemDescription:String;
 begin
+  //{$ifdef JScript}
+  //asm console.log('OISystemLoad'); end;
+  //{$endif}
 
    if (e=nil)  or (e.InitRunning=false) then
    begin
-     //showmessage('new e');
      if (e=nil) then
      begin
        e:=TEventStatus.Create('Click',nodeId);
@@ -2968,8 +3095,9 @@ begin
    if e.InitRunning then
    begin
      PasteDoneBtn.IsVisible:=false;
-     SystemDescription:=mygetClipboardData('System');
+     SystemDescription:=mygetClipboardData('System'); // (html) opens the popup for paste action
    end;
+   e.InitDone:=true;
 
    if e.EventHasWaitingAsyncProcs = false then
    // this is lazarus and a confirm dialog is not needed
@@ -2977,10 +3105,10 @@ begin
    begin
      {$ifndef JScript}
      // Lazarus only
-     //showmessage('call DoSystemLoad '+SystemDescription);
      DoSystemLoad(SystemDescription,'');
      {$else}
      asm
+       //console.log('call DoSystemLoad ');
        pas.NodeUtils.StartingUp=false;
        var pasteTarget = document.getElementById('PasteTargetContents');
        var PasteString = pasteTarget.value;
@@ -2989,6 +3117,7 @@ begin
      end;
      {$endif}
    end;
+
 end;
 
 procedure OIClearSystem;
@@ -3001,6 +3130,8 @@ begin
       CloseXForm(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
     end;
     SetSystemName('XIDESystem');
+
+    PyMemoComponent:=XIDEMain.XIDEForm.XMemo1;
 
     ClearInspectors;
     ClearAllDynamicNodes(SystemNodeTree); // clear any existing dynamic screen components under Root
@@ -3015,6 +3146,9 @@ begin
     RebuildResourcesTree;
     InitialiseStyleDesigner;
 
+    InitDMTree;
+    DMChanged:=false;
+    RebuildDMTree;
  end;
 
 
@@ -3057,7 +3191,7 @@ begin
         + '<html  lang="en">' +LineEnding;
     projectJS:='';
     asm
-      console.log('finding core js code');
+      //console.log('finding core js code');
       // find the block of JS code that defines the XIDE framework
       //!! this needs to be the JS for running the framework, is NOT the compiled user code
       var corecode = document.getElementById("ProjectCodeContainer");
@@ -3322,26 +3456,74 @@ var
   nm,nm2:String;
 {$endif}
 begin
-  CodeEditForm.Mode:='dll';
-  CodeEditForm.InitialiseOnShow('Compiler Errors','','');
+  if CodeEditForm.CodeEdit.MessageLines<>'' then
+  begin
 
-  ShowXForm('CodeEditForm',true);     // the relevant text and message contents have already been populated
+    CodeEditForm.Mode:='dll';
+    CodeEditForm.InitialiseOnShow('Compiler Errors','','');
 
-  {$ifdef JScript}
-  nm:=CodeEditor.CodeEditForm.CodeEdit.NodeName;
-  nm2:=CodeEditor.CodeEditForm.CodeEditInit.NodeName;
-  asm
-  pas.XCode.DoKeyUp(nm2+'Contents',nm2,'',null);
-  pas.XCode.DoKeyUp(nm+'Contents',nm,'',null);
+    ShowXForm('CodeEditForm',true);     // the relevant text and message contents have already been populated
+
+    {$ifdef JScript}
+    nm:=CodeEditor.CodeEditForm.CodeEdit.NodeName;
+    nm2:=CodeEditor.CodeEditForm.CodeEditInit.NodeName;
+    asm
+      pas.XCode.DoKeyUp(nm2+'Contents',nm2,'',null);
+      pas.XCode.DoKeyUp(nm+'Contents',nm,'',null);
+    end;
+    {$endif}
   end;
-  {$endif}
 
 end;
 
-procedure CompleteToggleToRunMode(ok:boolean);
+{$ifdef JScript}
+procedure CompleteToggleToRunMode(ok:Boolean);
+begin
+  SuppressUserEvents:=false;
+
+  if ok then
+  begin
+    asm
+      console.log('CompleteToggleToRunMode calling event OnEnterRunMode');
+    end;
+    {$ifdef Python}
+    asm
+    async function waitForNewPackages() {
+    await loadPyPkgs(doAfterPyPaksLoaded);  //pysrcLoaded();  // make sure all required python packages are loaded
+    }
+    waitForNewPackages();
+    function doAfterPyPaksLoaded() {
+      console.log("doAfterPyPaksLoaded");
+      testPyPkLoaded('xarray');
+    end;
+    if (PyXUtils.PyPkTest=1) then
+       BuildXArrays(true);
+    //exec all defined python scripts
+    GatherAndRunPythonScriptsLater;
+    {$endif}
+    asm
+    myTimeout(pas.Events.handleEvent,5,'handleEvent',0,null,'OnEnterRunMode',pas.NodeUtils.SystemRootName,'','');
+    end;
+    {$ifdef Python}
+    asm
+    }
+    end;
+    {$endif}
+  end
+  else
+  begin
+    // Revert to design mode
+    SetScreenToDesignMode;
+    DeleteGreyOverlay('Grey1');
+  end;
+end;
+{$endif}
+
+procedure ToggleToRunModeAfterCompile(ok:boolean);
 var
   MenuItemNode:TDataNode;
   MenuItem,SysMenuItem:TXMenuItem;
+  v:integer;
 begin
   MenuItemNode:=FindDataNodeById(UIRootNode,'ToggleDesignRunMode','',true);
   MenuItem:=TXMenuItem(MenuItemNode.ScreenObject);
@@ -3365,11 +3547,14 @@ begin
     DoFormResize(MainForm, MainFormTopControl);
     TWinControl(MainFormProjectRoot.ScreenObject).SetFocus;
 
-    GatherSourcedAttributes(SystemNodeTree);
-    PushAllSourcesToAttributes;
-
     SysMenuItem:=XIDEForm.SystemMenu;
     SysMenuItem.IsVisible:=false;
+
+    //GatherSourcedAttributes(SystemNodeTree);
+    GatherSourcedAttributes(UIRootNode);
+    PushAllSourcesToAttributes;
+
+    ok:=BuildLocalDB(StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue));
 
     SuppressUserEvents:=false;
 
@@ -3378,20 +3563,19 @@ begin
     //Clear the python engine and re-initialise
     DoPy_InitEngine;
     RunInitialScript;
+    BuildXArrays(true);
     //do later .... exec all defined python scripts
     GatherAndRunPythonScriptsLater;
     {$endif}
     {$else}
-    GatherSourcedAttributes(SystemNodeTree);
+    //GatherSourcedAttributes(SystemNodeTree);
+    GatherSourcedAttributes(UIRootNode);
     PushAllSourcesToAttributes;
+    v:=StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue);
+    asm
+      ok=pas.XDataModel.BuildLocalDB(v,pas.XObjectInsp.CompleteToggleToRunMode);
+    end;
 
-    SuppressUserEvents:=false;
-
-    HandleEvent(nil,'OnEnterRunMode',SystemRootName,'','');
-    {$ifdef Python}
-    //exec all defined python scripts
-    GatherAndRunPythonScriptsLater;
-    {$endif}
     {$endif}
   end
   else
@@ -3426,13 +3610,34 @@ begin
     // Compile the user-created event code, using embedded pas2js compiler
     // and generate js
     ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
-    CompleteToggleToRunMode(ok);
+    //asm console.log('calling ToggleToRunModeAfterCompile'); end;
+    ToggleToRunModeAfterCompile(ok);
     {$ifndef Python}
     DeleteGreyOverlay('Grey1');
     {$endif}
 end;
 {$endif}
 
+procedure SetScreenToDesignMode;
+var
+  MenuItemNode:TDataNode;
+  MenuItem:TXMenuItem;
+begin
+  MenuItemNode:=FindDataNodeById(UIRootNode,'ToggleDesignRunMode','',true);
+  MenuItem:=TXMenuItem(MenuItemNode.ScreenObject);
+  DesignMode:=true;
+  SuppressUserEvents:=true;
+  SetLength(SourcedAttribs,0);        // keep these during design mode !!!!????
+  MenuItem.Caption:='Run Mode';
+  XIDEForm.SystemMenu.IsVisible:=true;
+  // Show Object Inspector
+  ShowHideObjectInspector(true);
+  {$ifndef JScript}
+  GlobalSuppressFrameDisplay:=true;
+  DoFormResize(MainForm,MainFormTopControl);
+  {$endif}
+
+end;
 
 procedure DoToggleDesignRunMode(Sender:TXMenuItem);
 var
@@ -3447,6 +3652,14 @@ begin
   begin
     // Go to Run Mode
     EditAttributeValue('XMemo1','','ItemValue','',false);
+    {$ifdef Python}
+    if (PyMemoComponent<>nil)
+    and (assigned(PyMemoComponent)) then
+    begin
+      PyMemoComponent.ItemValue:='';
+    end;
+    {$endif}
+
     SetLength(SourcedAttribs,0);
     {$ifndef JScript}
     // Check pas2js Compilation of the user-created event code first.
@@ -3455,7 +3668,7 @@ begin
     begin
       // Now Compile the user-created event code into the dll.
       ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazDll');
-      CompleteToggleToRunMode(ok);
+      ToggleToRunModeAfterCompile(ok);
     end
     else
     begin
@@ -3471,7 +3684,8 @@ begin
 
     {$ifdef Python}
     asm
-      if (pyodideReady!="yes") {
+      //if ((pyodideReady<5)&&(readyForRunMode==false)) {
+      if (readyForRunMode==false) {
         if (pas.XObjectInsp.RunModeAttempts>3) {
           alert('Pyodide still not ready. Please check console for possible problems.');
         }
@@ -3499,7 +3713,7 @@ begin
     if StartingUp=false then
     begin
       // First, STOP any running GPU components
-      GPUNodes:=FindNodesOfType(SystemNodeTree,'TXGPUCanvas');
+      GPUNodes:=FindNodesOfType(UIRootNode,'TXGPUCanvas');
       for i:=0 to length(GPUNodes)-1 do
       begin
         if GPUNodes[i].ScreenObject<>nil then
@@ -3519,17 +3733,10 @@ begin
 
     HandleEvent(nil,'OnExitRunMode',SystemRootName,'','');
 
-    DesignMode:=true;
-    SuppressUserEvents:=true;
-    SetLength(SourcedAttribs,0);        // keep these during design mode !!!!????
-    TXMenuItem(Sender).Caption:='Run Mode';
-    XIDEForm.SystemMenu.IsVisible:=true;
-    // Show Object Inspector
-    ShowHideObjectInspector(true);
-    {$ifndef JScript}
-    GlobalSuppressFrameDisplay:=true;
-    DoFormResize(MainForm,MainFormTopControl);
-    {$endif}
+    SaveLocalDB;
+    CloseLocalDB;
+
+    SetScreenToDesignMode;
   end;
 end;
 
@@ -3589,18 +3796,24 @@ begin
   bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
   if bits.Count = 4 then
   begin
-    if (bits[0]='OI') or (bits[0]='RI') then       // OI, Editboxname, NodeName, suffix
+    if (bits[0]='OI') or (bits[0]='RI') or (bits[0]='DM') then       // OI, Editboxname, NodeName, suffix
     begin
       NodeNameToEdit:=bits[1];
       PropertyToEdit:=bits[2];
     end;
   end;
 
-  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
+  if  (bits[0]<>'DM') then
+    targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true)
+  else
+    targetNode:=FindDataNodeById(DMRoot,NodeNameToEdit,'',true);
+  if targetNode=nil then
+    EXIT;
   targetAttribute:= targetNode.GetAttribute(PropertyToEdit,false);
 
-  if (targetNode.NodeType<>'TXGPUCanvas')
-  or ((targetAttribute.AttribName<>'AnimationCode') and (targetAttribute.AttribName<>'InitStageData')) then
+  if ((targetNode.NodeType<>'TXGPUCanvas')
+  or ((targetAttribute.AttribName<>'AnimationCode') and (targetAttribute.AttribName<>'InitStageData')))
+  and ((targetNode.NodeType<>'DMOp') or (targetAttribute.AttribName<>'Code')) then
   begin
     // pop up the property editor.
     PropertyEditForm.TargetNode:=targetNode;
@@ -3633,10 +3846,19 @@ begin
                  +NodeNameToEdit+AttributeEditorNameDelimiter
                  +PropertyToEdit+AttributeEditorNameDelimiter
                  +myStringReplace(bits[3],'Btn','',1,9999);         //myStringReplace(nodeId,'Btn','',1,9999);
-    PropertyEditBox:=FindDataNodeById(OITabs,EditBoxName,'',true);
+    //if bits[0]='DM' then
+    //  PropertyEditBox:=FindDataNodeById(DMAttribsNode,EditBoxName,'',true)
+    //else
+      PropertyEditBox:=FindDataNodeById(OITabs,EditBoxName,'',true);
 
     PropertyEditForm.SetupPages;
     ShowXForm('PropertyEditForm',true);
+  end
+  else
+  if (targetNode.NodeType='DMOp')
+  and (targetAttribute.AttribName='Code') then
+  begin
+    ShowDMOpCodeEditor(targetNode,nodeId);
   end
   else
   // Special Case - edit the AnimationCode in a TXGPUCanvas component using the dedicated popup editor...
@@ -3739,7 +3961,7 @@ begin
   bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
   if bits.Count = 4 then
   begin
-    if (bits[0]='OI') or (bits[0]='RI') then       // OI, Editboxname, NodeName, Attrname, suffix
+    if (bits[0]='OI') or (bits[0]='RI') or (bits[0]='DM') then       // OI, Editboxname, NodeName, Attrname, suffix
     begin
       NodeNameToEdit:=bits[1];
       AttrNameToEdit:=bits[2];
@@ -3748,6 +3970,14 @@ begin
         //showmessage('OIEditProperty '+nodeId+' '+AttrNameToEdit+' '+myValue);
         EditAttributeValue(NodeNameToEdit,'',AttrNameToEdit,myValue);
         RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
+      end
+      else if bits[0]='DM' then
+      begin
+        EditAttributeValue(NodeNameToEdit,'',AttrNameToEdit,myValue,false,DMRoot);
+        DMAttribsCrosscheck(NodeNameToEdit);
+        RebuildDMTreeLater;         //!!!! must do 'later' because may be processing eg. combobox event
+        //RefreshObjectInspector(DMSelectedDataTreeNode);
+        DMChanged:=true;
       end
       else
         EditResourceAttributeValue(NodeNameToEdit,AttrNameToEdit,myValue);
@@ -3808,15 +4038,17 @@ begin
     else if (CodeEditForm.Mode='UnitCode')
       or (CodeEditForm.Mode='PasUnitCode')
       or (CodeEditForm.Mode='PythonScriptCode')
+      or (CodeEditForm.Mode='DMOpCode')
     then
     begin
       tmp:=CodeEditForm.TargetNodeName;
       // name of unit is in TargetNodeName
-      CodeNode:=FindDataNodeById(CodeRootNode,CodeEditForm.TargetNodeName,'',true);
+      if (CodeEditForm.Mode='DMOpCode') then
+        CodeNode:=FindDataNodeById(DMRoot,CodeEditForm.TargetNodeName,'',true)
+      else
+        CodeNode:=FindDataNodeById(CodeRootNode,CodeEditForm.TargetNodeName,'',true);
       tmp:=CodeEditForm.CodeEdit.ItemValue;
       CodeNode.SetAttributeValue('Code',tmp,'String');
-      //tmp:=CodeEditForm.codeeditFunctionResultType.ItemValue;
-      //CodeNode.SetAttributeValue('Type',tmp,'String');
     end
     else if (CodeEditForm.Mode='SearchCode')  then
     begin
@@ -3832,7 +4064,7 @@ procedure PropertyEditorClosed(EditBoxNode:TdataNode);
 var
   tmp:string;
   SourceBits:TStringList;
-  SourceNode, SourceAttrib:String;
+  SourceNode, SourceAttrib, NewValue:String;
   EditNode:TDataNode;
 begin
   if PropertyEditStatus = 'ok' then
@@ -3840,14 +4072,15 @@ begin
     EditNode:= PropertyEditForm.EditNode;
     // Set the value of TargetAttribute from the widget on the Edit tabpage...
     if EditNode.NodeType='TXEditBox' then
-      PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('ItemValue',false).AttribValue
+      NewValue:=EditNode.GetAttribute('ItemValue',false).AttribValue
     else if EditNode.NodeType='TXMemo' then
-      PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('ItemValue',false).AttribValue
+      NewValue:=EditNode.GetAttribute('ItemValue',false).AttribValue
     else if EditNode.NodeType='TXTree' then
-     PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('TreeData',false).AttribValue
+      NewValue:=EditNode.GetAttribute('TreeData',false).AttribValue
     else if EditNode.NodeType='TXTable' then
     begin
-      PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('TableData',false).AttribValue;
+      NewValue:=EditNode.GetAttribute('TableData',false).AttribValue;
+      PropertyEditForm.TargetAttribute.AttribValue:= NewValue;
       if PropertyEditForm.TargetAttribute.AttribName='TableData' then
       begin
         PropertyEditForm.TargetNode.SetAttributeValue('NumRows',EditNode.GetAttribute('NumRows',false).AttribValue);
@@ -3855,14 +4088,19 @@ begin
       end;
     end
     else if EditNode.NodeType='TXCheckBox' then
-      PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('Checked',false).AttribValue
+      NewValue:=EditNode.GetAttribute('Checked',false).AttribValue
     else if EditNode.NodeType='TXComboBox' then
-      PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('ItemValue',false).AttribValue
+      NewValue:=EditNode.GetAttribute('ItemValue',false).AttribValue
     else if EditNode.NodeType='TXColorPicker' then
-      PropertyEditForm.TargetAttribute.AttribValue:=EditNode.GetAttribute('ItemValue',false).AttribValue;
+      NewValue:=EditNode.GetAttribute('ItemValue',false).AttribValue;
 
     // Update the property value in the target node...
-    EditAttributeValue(PropertyEditForm.TargetNode,PropertyEditForm.TargetAttribute.AttribName,PropertyEditForm.TargetAttribute.AttribValue);
+    if (PropertyEditForm.TargetAttribute.AttribName<>'MapData')
+    and (PropertyEditForm.TargetAttribute.AttribName<>'MapColors') then
+      PropertyEditForm.TargetAttribute.AttribValue:= NewValue;
+    EditAttributeValue(PropertyEditForm.TargetNode,PropertyEditForm.TargetAttribute.AttribName,NewValue);
+    //if PropertyEditForm.TargetNode.NodeClass='DM' then
+    //  DMChanged:=true;
 
     // Set the data source for the property, if specified...
     tmp:=trim(PropertyEditForm.PropertyEditSourceBox.ItemValue);
@@ -4012,17 +4250,12 @@ var
   PasteEvent:TEventStatus;
 begin
 //  happens when user hits ctrl-V on the paste dialog form
-//  showmessage('OIPasteTarget. value='+myValue);
 
   PasteEvent:=PasteDialogUnit.CompletionEvent;
 
   if PasteEvent<>nil then
   begin
-    i:=PasteEvent.AsyncProcsRunning.IndexOf('CopyFromClip');
-    if i>-1 then
-    begin
-      PasteEvent.AsyncProcsRunning.Delete(i);
-    end;
+    PasteEvent.ClearAsync('CopyFromClip');
   end;
   FinishHTMLPasteAction(myValue);
 
@@ -4037,7 +4270,8 @@ var
 begin
   //showmessage('OINodeTreeHint '+TreeLabelStr);
   SystemNodeName:=TreeLabelToID( TreeLabelStr,'NavTree',p1);
-  result := GetNavigatorHint(SystemNodeTree,SystemNodeName);
+  //result := GetNavigatorHint(SystemNodeTree,SystemNodeName);
+  result := GetNavigatorHint(UIRootNode,SystemNodeName);
 end;
 
 function OIResTreeNodeHint(TreeLabelStr:String):String;
@@ -4120,7 +4354,7 @@ begin
 
   NewVBox.Border:=false;
   NewVBox.ContainerHeight:='';
-  NewVBox.ContainerWidth:='';
+  NewVBox.ContainerWidth:='96%';
   NewHBox.Border:=false;
   NewHBox.ContainerHeight:='';
   NewHBox.ContainerWidth:='';
@@ -4130,7 +4364,7 @@ begin
   result:=NewHBox;
 end;
 
-procedure AddCheckBox(PropertiesNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;attribHint:String);
+procedure AddCheckBox(PropertiesNode,TargetNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;attribHint:String);
 var
   NewCheckBox:TXCheckBox;
   NewHBox:TXHBox;
@@ -4139,7 +4373,8 @@ begin
   NewHBox:=AddPropertyContainer(PropertiesNode,BoxName,VBoxNode,HBoxNode);
   NewCheckBox:=TXCheckBox(AddDynamicWidget('TXCheckBox',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  AddPropertyEditButton(BoxName,HBoxNode,ro);
+  if (TargetNode.NodeClass<>'DM') then
+    AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewCheckBox.Checked:=myStrToBool(ItmValue);
   NewCheckBox.LabelText:=LblText;
@@ -4152,7 +4387,7 @@ begin
   NewCheckBox.myNode.registerEvent('Click',@OIEventWrapper.OIEditProperty);
 end;
 
-procedure AddPropertyEditBox(ParentNode:TDataNode;BoxName,LblText,ItmValue:String;ro,CanDelete:Boolean;attribHint:String);
+procedure AddPropertyEditBox(ParentNode,TargetNode:TDataNode;BoxName,LblText,ItmValue:String;ro,CanDelete:Boolean;attribHint:String);
 var
   NewEditBox:TXEditBox;
   VBoxNode,HBoxNode:TDataNode;
@@ -4166,7 +4401,9 @@ begin
   if CanDelete then
     CannotEdit:=false;
 
-  AddPropertyEditButton(BoxName,HBoxNode,CannotEdit);
+  if (TargetNode.NodeClass<>'DM')
+  or ((TargetNode.NodeType='DMOp') and (LblText='Code')) then
+    AddPropertyEditButton(BoxName,HBoxNode,CannotEdit);
   if CanDelete then
     AddPropertyDelButton(BoxName,HBoxNode);
 
@@ -4192,7 +4429,7 @@ begin
   NewEditBox.myNode.registerEvent('Change',@OIEventWrapper.OIEditProperty);
 end;
 
-procedure AddPropertyColorPicker(ParentNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;IsResource:Boolean;attribHint:String);
+procedure AddPropertyColorPicker(ParentNode,TargetNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;IsResource:Boolean;attribHint:String);
 var
   NewColorPicker:TXColorPicker;
   VBoxNode,HBoxNode:TDataNode;
@@ -4202,7 +4439,8 @@ begin
   NewHBox.ContainerHeight:='';
   NewColorPicker:=TXColorPicker(AddDynamicWidget('TXColorPicker',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  if (not IsResource) then
+  if (not IsResource)
+  and (TargetNode.NodeClass<>'DM') then
     AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewColorPicker.ItemValue:=ItmValue;
@@ -4232,7 +4470,29 @@ begin
   NewHBox:=AddPropertyContainer(ParentNode,BoxName,NewNode1,NewNode2);
   NewHBox.ContainerHeight:='';
   NewEditBox:=TXEditBox(AddDynamicWidget('TXEditBox',MainForm,NewNode2,BoxName,'','Top',-1).ScreenObject);
-  NewButton:=TXButton(AddDynamicWidget('TXButton',MainForm,NewNode2,BoxName+'Btn','','Top',-1).ScreenObject);
+
+  begin
+    NewButton:=TXButton(AddDynamicWidget('TXButton',MainForm,NewNode2,BoxName+'Btn','','Top',-1).ScreenObject);
+    NewButton.Caption:='...';
+    if enableButton then
+    begin
+      NewButton.Enabled:=true;
+      if (CanDelete=false) or (CanEditCode=true) then
+      begin
+        NewButton.Hint:='Edit Event Code';
+        NewButton.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditEventCode);
+      end
+      else
+      begin
+        NewButton.Hint:='Edit Event Hint';
+        NewButton.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditIntfEvent);
+      end;
+    end
+    else
+    begin
+      NewButton.Enabled:=false;
+    end;
+  end;
 
   NewEditBox.ItemValue:=ItmValue;
   NewEditBox.LabelText:=LblText;
@@ -4241,7 +4501,6 @@ begin
   NewEditBox.Hint:=HintText;
   NewEditBox.ReadOnly:=(not CanEditCode);
 
-  NewButton.Caption:='...';
 
   if CanDelete then
     AddEventDelButton(BoxName,NewHBox.myNode);
@@ -4250,27 +4509,9 @@ begin
 
   // event handlers....
   NewEditBox.myNode.registerEvent('Change',@OIEventWrapper.OIEditEvent);
-  if enableButton then
-  begin
-    NewButton.Enabled:=true;
-    if (CanDelete=false) or (CanEditCode=true) then
-    begin
-      NewButton.Hint:='Edit Event Code';
-      NewButton.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditEventCode);
-    end
-    else
-    begin
-      NewButton.Hint:='Edit Event Hint';
-      NewButton.myNode.RegisterEvent('ButtonClick',@OIEventWrapper.OIEditIntfEvent);
-    end;
-  end
-  else
-  begin
-    NewButton.Enabled:=false;
-  end;
 end;
 
-procedure AddComboBox(PropertiesNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;Options:TStringList;attribHint:String);
+procedure AddComboBox(PropertiesNode,TargetNode:TDataNode;BoxName,LblText,ItmValue:String;ro:Boolean;Options:TStringList;attribHint:String);
 var
   NewComboBox:TXComboBox;
   NewHBox:TXHBox;
@@ -4280,7 +4521,8 @@ begin
   NewHBox.ContainerHeight:='';
   NewComboBox:=TXComboBox(AddDynamicWidget('TXComboBox',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  AddPropertyEditButton(BoxName,HBoxNode,ro);
+  if (TargetNode.NodeClass<>'DM') then
+    AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewComboBox.LabelText:=LblText;
   NewComboBox.BoxWidth:='120px';
@@ -4298,22 +4540,20 @@ begin
 end;
 
 procedure PopulateObjectInspector(CurrentNode:TDataNode);
-var AttributePrefix:string;
+var Prefix1,AttributePrefix:string;
   i:integer;
-  ShowOn,IntfNode:TDataNode;
+  MainPanel,ShowOn,IntfNode:TDataNode;
   IntfEvent:TEventHandlerRec;
   myAttribs:TNodeAttributesArray;
   ro:boolean;
   s:boolean;
   AttribOptions:TStringList;
-  tabIndex,HintText:String;
+  tabIndex,DisplayType,HintText:String;
   dfltAttrib:TDefaultAttribute;
   NodesList:TNodesArray;
 begin
   s:=SuppressEvents;
   SuppressEvents:=true;
-
-  tabIndex:=OITabs.GetAttribute('TabIndex',false).AttribValue;
 
   EditAttributeValue(PropertiesNode,'IsVisible','false');
   DeleteNodeChildren(PropertiesNode);
@@ -4321,9 +4561,33 @@ begin
   DeleteNodeChildren(InterfacePropsNode);
   EditAttributeValue(EventsNode,'IsVisible','false');
   DeleteNodeChildren(EventsNode);
+  EditAttributeValue(DMAttribsNode,'IsVisible','false');
+  DeleteNodeChildren(DMAttribsNode);
+  MainPanel:=PropertiesNode;
+  Prefix1:='OI';
 
   if (CurrentNode<>nil)  then
   begin
+    if (CurrentNode.NodeClass = 'UI')
+    or (CurrentNode.NodeClass = 'NV')
+    or (CurrentNode.NodeClass = 'SVG')
+    or (CurrentNode=UIRootNode) then
+    begin
+      tabIndex:=OITabs.GetAttribute('TabIndex',false).AttribValue;
+      if tabIndex = '0' then
+        DisplayType:='UIProps'
+      else if tabIndex = '1' then
+        DisplayType:='UIEvents'
+      else if tabIndex = '2' then
+        DisplayType:='Intf';
+    end
+    else if CurrentNode.NodeClass = 'DM' then
+    begin
+      DisplayType:='DM';
+      MainPanel:=DMAttribsNode;
+      Prefix1:='DM';
+    end;
+
     if CurrentNode.NodeType='TXComposite' then
     begin
       IntfNode:=nil;
@@ -4332,13 +4596,16 @@ begin
         IntfNode:=NodesList[0];
     end;
 
-    if (TabIndex='0') or (TabIndex='2') then
+    if (DisplayType='UIProps')
+    or (DisplayType='Intf')
+    or (DisplayType='DM')
+    then
     begin
       if CurrentNode<>nil then
       begin
-        AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
+        AttributePrefix:=Prefix1+AttributeEditorNameDelimiter+CurrentNode.NodeName;
 
-        AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
+        AddPropertyEditBox(MainPanel,CurrentNode,AttributePrefix+AttributeEditorNameDelimiter
                                   +'Name'+AttributeEditorNameDelimiter
                                   +'0','Name',CurrentNode.NodeName,true,false,CurrentNode.NodeName);
 
@@ -4351,19 +4618,29 @@ begin
           ro:=CurrentNode.NodeAttributes[i].AttribReadOnly;
           //exclude Suppressed properties that user shouldn't see
           if (FindSuppressedProperty(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName)<0)
-          and (CurrentNode.NodeAttributes[i].AttribName<>'ParentName') then
+          and (CurrentNode.NodeAttributes[i].AttribName<>'ParentName')
+          and ((DisplayType<>'DM')
+               or (CurrentNode.NodeAttributes[i].AttribName<>'MakeXArrays')
+               or (CurrentNode.NodeName<>'Dimensions'))
+          and ((DisplayType<>'DM')
+               or (CurrentNode.NodeAttributes[i].AttribName<>'Multiplicity')
+               or (CurrentNode.NodeType<>'DMAttrib')
+               or ((CurrentNode.NodeType='DMAttrib') and (CurrentNode.NodeParent.GetAttribute('MakeXArrays',false).AttribValue='False')))
+          then
           begin
             if (CurrentNode.NodeType<>'TXComposite')
             or (IsADefaultAttrib(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName)) then
             begin
-              ShowOn:=PropertiesNode;
-              if (CurrentNode.NodeType='TXCompositeIntf') then
+              ShowOn:=MainPanel;
+              if (CurrentNode.NodeType='TXCompositeIntf')
+              or (dfltAttrib.AttribHint = '')
+              then
                 HintText:=CurrentNode.NodeAttributes[i].AttribHint
               else
                 HintText:= dfltAttrib.AttribHint;
             end
             else
-            begin
+            begin   // is TXComposite, and no default hint
               ShowOn:=InterfacePropsNode;
               if (IntfNode<>nil)
               and (IntfNode.HasAttribute(CurrentNode.NodeAttributes[i].AttribName)) then
@@ -4372,7 +4649,7 @@ begin
 
             if CurrentNode.NodeAttributes[i].AttribType = 'Boolean' then
             begin
-              AddCheckBox(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
+              AddCheckBox(ShowOn,CurrentNode,AttributePrefix+AttributeEditorNameDelimiter
                       +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                       +IntToStr(i+2),
                        CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,HintText);
@@ -4382,19 +4659,19 @@ begin
               AttribOptions:=LookupAttribOptions(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName);
               if AttribOptions<>nil then
               begin
-                AddComboBox(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
+                AddComboBox(ShowOn,CurrentNode,AttributePrefix+AttributeEditorNameDelimiter
                       +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                       +IntToStr(i+2),
                        CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,
                        AttribOptions,HintText);
               end
               else if CurrentNode.NodeAttributes[i].AttribType='Color' then
-                AddPropertyColorPicker(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
+                AddPropertyColorPicker(ShowOn,CurrentNode,AttributePrefix+AttributeEditorNameDelimiter
                       +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                       +IntToStr(i+2),
                        CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,false,HintText)
               else
-                AddPropertyEditBox(ShowOn,AttributePrefix+AttributeEditorNameDelimiter
+                AddPropertyEditBox(ShowOn,CurrentNode,AttributePrefix+AttributeEditorNameDelimiter
                     +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
                     +IntToStr(i+2),
                      CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,
@@ -4403,20 +4680,20 @@ begin
             end;
           end;
         end;
-        EditAttributeValue(PropertiesNode,'IsVisible','true');
+        EditAttributeValue(MainPanel,'IsVisible','true');
         if CurrentNode.NodeType='TXComposite' then
           EditAttributeValue(InterfacePropsNode,'IsVisible','true');
 
       end;
     end
-    else if TabIndex='1' then
+    else if DisplayType='UIEvents' then
     begin
       //------------------- Display the registered Events -----------------------
 
       if CurrentNode<>nil then
       if ((CurrentNode.IsDynamic) or (CurrentNode=UIRootNode)) then
       begin
-        AttributePrefix:='OI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
+        AttributePrefix:=Prefix1+AttributeEditorNameDelimiter+CurrentNode.NodeName;
 
         for i:=0 to CurrentNode.MyEventTypes.count-1 do
         begin
@@ -4501,35 +4778,6 @@ begin
     TXButton(btnNode.ScreenObject).Enabled:=false;
   end;
 
-//  PropertiesNode:=FindDataNodeById(UIRootNode,ResourceEditorScrollboxName,'',true);
-//  if PropertiesNode<>nil  then
-//  begin
-//    EditAttributeValue(PropertiesNode,'IsVisible','false');
-//    DeleteNodeChildren(PropertiesNode);
-//
-//    if (CurrentNode<>nil) and (CurrentNode.NodeType<>'') then     // eg. on node headers (placeholders)
-//    begin
-//
-//      AttributePrefix:='RI'+AttributeEditorNameDelimiter+CurrentNode.NodeName;
-//      AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
-//                                +'Type'+AttributeEditorNameDelimiter
-//                                +'1','Type',CurrentNode.NodeType,true,true,false,'');
-//
-//      myAttribs:=CurrentNode.NodeAttributes;
-//      for i:=0 to length(myAttribs)-1 do
-//      begin
-//        if CurrentNode.NodeAttributes[i].AttribName<>'ParentName' then
-//        begin
-//          ro:=CurrentNode.NodeAttributes[i].AttribReadOnly;
-//          AddPropertyEditBox(PropertiesNode,AttributePrefix+AttributeEditorNameDelimiter
-//                    +CurrentNode.NodeAttributes[i].AttribName+AttributeEditorNameDelimiter
-//                    +IntToStr(i+2),
-//                     CurrentNode.NodeAttributes[i].AttribName,CurrentNode.NodeAttributes[i].AttribValue,ro,true,false,'');
-//        end;
-//      end;
-//    end;
-//    EditAttributeValue(PropertiesNode,'IsVisible','True');
-//  end;
   SuppressEvents:=s;
 end;
 
@@ -4707,8 +4955,6 @@ begin
   if itemName='' then
     EXIT;
 
-  //itemHint:=XIDEPrompt('Enter a hint text for this composite item:','');
-
   fullstring:=BuildSystemString(true);
   itemName:=itemName+'.xcmp';
   {$ifndef JScript}
@@ -4820,6 +5066,7 @@ begin
      +'var glbTimeoutWaiting=false;  '  +LineEnding
      +'var jobId=0;     '  +LineEnding
      +'var JobsWaiting=[];  '  +LineEnding
+     +'var db; '+LineEnding
 
      +'function runFn(fn,ms,fname,job,...args) {  '  +LineEnding
      +'  var ars='''';  '  +LineEnding

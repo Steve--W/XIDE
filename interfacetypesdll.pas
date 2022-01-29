@@ -44,6 +44,7 @@ TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;           
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;                                stdcall;
 TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean of object;             stdcall;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;                                stdcall;
+TGetGPUParam2DNumValue=function(GPUName,pName:String):T2DNumArray of object;                          stdcall;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;                                stdcall;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;                        stdcall;
 TSetGPUParam2DNumValue=procedure(GPUName,pName:String;pValue:T2DNumArray) of object;                        stdcall;
@@ -60,12 +61,19 @@ TGetGPUPixelArray=function(GPUName:String):T3DNumArray of object;               
 TGetGPUPixelArrayAsString=function(GPUName:String):String of object;                                stdcall;
 TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;                                stdcall;
 TGetGPUStageArrayAsString=function(GPUName:String):String of object;                                stdcall;
+TGetGPUInitStageArray=function(GPUName:String):T3DNumArray of object;                                stdcall;
 TDebugStart=procedure of object; stdcall;
 TRunPython=procedure(str:String) of object; stdcall;
 TSetImageSource=procedure(nm,str:String) of object; stdcall;
 TWobbleCEF=procedure(nm:String)of object;    stdcall;
 TPyodideLoadPackage=procedure(nm:String) of object;  stdcall;
 TPyodidePackageLoaded=function(nm:String):Boolean of object;  stdcall;
+TDSFetchRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;  stdcall;
+TDSAppendRow=function(e:TEventStatus;DSName:String;recObject:TObject):Boolean of object; stdcall;
+TDSDeleteRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object; stdcall;
+TDSDeleteAllRows=function(e:TEventStatus;DSName:String):Boolean of object; stdcall;
+
+//TDSDatasetToString=function(e:TEventStatus;dsName:String):Boolean of object; stdcall;
 
 type
 IMyMethodInterface = interface(IInterface)
@@ -89,6 +97,7 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
     function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
+    function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
     procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);  stdcall;
@@ -105,12 +114,18 @@ IMyMethodInterface = interface(IInterface)
     function mmiGetGPUPixelArrayAsString(GPUName:String):String;                             stdcall;
     function mmiGetGPUStageArray(GPUName:String):T3DNumArray;                                stdcall;
     function mmiGetGPUStageArrayAsString(GPUName:String):String;                             stdcall;
+    function mmiGetGPUInitStageArray(GPUName:String):T3DNumArray;                                stdcall;
     procedure mmiDebugStart; stdcall;
     procedure mmiRunPython(str:String); stdcall;
     procedure mmiSetImageSource(nm,str:String); stdcall;
     procedure mmiWobbleCEF(nm:String);    stdcall;
     procedure mmiPyodideLoadPackage(nm:String);  stdcall;
     function mmiPyodidePackageLoaded(nm:String):Boolean; stdcall;
+    function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
+    function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
+    function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
+    function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
+//    function mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
 end;
 
 
@@ -136,6 +151,7 @@ movecomponent:TMoveComponent;
 copycomponent:TCopyComponent;
 deletecomponent:TDeleteComponent;
 getgpuparamnumvalue:TGetGPUParamNumValue;
+getgpuparam2dnumvalue:TGetGPUParam2DNumValue;
 getgpuconstintvalue:TGetGPUConstIntValue;
 setgpuparamnumvalue:TSetGPUParamNumValue;
 setgpuparam2Dnumvalue:TSetGPUParam2DNumValue;
@@ -152,12 +168,20 @@ GetGPUPixelArray:TGetGPUPixelArray;
 GetGPUPixelArrayAsString:TGetGPUPixelArrayAsString;
 GetGPUStageArray:TGetGPUStageArray;
 GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
+GetGPUInitStageArray:TGetGPUInitStageArray;
 DebugStart:TDebugStart;
 RunPython:TRunPython;
 SetImageSource:TSetImageSource;
 WobbleCEF:TWobbleCEF;
 PyodideLoadPackage:TPyodideLoadPackage;
 PyodidePackageLoaded:TPyodidePackageLoaded;
+DSFetchRow:TDSFetchRow;
+DSAppendRow:TDSAppendRow;
+DSDeleteRow:TDSDeleteRow;
+DSDeleteAllRows:TDSDeleteAllRows;
+
+//DSDatasetToString:TDSDatasetToString;
+
 
 procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
 {$endif}
@@ -192,6 +216,7 @@ begin
   copycomponent:=@appmethods.mmiCopyComponent;
   deletecomponent:=@appmethods.mmiDeleteComponent;
   getgpuparamnumvalue:=@appmethods.mmiGetGPUParamNumValue;
+  getgpuparam2dnumvalue:=@appmethods.mmiGetGPUParam2DNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
   setgpuparam2Dnumvalue:=@appmethods.mmiSetGPUParam2DNumValue;
@@ -208,12 +233,18 @@ begin
   GetGPUPixelArrayAsString:=@appmethods.mmiGetGPUPixelArrayAsString;
   GetGPUStageArray:=@appmethods.mmiGetGPUStageArray;
   GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
+  GetGPUInitStageArray:=@appmethods.mmiGetGPUInitStageArray;
   DebugStart:=@appmethods.mmiDebugStart;
   RunPython:=@appmethods.mmiRunPython;
   SetImageSource:=@appmethods.mmiSetImageSource;
   WobbleCEF:=@appmethods.mmiWobbleCEF;
   PyodideLoadPackage:=@appmethods.mmiPyodideLoadPackage;
   PyodidePackageLoaded:=@appmethods.mmiPyodidePackageLoaded;
+  DSFetchRow:=@appmethods.mmiDSFetchRow;
+  DSAppendRow:=@appmethods.mmiDSAppendRow;
+  DSDeleteRow:=@appmethods.mmiDSDeleteRow;
+  DSDeleteAllRows:=@appmethods.mmiDSDeleteAllRows;
+//  DSDatasetToString:=@appmethods.mmiDSDatasetToString;
 
 end;
 {$endif}

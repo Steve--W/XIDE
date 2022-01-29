@@ -14,6 +14,7 @@ unit InterfaceTypes;
    Interface declarations
    for use with the dynamically created dll, used for executing user event code (also see unit CompileUserCode)
  *)
+
 {$ifndef JScript}
 {$mode objfpc}{$H+}
 {$endif}
@@ -43,6 +44,7 @@ TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;
 TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean of object;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;
+TGetGPUParam2DNumValue=function(GPUName,pName:String):T2DNumArray of object;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;
 TSetGPUParam2DNumValue=procedure(GPUName,pName:String;pValue:T2DNumArray) of object;
@@ -59,12 +61,18 @@ TGetGPUPixelArray=function(GPUName:String):T3DNumArray of object;
 TGetGPUPixelArrayAsString=function(GPUName:String):String of object;
 TGetGPUStageArray=function(GPUName:String):T3DNumArray of object;
 TGetGPUStageArrayAsString=function(GPUName:String):String of object;
+TGetGPUInitStageArray=function(GPUName:String):T3DNumArray of object;
 TDebugStart=procedure of object;
 TRunPython=procedure(str:String) of object;
 TSetImageSource=procedure(nm,str:String) of object;
 TWobbleCEF=procedure(nm:String) of object;
 TPyodideLoadPackage=procedure(nm:String) of object;
 TPyodidePackageLoaded=function(nm:String):Boolean of object;
+TDSFetchRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;
+TDSAppendRow=function(e:TEventStatus;DSName:String;recObject:TObject):Boolean of object;
+TDSDeleteRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;
+TDSDeleteAllRows=function(e:TEventStatus;DSName:String):Boolean of object;
+
 
 {$ifdef JScript}
 var
@@ -87,6 +95,7 @@ MoveComponent:TMoveComponent;
 CopyComponent:TCopyComponent;
 DeleteComponent:TDeleteComponent;
 GetGPUParamNumValue:TGetGPUParamNumValue;
+GetGPUParam2DNumValue:TGetGPUParam2DNumValue;
 GetGPUConstIntValue:TGetGPUConstIntValue;
 SetGPUParamNumValue:TSetGPUParamNumValue;
 SetGPUParam2DNumValue:TSetGPUParam2DNumValue;
@@ -102,13 +111,19 @@ GetGPUPixelArray:TGetGPUPixelArray;
 GetGPUPixelArrayAsString:TGetGPUPixelArrayAsString;
 GetGPUStageArray:TGetGPUStageArray;
 GetGPUStageArrayAsString:TGetGPUStageArrayAsString;
+GetGPUInitStageArray:TGetGPUInitStageArray;
 DebugStart:TDebugStart;
 RunPython:TRunPython;
 SetImageSource:TSetImageSource;
 WobbleCEF:TWobbleCEF;
 PyodideLoadPackage:TPyodideLoadPackage;
 PyodidePackageLoaded:TPyodidePackageLoaded;
+DSFetchRow:TDSFetchRow;
+DSAppendRow:TDSAppendRow;
+DSDeleteRow:TDSDeleteRow;
+DSDeleteAllRows:TDSDeleteAllRows;
 
+//DSDatasetToString:TDSDatasetToString;
 
 var EventsNameSpace:String;
 
@@ -137,6 +152,7 @@ type TMethodsClass = class(TObject)
  procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);
  function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;
  function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
+ function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;
  function mmiGetGPUConstIntValue(GPUName,pName:String):integer;
  procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
  procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);
@@ -153,17 +169,24 @@ type TMethodsClass = class(TObject)
  function mmiGetGPUPixelArrayAsString(GPUName:String):String;
  function mmiGetGPUStageArray(GPUName:String):T3DNumArray;
  function mmiGetGPUStageArrayAsString(GPUName:String):String;
+ function mmiGetGPUInitStageArray(GPUName:String):T3DNumArray;
  procedure mmiDebugStart;
  procedure mmiRunPython(str:String);
  procedure mmiSetImageSource(nm,str:String);
  procedure mmiPyodideLoadPackage(nm:String);
  function mmiPyodidePackageLoaded(nm:String):Boolean;
+ function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+ function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean;
+ function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+ function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;
+ //function mmiDSDatasetToString(e:TEventStatus;DSName:String):Boolean;
 end;
 
 type AnsiString=String;
 
 var appmethods : TMethodsClass;
 
+procedure DSReturnToEvent(ReturnEvent:TEventStatus;ProcName:String);
 
 {$endif}
 
@@ -193,6 +216,7 @@ begin
   copycomponent:=@appmethods.mmiCopyComponent;
   deletecomponent:=@appmethods.mmiDeleteComponent;
   getgpuparamnumvalue:=@appmethods.mmiGetGPUParamNumValue;
+  getgpuparam2dnumvalue:=@appmethods.mmiGetGPUParam2DNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
   setgpuparam2Dnumvalue:=@appmethods.mmiSetGPUParam2DNumValue;
@@ -208,11 +232,33 @@ begin
   GetGPUPixelArrayAsString:=@appmethods.mmiGetGPUPixelArrayAsString;
   GetGPUStageArray:=@appmethods.mmiGetGPUStageArray;
   GetGPUStageArrayAsString:=@appmethods.mmiGetGPUStageArrayAsString;
+  GetGPUinitStageArray:=@appmethods.mmiGetGPUInitStageArray;
   DebugStart:=@appmethods.mmiDebugStart;
   RunPython:=@appmethods.mmiRunPython;
   SetImageSource:=@appmethods.mmiSetImageSource;
   PyodideLoadPackage:=@appmethods.mmiPyodideLoadPackage;
   PyodidePackageLoaded:=@appmethods.mmiPyodidePackageLoaded;
+  DSFetchRow:=@appmethods.mmiDSFetchRow;
+  DSAppendRow:=@appmethods.mmiDSAppendRow;
+  DSDeleteRow:=@appmethods.mmiDSDeleteRow;
+  DSDeleteAllRows:=@appmethods.mmiDSDeleteAllRows;
+  //DSDatasetToString:=@appmethods.mmiDSDatasetToString;
+end;
+
+procedure DSReturnToEvent(ReturnEvent:TEventStatus;ProcName:String);
+begin
+  if (ReturnEvent<>nil) then
+  begin
+     ReturnEvent.ClearAsync(ProcName);
+     asm
+     pas.Events.handleEvent(ReturnEvent,
+                 ReturnEvent.EventType,
+                 ReturnEvent.NodeId,
+                 ReturnEvent.NameSpace,
+                 '','');
+     end;
+  end;
+
 end;
 
 procedure TMethodsClass.mmiSetEventsNameSpace(NameSpace:String);
@@ -260,7 +306,8 @@ var
   val:String;
 begin
   asm
-  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
+  //var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
+  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.UIRootNode,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
   if (myNode!=null) {
     // special case for actual height/width attributes...
     if ((propName=='ActualHeight')||(propName=='ActualWidth')) {
@@ -445,7 +492,6 @@ begin
   //alert('mmiSetGPUParam2DNumValue '+GPUName+' '+pName);
     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-      //alert('calling SetParamNumValue '+pName+' '+pValue);
       myNode.SetParam2DNumValue(pName,pValue,true);
     }
   end;
@@ -456,10 +502,23 @@ asm
 //alert('mmiSetGPUConstIntValue '+GPUName+' '+pName);
   var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
   if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-    //alert('calling SetConstIntValue '+pName+' '+pValue);
     myNode.SetConstIntValue(pName,pValue);
   }
 end;
+end;
+function TMethodsClass.mmiGetGPUConstIntValue(GPUName,pName:String):integer;
+var
+  cval:integer;
+begin
+  cval:=0;
+  asm
+  //alert('mmiSetGPUConstIntValue '+GPUName+' '+pName);
+  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+  if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+    cval=myNode.GetConstIntValue(pName);
+  }
+  end;
+  result:=cval;
 end;
 function TMethodsClass.mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
 var
@@ -473,14 +532,14 @@ begin
   end;
   result:=pval;
 end;
-function TMethodsClass.mmiGetGPUConstIntValue(GPUName,pName:String):integer;
+function TMethodsClass.mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;
 var
-  pval:integer;
+  pval:T2DNumArray;
 begin
   asm
     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-      pval=myNode.GetConstIntValue(pName);
+      pval=myNode.GetParam2DNumValue(pName);
     }
   end;
   result:=pval;
@@ -516,7 +575,6 @@ begin
           alert('Warning: ShowBusy must be called from the "Init" section of an event handler');
           }
         e.AsyncProcsRunning.Add('ShowBusy');
-//        pas.PasteDialogUnit.CompletionEvent=e;
         var ob=document.getElementById('Grey99');
         if (ob==null) {
           pas.HTMLUtils.ShowGreyOverlay('UIRoot','Grey99','Please Wait...');
@@ -630,6 +688,19 @@ begin
   end;
   result:=pxval;
 end;
+function TMethodsClass.mmiGetGPUInitStageArray(GPUName:String):T3DNumArray;
+var
+  pxval:T3DNumArray;
+begin
+  pxval:=nil;
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      pxval=pas.XGPUCanvas.GetInitStageArrayValue(GPUName);
+    }
+  end;
+  result:=pxval;
+end;
 procedure TMethodsClass.mmiDebugStart;
 begin
   asm
@@ -674,6 +745,86 @@ begin
   end;
   result:=found;
 end;
+
+function TMethodsClass.mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+var
+  ok:Boolean;
+begin
+  e.AsyncProcsRunning.Add('DSFetchRow');
+  asm
+    // DSKeyValues is a string delimited by ';' - one value per key field
+    var keyvalues = DSKeyValues.split(';');
+    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
+    if (keyvalues.length == keynodes.length) {
+      //console.log('mmiDSFetchRow. keyvalues=');
+      //console.log(keyvalues);
+      if (keyvalues.length>0) {
+        ok=pas.XDataModel.DSGetIndexedRecordAsObject(DSName,'DSFetchRow',keyvalues,e);
+        }
+    }
+    else ok=false;
+  end;
+  result:=ok;
+end;
+
+function TMethodsClass.mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean;
+var
+  ok:Boolean;
+begin
+  ok:=true;
+  e.AsyncProcsRunning.Add('DSAppendRow');
+  asm
+    ok=pas.XDataModel.DSAppendRecordFromObject(DSName,'DSAppendRow',recObject,e);
+  end;
+  result:=ok;
+end;
+
+function TMethodsClass.mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+var
+  ok:Boolean;
+begin
+  e.AsyncProcsRunning.Add('DSDeleteRow');
+  asm
+    // DSKeyValues is a string delimited by ';' - one value per key field
+    var keyvalues = DSKeyValues.split(';');
+    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
+    if (keyvalues.length == keynodes.length) {
+      console.log('mmiDSDeleteRow. keyvalues=');
+      console.log(keyvalues);
+      if (keyvalues.length>0) {
+        ok=pas.XDataModel.DSDeleteARow(e,DSName,'DSDeleteRow',keyvalues);
+        }
+    }
+    else ok=false;
+  end;
+  result:=ok;
+end;
+
+function TMethodsClass.mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;
+var
+  ok:Boolean;
+begin
+  ok:=true;
+  e.AsyncProcsRunning.Add('DSDeleteAllRows');
+  asm
+    console.log('mmiDSDeleteAllRows. ');
+    ok=pas.XDataModel.DSEmptyDataset(e,DSName,'DSDeleteAllRows');
+  end;
+  result:=ok;
+end;
+
+
+
+(*function TMethodsClass.mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean;
+var
+  ok:Boolean;
+begin
+  asm
+    ok=pas.XDataModel.DSDataToStringAsync(e,dsName);
+  end;
+  result:=ok;
+end;
+*)
 
 begin
   EventsNameSpace:='';

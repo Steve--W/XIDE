@@ -78,7 +78,7 @@ type
   private
 
   public
-    Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode
+    Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode, DMOpsCode, GPUKernel
     TargetNodeName:String;
     TargetNameSpace:String;
     EventType:String;
@@ -95,7 +95,7 @@ var
   OIEditBox, CodeFormRoot:TDataNode;
 
 implementation
-uses XObjectInsp;
+uses XObjectInsp, XDataModel;
 
 {$R *.lfm}
 
@@ -118,7 +118,7 @@ begin
     CodeEditInitTab.IsVisible:=false;
     CodeEdit.MessagesHeight:='30%';
   end
-  else if (Mode='EventCode') then
+  else if ((Mode='EventCode') or (Mode='GPUKernel')) then
   begin
     CodeEditFindTxt.ItemValue:='';
     if CodeEdit.MessageLines='' then
@@ -204,7 +204,7 @@ procedure TCodeEditForm.FormShow(Sender: TObject);
 begin
   // scroll the messages to the bottom
   CodeEdit.TheMessages.VertScrollBar.Position:=CodeEdit.TheMessages.Lines.Count-1;
-  if (Mode='dll') then
+  if (Mode='dll') or (Mode='GPUKernel') then
     NavigateToFirstError
   else if (Mode='SearchCode') then
   begin
@@ -292,7 +292,8 @@ begin
   i:=0;
   while i<CodeEdit.TheMessages.lines.count do
   begin
-    if FoundString(CodeEdit.TheMessages.lines[i],'Error')>0 then
+    if (FoundString(CodeEdit.TheMessages.lines[i],'Error:')>0)
+    or (FoundString(CodeEdit.TheMessages.lines[i],'Fatal:')>0) then
     begin
       CodeEdit.GetFileNameLineNumAndCharPos(FoundLineNum,CodeEdit.TheMessages.lines[i], '(',FileName,LineNum,CharPos );
       if (trim(FileName)<>'')
@@ -310,7 +311,8 @@ begin
   i:=0;
   while i<tmp1.count do
   begin
-    if FoundString(tmp1[i],'Error')>0 then
+    if (FoundString(tmp1[i],'Error:')>0)
+    or (FoundString(tmp1[i],'Fatal:')>0) then
     begin
       CodeEdit.GetFileNameLineNumAndCharPos(FoundLineNum,tmp1[i], '(',FileName,LineNum,CharPos );
       if (trim(FileName)<>'')
@@ -347,7 +349,7 @@ var
   FStrings,FStrings2:TStringList;
   TargetNode:TDataNode;
   targetLine:integer;
-  Context:String;
+  Context,FileType:String;
 begin
   {$ifndef JScript}
     tmp1:=LoadIncludeFile(nil,FileName,'tempinc/');
@@ -365,10 +367,12 @@ begin
     self.TargetNameSpace:='';
     self.EventType:='';
     //filename is NodeName + EventType
+    //or for a GPU kernel, may be NodeName__kernelnum
     FStrings2:=StringSplit(FileName,'.');
+    FileType:=FStrings2[FStrings2.Count-1];
     if FStrings2.Count=2 then
     begin
-      if FStrings2[1]='inc' then
+      if FileType='inc' then
       begin
         // could be a function or an event handler       !!namespace - separate with _ ?  !!disallow _ in element names????
         FStrings:=StringSplit(FStrings2[0],'__');
@@ -377,7 +381,10 @@ begin
           if FStrings.Count=2 then
           begin
             self.TargetNodeName:=FStrings[0];
-            self.EventType:=FStrings[1];
+            if StringUtils.IsStrFloatNum(FStrings[1]) then
+              self.EventType:=''
+            else
+              self.EventType:=FStrings[1];
           end
           else
           begin
@@ -395,7 +402,8 @@ begin
             end;
           end;
 
-          if self.TargetNameSpace='' then
+          if (self.TargetNameSpace='')
+          and (self.EventType<>'') then
           begin
             self.Mode:='EventCode';
             Context:='Event Handler';
@@ -413,7 +421,38 @@ begin
               if FoundString(FileName,'Init.')>0 then
                  CodeEditMainTabs.TabIndex:=1;
             end;
+          end
+          else
+          begin
+            // a GPU kernel...
+            //CodeEditorClosed(nil);
+            CodeEdit.ItemValue:='';
+            TargetNode:=FindDataNodeById(UIRootNode,self.TargetNodeName,'',true);
+            if TargetNode<>nil then
+              {$ifndef JScript}
+              ShowGPUKernelLater(targetNode,FileName,StrToInt(linenum),CharPos); // later...
+              {$else}
+              ShowGPUKernel(targetNode,FileName,StrToInt(linenum),CharPos);
+              {$endif}
           end;
+        end
+        else if FStrings.Count=1 then
+        begin
+          self.TargetNodeName:=FStrings[0];
+          self.EventType:='';
+          TargetNode:=FindDataNodeById(DMRoot,self.TargetNodeName,'',false);
+          if TargetNode<>nil then
+            if TargetNode.NodeType='DMOp' then
+            begin
+              self.Mode:='DMOpCode';
+              Context:='DMOp Code';
+              CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
+              targetLine:=StrToInt(linenum)-1;    // -1 because there is no top line (function xxx;) in the source code
+            end
+            else
+              showmessage('Cannot find DMOp node '+self.TargetNodeName)
+          else
+            showmessage('Cannot find DMRoot node '+self.TargetNodeName);
         end;
 
         FreeAndNil(FStrings);
@@ -421,12 +460,15 @@ begin
       else
       begin
         self.TargetNodeName:=FStrings2[0];
+        TargetNode:=FindDataNodeById(CodeRootNode,self.TargetNodeName,'',false);
         self.EventType:='';
-        self.Mode:='UnitCode';
-        Context:='PasUnit';
-        TargetNode:=FindDataNodeById(CodeRootNode,self.TargetNodeName,'',true);
-        CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
-        targetLine:=StrToInt(linenum)-1;     // -1 because there is no top line (unit xxx;) in the source code
+        if TargetNode<>nil then
+        begin
+          self.Mode:='UnitCode';
+          Context:='PasUnit';
+          CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
+          targetLine:=StrToInt(linenum)-1;     // -1 because there is no top line (unit xxx;) in the source code
+        end;
       end;
     end;
     FreeAndNil(FStrings2);
@@ -451,7 +493,7 @@ procedure TCodeEditForm.HandleMessageClick(e:TEventStatus;nodeID: AnsiString; my
 var linenumber,targetLine:integer;
     SelectedLine,FileName,CharPos:string;
     FoundLineNum:Boolean;
-    FStrings:TStringList;
+    FStrings,bits:TStringList;
     LineNum,Context:String;
     TargetNode:TDataNode;
     {$ifdef JScript}
@@ -493,14 +535,15 @@ begin
    FStrings:=StringSplit(FileName,'.');
    if ((FStrings.Count=2)
      and (FStrings[1]='inc'))
-   or (CodeEditForm.Mode = 'dll') then
+   or (CodeEditForm.Mode = 'dll')
+   or (CodeEditForm.Mode = 'GPUKernel') then
    begin
      DisplayIncFile(FileName,lineNum,CharPos);
    end
    else
    begin
      //if Filename includes a dot, then it's a nodename and eventtype.
-     //if it contains .AnimationCode, then it's a GPU kernel block
+     //if it contains .AnimationCode then it's a GPU kernel (from a code search list)
      //Otherwise it's a code element (function or Pasunit or PythonScript nodename)
 
      // save any edits already done...
@@ -510,12 +553,16 @@ begin
 
      if FStrings.Count>1 then
      begin
-       self.TargetNodeName:=FStrings[0];
-       targetNode:=FindDataNodeByid(systemNodeTree,self.TargetNodeName,'',false);
+       bits:=StringSplit(FStrings[0],'__');
+       self.TargetNodeName:=bits[0];
+       targetNode:=FindDataNodeByid(CodeRootNode,self.TargetNodeName,'',false);
+       if targetNode=nil then
+         targetNode:=FindDataNodeByid(DMRoot,self.TargetNodeName,'',false);
+       if targetNode=nil then
+         targetNode:=FindDataNodeByid(systemNodeTree,self.TargetNodeName,'',false);
        if targetNode<>nil then
        begin
-         if (FStrings.Count=3)
-         and (FStrings[2]='AnimationCode') then
+         if (FStrings[1]='AnimationCode') then
          begin
            self.Mode:='AnimationCode';
            Context:=targetNode.NodeType;
@@ -524,7 +571,8 @@ begin
            CodeEdit.ItemValue:='';
            CodeEditMainTabs.TabIndex:=0;
          end
-         else if FStrings.Count>2 then
+         else
+         if FStrings.Count>2 then
          begin
            self.EventType:=FStrings[1];
            self.Mode:='EventCode';
@@ -545,7 +593,9 @@ begin
            if targetNode.NodeType='PasUnit' then
              self.Mode:='PasUnitCode'
            else if targetNode.NodeType='PythonScript' then
-             self.Mode:='PythonScriptCode';
+             self.Mode:='PythonScriptCode'
+           else if targetNode.NodeType='DMOp' then
+             self.Mode:='DMOpCode';
            Context:=targetNode.NodeType;
            self.EventType:='';
            CodeEditInit.ItemValue:='';
@@ -556,20 +606,22 @@ begin
      end;
 
      targetLine:=StrToInt(linenum)+1;
-     if self.Mode<>'AnimationCode' then
-     begin
-       self.InitialiseOnShow(Context,targetNode.NodeName,self.EventType);
-       SetCursorPosition(targetLine,strToInt(charPos));
-     end
-     else
-     begin
-       // GPU Animation code has a separate editor form...
-       ShowGPUKernel(targetNode,FileName,targetLine,CharPos);
-
-     end;
+     if (targetNode<>nil) then
+       if (self.Mode<>'GPUKernel')
+       and (self.Mode<>'AnimationCode') then
+       begin
+         self.InitialiseOnShow(Context,targetNode.NodeName,self.EventType);
+         SetCursorPosition(targetLine,strToInt(charPos));
+       end
+       else
+       begin
+         // GPU Animation code has a separate editor form...
+         ShowGPUKernel(targetNode,FileName,targetLine,CharPos);
+       end;
    end;
 
    FreeAndNil(FStrings);
+
  end;
 end;
 
@@ -663,7 +715,7 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
           AllKernels:=TXGPUCanvas(CurrentItem.ScreenObject).FetchAllAnimCode;
           for k:=0 to length(AllKernels)-1 do
           begin
-            SearchThisText(CurrentItem.nodeName+'.'+inttostr(k),'AnimationCode',AllKernels[k].CodeBlock.Text);
+            SearchThisText(CurrentItem.nodeName+'__'+inttostr(k),'AnimationCode',AllKernels[k].CodeBlock.Text);
           end;
         end;
 
@@ -687,6 +739,18 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
     for i:=0 to length(ThisNode.ChildNodes)-1 do
       SearchCodeNode(ThisNode.ChildNodes[i]);
   end;
+  procedure SearchDMOpsCode(ThisNode:TdataNode);
+  var
+    i:integer;
+  begin
+    if (ThisNode.NodeType='DMOp')
+    then
+    begin
+      SearchThisText(ThisNode.NodeName,ThisNode.NodeType,ThisNode.GetAttribute('Code',true).AttribValue);
+    end;
+    for i:=0 to length(ThisNode.ChildNodes)-1 do
+      SearchDMOpsCode(ThisNode.ChildNodes[i]);
+  end;
 
 begin
   // text blocks to be searched....
@@ -708,6 +772,7 @@ begin
   self.CodeEdit.ItemValue:='';
   SearchCodeNode(CodeRootNode);
   SearchEventsCode(UIRootNode);
+  SearchDMOpsCode(DMRoot);
 
 end;
 

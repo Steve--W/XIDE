@@ -1,11 +1,11 @@
 object XIDESettingsForm: TXIDESettingsForm
   Left = 604
-  Height = 183
+  Height = 185
   Top = 181
-  Width = 530
+  Width = 533
   Caption = 'Settings'
-  ClientHeight = 183
-  ClientWidth = 530
+  ClientHeight = 185
+  ClientWidth = 533
   Color = 14077611
   OnCreate = FormCreate
   OnResize = FormResize
@@ -13,13 +13,13 @@ object XIDESettingsForm: TXIDESettingsForm
   LCLVersion = '2.1.0.0'
   object XsettingsVBox: TXVBox
     Name = 'XsettingsVBox'
-    Tag = 437687192
+    Tag = 489736736
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 10
     Height = 114
     Top = 10
-    Width = 491
+    Width = 492
     Align = alTop
     AutoSize = True
     IsContainer = True
@@ -37,7 +37,7 @@ object XIDESettingsForm: TXIDESettingsForm
       Left = 0
       Height = 23
       Top = 0
-      Width = 491
+      Width = 492
       Align = alTop
       AutoSize = True
       myControl.Tag = -1
@@ -45,7 +45,7 @@ object XIDESettingsForm: TXIDESettingsForm
       myControl.AnchorSideTop.Side = asrCenter
       myControl.AnchorSideRight.Control = DeployModeCombo
       myControl.AnchorSideRight.Side = asrBottom
-      myControl.Left = 191
+      myControl.Left = 192
       myControl.Height = 23
       myControl.Top = 0
       myControl.Width = 300
@@ -53,13 +53,11 @@ object XIDESettingsForm: TXIDESettingsForm
       myControl.Constraints.MaxWidth = 300
       myControl.Constraints.MinWidth = 300
       myControl.ItemHeight = 15
-      myControl.ItemIndex = 0
       myControl.Items.Strings = (
         'Run'
         'Design'
       )
       myControl.TabOrder = 0
-      myControl.Text = 'Run'
       IsContainer = False
       AlignChildrenVertical = True
       Alignment = 'Right'
@@ -80,7 +78,7 @@ object XIDESettingsForm: TXIDESettingsForm
       Left = 0
       Height = 23
       Top = 23
-      Width = 491
+      Width = 492
       Align = alTop
       AutoSize = True
       myControl.Tag = -1
@@ -88,7 +86,7 @@ object XIDESettingsForm: TXIDESettingsForm
       myControl.AnchorSideTop.Side = asrCenter
       myControl.AnchorSideRight.Control = ResourcesPosCombo
       myControl.AnchorSideRight.Side = asrBottom
-      myControl.Left = 191
+      myControl.Left = 192
       myControl.Height = 23
       myControl.Top = 0
       myControl.Width = 300
@@ -96,14 +94,12 @@ object XIDESettingsForm: TXIDESettingsForm
       myControl.Constraints.MaxWidth = 300
       myControl.Constraints.MinWidth = 300
       myControl.ItemHeight = 15
-      myControl.ItemIndex = 0
       myControl.Items.Strings = (
         'Left'
         'Right'
         'Hide'
       )
       myControl.TabOrder = 0
-      myControl.Text = 'Left'
       IsContainer = False
       AlignChildrenVertical = True
       Alignment = 'Right'
@@ -124,7 +120,7 @@ object XIDESettingsForm: TXIDESettingsForm
       Left = 0
       Height = 23
       Top = 46
-      Width = 491
+      Width = 492
       Align = alTop
       AutoSize = True
       myControl.Tag = -1
@@ -132,7 +128,7 @@ object XIDESettingsForm: TXIDESettingsForm
       myControl.AnchorSideTop.Side = asrCenter
       myControl.AnchorSideRight.Control = FPCLocationEditBox
       myControl.AnchorSideRight.Side = asrBottom
-      myControl.Left = 191
+      myControl.Left = 192
       myControl.Height = 23
       myControl.Top = 0
       myControl.Width = 300
@@ -160,7 +156,7 @@ object XIDESettingsForm: TXIDESettingsForm
       Left = 10
       Height = 25
       Top = 79
-      Width = 471
+      Width = 472
       Align = alTop
       AutoSize = True
       myControl.Tag = -1

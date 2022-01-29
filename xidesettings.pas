@@ -9,7 +9,8 @@ uses
   {$ifndef JScript}
   LazsUtils,
   {$endif}
-  CompileUserCode, XObjectInsp, XVBox,  XMemo, XForm, XEditBox, XComboBox, XButton, EventsInterface;
+  CompileUserCode, XObjectInsp, XVBox, XMemo, XForm, XEditBox, XComboBox,
+  XButton, EventsInterface, XCheckBox;
 
 type
 

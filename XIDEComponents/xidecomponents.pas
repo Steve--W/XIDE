@@ -9,7 +9,7 @@ interface
 
 uses
   XGPUCanvas, XThreads, WebTranspilerUtils, XComposite, XCompositeIntf, 
-  XGPUEditor, X3DTable, LazarusPackageIntf;
+  XGPUEditor, X3DTable, XDBTable, LazarusPackageIntf;
 
 implementation
 

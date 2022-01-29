@@ -5,6 +5,7 @@ c:/Laz19Projects/XIDE/XIDEComponents/xgpueditor.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xcomposite.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xcompositeintf.pas
 c:/Laz19Projects/XIDE/XIDEComponents/x3dtable.pas
+c:/Laz19Projects/XIDE/XIDEComponents/xdbtable.pas
 c:/Laz19Projects/XIDE/XIDEComponents/gpu-browser.js
 c:/Laz19Projects/XIDE/XIDEMain.pas
 c:/Laz19Projects/XIDE/xobjectinsp.pas
@@ -23,3 +24,5 @@ c:/Laz19Projects/XIDE/pyxutils.pas
 c:/Laz19Projects/XIDE/xidesettings.pas
 c:/Laz19Projects/XIDE/IntfParamUnit.pas
 c:/Laz19Projects/XIDE/IntfEventUnit.pas
+c:/Laz19Projects/XIDE/XDataModel.pas
+

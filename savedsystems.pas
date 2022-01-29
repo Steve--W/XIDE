@@ -29,7 +29,7 @@ uses
   {$endif}
   XScrollBox, XVBox, XHBox, XTree, XMemo, XTabControl, XButton, XLabel,
   XEditBox, XCheckBox, XHyperLink, XRadioBtns, XForm, XComboBox,
-  EventsInterface, XObjectInsp ;
+  EventsInterface, XObjectInsp, XDataModel ;
 
 type
 
@@ -113,18 +113,21 @@ end;
 procedure TSavedSystemsForm.SavedSystemsDeleteHandleButtonClick(
   e: TEventStatus; nodeID: AnsiString; myValue: AnsiString);
 var
-  SysName:String;
+  SysName,SysPath:String;
 begin
   // Get SysName from the currently selected item in SavedSystemsList
   SysName:=RemoveDate(SavedSystemsList.SelectedNodeText);
-  {$ifndef JScript}
-  SysName:='SavedSystems/'+SysName;
-  {$endif}
+  SysPath:=SysName;
   if SysName<>'' then
   begin
     if XIDEConfirm('OK to delete stored system '+SysName+'?') then
     begin
-      ClearLocalStore( SysName+'.xide');
+      {$ifndef JScript}
+      SysPath:='SavedSystems/'+SysName;
+      {$endif}
+      ClearLocalStore( SysPath+'.xide');
+      if SysName <> UIRootNode.GetAttribute('SystemName',false).AttribValue then
+        DeleteLocalDB(SysName,true);
       Initialise;
     end;
   end;

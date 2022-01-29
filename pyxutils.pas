@@ -17,7 +17,7 @@ uses
   PythonEngine, PythonGUIInputOutput,
   DllInterface,
   {$endif}
-  XMemo, EventsInterface;
+  NodeUtils, XMemo, EventsInterface;
 
 var
   //PythonLibDir,
@@ -29,8 +29,11 @@ function PyodideScript:TStringList;
 procedure SetupPyEngine(PyLibDir,PyVersion:String);
 procedure DoPy_InitEngine;
 {$endif}
+procedure BuildXarray(XArrName:String;dims,mults:TStringArray;dflt:String);
 procedure PyExeString(cmds: string);
 procedure RunInitialScript;
+procedure RedirectPyLog(MemoName:String);
+function BuildPackageList:TStringArray;
 
 //const
 //  cPyLibraryWindows = 'C:\Python-for-Lazarus-master\python4lazarus\Runtime\python38.dll';
@@ -54,12 +57,43 @@ var
   PyInterfaceVar:TPythonDelphiVar;
   PyInterfaceE:TPythonDelphiVar;
   PyEvents:TMyPyEvents;
+{$else}
+var
+  PyPkTest:integer;
 {$endif}
 var
   PyMemoComponent:TXmemo;
 
 
 implementation
+uses XIDEMain,XDataModel,XObjectInsp;
+
+function BuildPackageList:TStringArray;
+var
+  pypaks:TStringList;
+  pknames:TStringArray;
+  numpaks,i,j:integer;
+  pypkstr:String;
+begin
+  pypkstr:=UIRootNode.GetAttribute('PythonPackages',true).AttribValue;
+  pypaks := TStringList.Create;
+  pypaks.LineBreak:=';';
+  pypaks.SkipLastLineBreak:=true;
+  pypaks.Text:=pypkstr;
+  // de-duplicate the list
+  for i:=pypaks.count-1 downto 0 do
+    for j:=pypaks.count-1 downto 0 do
+      if (j<>i) and (pypaks[j]=pypaks[i]) then
+        pypaks[j]:='';
+  for i:=pypaks.count-1 downto 0 do
+    if pypaks[i]='' then
+      pypaks.Delete(i);
+  numpaks:=pypaks.Count;
+  setlength(pknames,numpaks);
+  for i:=0 to numpaks-1 do
+    pknames[i]:=pypaks[i];
+  result:=pknames;
+end;
 
 {$ifndef JScript}
 var
@@ -129,6 +163,29 @@ begin
   end;
   result:=arr;
 end;
+function ConvertArrayOfVariantTo1DNumArray(varr:TArgs):TNumArray;
+var
+  arr:TNumArray;
+  v:Variant;
+  varri:TArgs;
+  i,l:integer;
+begin
+  setlength(arr,length(varr));
+  for i:=0 to length(varr)-1 do
+  begin
+    v:=varr[i];
+    if v<>null then
+      try
+       arr[i]:=Double(v);
+      except
+        on exception do
+          arr[i]:=-999;
+      end
+    else
+      arr[i]:=-999;
+  end;
+  result:=arr;
+end;
 
 function RunInterfaceFunc(e:TEventStatus;fname:String;fnArgs:TArgs):Variant;
 var
@@ -140,6 +197,7 @@ var
   arr3dn:T3DNumArray;
   arr1dn:TNumArray;
   i:integer;
+  aov:Array of Variant;
 begin
   if fname='ShowMessage' then
     mmo.mmiShowMessage(fnArgs[0])
@@ -207,15 +265,27 @@ begin
     arr1dn:=mmo.mmiGetGPUParamNumValue(fnArgs[0], fnArgs[1]);
     v:=arr1dn;
   end
+  else if fname='GetGPUParam2DNumValue' then
+  begin
+    arr2dn:=mmo.mmiGetGPUParam2DNumValue(fnArgs[0], fnArgs[1]);
+    v:=arr2dn;
+  end
   else if fname='GetGPUConstIntValue' then
   begin
     i:=mmo.mmiGetGPUConstIntValue(fnArgs[0], fnArgs[1]);
     v:=i;
   end
   else if fname='SetGPUParamNumValue' then
-    mmo.mmiSetGPUParamNumValue(fnArgs[0], fnArgs[1], fnargs[2])
+  begin
+    arr1dn:=ConvertArrayOfVariantTo1DNumArray(fnargs[2]);
+
+    mmo.mmiSetGPUParamNumValue(fnArgs[0], fnArgs[1], arr1dn)
+  end
   else if fname='SetGPUParam2DNumValue' then
-    mmo.mmiSetGPUParam2DNumValue(fnArgs[0], fnArgs[1], fnargs[2])
+  begin
+    arr2dn:=ConvertArrayOfVariantTo2DNumArray(fnargs[2]);
+    mmo.mmiSetGPUParam2DNumValue(fnArgs[0], fnArgs[1], arr2dn)
+  end
   else if fname='SetGPUConstIntValue' then
     mmo.mmiSetGPUConstIntValue(fnArgs[0], fnArgs[1], fnargs[2])
   else if fname='StartMain' then
@@ -246,8 +316,17 @@ begin
     arr3dn:=mmo.mmiGetGPUStageArray(fnArgs[0]);
     v:=Arr3dntoVarArray(arr3dn);
   end
+  else if fname='GetGPUInitStageArray' then
+  begin
+    arr3dn:=mmo.mmiGetGPUInitStageArray(fnArgs[0]);
+    v:=Arr3dntoVarArray(arr3dn);
+  end
   else if fname='GetGPUStageArrayAsString' then
     v:=mmo.mmiGetGPUStageArrayAsString(fnArgs[0])
+  else if fname='RedirectPyLog' then
+    RedirectPyLog(fnArgs[0])
+  else if fname='BuildXArrays' then
+    BuildXArrays(fnArgs[0])
   else if fname='DebugStart' then
     mmo.mmiDebugStart;
 
@@ -310,11 +389,14 @@ with PythonEngine1 do
     // run the requested function
     v:=RunInterfaceFunc(e,fname,fnArgs);
     // pass the current e values to Python
-    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'EventType',PythonEngine1.VariantAsPyObject(UTF8Decode(e.EventType)));
-    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NodeId',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NodeId)));
-    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NameSpace',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NameSpace)));
-    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'ReturnString',PythonEngine1.VariantAsPyObject(UTF8Decode(e.ReturnString)));
-    PyInterfaceE.ValueObject:=glbPyObjE;
+    if (e<>nil) then
+    begin
+      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'EventType',PythonEngine1.VariantAsPyObject(UTF8Decode(e.EventType)));
+      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NodeId',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NodeId)));
+      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NameSpace',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NameSpace)));
+      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'ReturnString',PythonEngine1.VariantAsPyObject(UTF8Decode(e.ReturnString)));
+      PyInterfaceE.ValueObject:=glbPyObjE;
+    end;
     // send the function result back to Python
     //PRsltObj:=PythonEngine1.PyString_FromString(PChar(str));
     PRsltObj:=PythonEngine1.VariantAsPyObject(v);
@@ -347,8 +429,12 @@ procedure UpdateMemo(Data:String);
 var
   oldval:string;
 begin
-  oldval:=PyMemoComponent.myNode.GetAttribute('ItemValue',false).AttribValue;
-  PyMemoComponent.ItemValue:=oldval+LineEnding+Data;
+  if (PyMemoComponent<>nil)
+  and (assigned(PyMemoComponent)) then
+  begin
+    oldval:=PyMemoComponent.myNode.GetAttribute('ItemValue',false).AttribValue;
+    PyMemoComponent.ItemValue:=oldval+LineEnding+Data;
+  end;
 end;
 
 procedure TMyPyEvents.PyIOSent(Sender: TObject; const Data:AnsiString);
@@ -436,10 +522,19 @@ begin
   DoPy_InitEngine;
 end;
 
+
 function PyodideScript:TStringList;
 var
   script:TStringList;
+  pknames:TStringArray;
+  i,j,numpakstoload:integer;
+  mystr:String;
 begin
+  CheckForPythonCode;
+
+  pknames:=BuildPackageList;
+  numpakstoload:=2+length(pknames);
+
   script:=TStringList.Create;
   script.add('<script type="application/javascript" >');
   script.add('var realalert=window.alert;');
@@ -452,67 +547,147 @@ begin
   script.add('</script> ');
 
   // Load the pyodide script from the web; if unavailable try loading from pyodide_local...
+  script.add('<script src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>');
   script.add('<script type="application/javascript" >');
-  script.add('var pyodideReady = "no";');
+  script.add('var pyodideReady = 0;');
+  script.add('var PyodideOffline = false;');
+  script.add('var readyForRunMode = false;');
+  //script.add('    window.languagePluginUrl = "https://pyodide-cdn2.iodide.io/v0.15.0/full/";');
   if not PythonCodeExists then
   begin
     // no need for user to wait for Pyodide to finish loading on startup if there's no Python in the system...
     script.add('console.log("No Python scripts found in this system")');
-    script.add('var pyodideReady = "yes";');
+    script.add('readyForRunMode = true;');
   end;
+  script.add('function CreatePystatdiv() {');
+  // create a div to display Python load status
+  script.add('  var pystatdiv=document.createElement("div")');
+  script.add('  pystatdiv.id="PyLoadStatus"');
+  script.add('  pystatdiv.innerHTML="Python Loading..."');
+  script.add('  pystatdiv.style.height="40px"');
+  script.add('  pystatdiv.style.width="250px"');
+  script.add('  pystatdiv.style.right=0');
+  script.add('  pystatdiv.style.top=0');
+  script.add('  pystatdiv.style.zIndex=999');
+  script.add('  pystatdiv.style.position="absolute"');
+  script.add('  document.getElementsByTagName("body")[0].prepend(pystatdiv);');
+  //+'  <div  id = "PyLoadStatus" style="height:50px; width:200px;top:0;right:0; position:absolute; z-index:999;"> HELLO WORLD'  +LineEnding
+  //+'  </div> '  +LineEnding
+  script.add('}');
+  script.add('function HidePystatdiv() {');
+  script.add('  var pystatdiv = document.getElementById("PyLoadStatus");');
+  script.add('  pystatdiv.style.display="none";');
+  script.add('}');
+  script.add('function ShowPystatdiv() {');
+  script.add('  var pystatdiv = document.getElementById("PyLoadStatus");');
+  script.add('  pystatdiv.style.display="block";');
+  script.add('}');
+
+
   script.add('var localErrDone = false;');
-  script.add('var pysrc1=document.createElement("script")');
   script.add('var pysrc2=document.createElement("script")');
   script.add('var pysrc3=document.createElement("script")');
-  script.add('pysrc1.setAttribute("type","application/javascript")');
+  script.add('var pyodide');
   script.add('pysrc2.setAttribute("type","application/javascript")');
   script.add('pysrc3.setAttribute("type","application/javascript")');
-  script.add('function loadpyodidefromweb(){');
+
+  script.add('let otherloadedPackages = new Array();');
+  //script.add('document.getElementsByTagName("head")[0].prepend(pywebsrc)');
+  //script.add('pysrc1.setAttribute("src","https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js");');
+  //script.add('pywebsrc.setAttribute("src","https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js");');
+  script.add('</script> ');
+
+  script.add('<script type="application/javascript" >');
+  script.add('function pysrcLoaded() { ');
+  script.add('    // pyodide is now ready to use...load some packages...  ' );
+  script.add('    console.log("python: "+pyodide.runPython("import sys\nsys.version"));' );
+  script.add('    CreatePystatdiv() ');
+  script.add('    loadPyPkg0("setuptools",'+inttostr(numpakstoload)+',doAllFinalInits);');
+  script.add('    loadPyPkg0("micropip",'+inttostr(numpakstoload)+',doAllFinalInits);');
+  script.add('    pyodide.runPython(''from js import pas'');');
+  script.add(' } ');
+
+  script.add('async function loadpyodidefromweb(){');
   script.add('    console.log("try web pyodide load...");');
-  script.add('    window.languagePluginUrl = "https://pyodide-cdn2.iodide.io/v0.15.0/full/";');
-  script.add('    pysrc1.setAttribute("src","https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js");');
-  script.add('    document.getElementsByTagName("head")[0].prepend(pysrc1)');
-  script.add('}');
-  script.add('function loadpyodidelocal(){ ');
-  script.add('       console.log("try local pyodide load..."); ');
-  script.add('       if (pysrc1.parentNode!=null) { ');
-  script.add('         document.getElementsByTagName("head")[0].removeChild(pysrc1); }');
-  script.add('       window.languagePluginUrl = "./pyodide_local/";');
-  script.add('       pysrc2.setAttribute("src", "pyodide_local/loadlocal.js");');
-  script.add('       document.getElementsByTagName("head")[0].prepend(pysrc2);');
-  script.add('       pysrc3.setAttribute("src", "pyodide_local/pyodide.js");');
-  script.add('       pysrc2.after(pysrc3); ');
-  script.add('}');
-  script.add('loadpyodidefromweb(); //dynamically load and add pyodide script');
-  script.add('</script>');
-  script.add('<script type="text/javascript" > ');
-  script.add('pysrc1.onerror = function (){');
-  script.add('              console.log("web load failed");');
-  script.add('              loadpyodidelocal();');
-  script.add('            } ');
+  script.add('    try {');
+  script.add('      pyodide = await loadPyodide({ indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/" })');
+  script.add('      if (pyodide) {');
+  script.add('        pysrcLoaded();}');
+  script.add('      else {');
+  script.add('        await loadpyodidelocal();');
+  script.add('        console.log("done loadpyodidelocal. calling pysrcLoaded");');
+  script.add('        pysrcLoaded();}');
+  script.add('    } catch(err) {');
+  script.add('      console.log(err.message);');
+  script.add('      await loadpyodidelocal();');
+  script.add('}}');
+
+  //  full example of offline pyodide at....
+  //https://github.com/basvandertol/pyodide/releases/download/localpyodide-v0.1/localpyodide.zip
   script.add('function noLocalPyodide(){');
   script.add('  if (localErrDone==false) {');
   script.add('    console.log("cannot load local pyodide - Python will be unavailable"); ');
   script.add('    console.log("To work with Pyodide offline, create a folder ./pyodide_local"); ');
   script.add('    console.log("   This folder must contain pyodide files, such as provided from:"); ');
-  script.add('    console.log("      https://github.com/iodide-project/pyodide/releases/download/0.14.3/pyodide-build-0.14.3.tar.bz2");');
-  script.add('    console.log("   and also include the file loadlocal.js, which can be found at:");');
-  script.add('    console.log("      https://github.com/iodide-project/pyodide/tree/6a2dd522f1eb4143f2630deae0a1fa9555546dfe/runlocal");');
-  script.add('    console.log("   Alternatively there is a pyodide_local folder containing minimum required files provided at:");');
-  script.add('    console.log("      https://github.com/Steve--W/XIDE");');
+  script.add('    console.log("      https://github.com/basvandertol/pyodide/releases/download/localpyodide-v0.1/localpyodide.zip");');
+//  script.add('    console.log("      https://github.com/iodide-project/pyodide/releases/download/0.14.3/pyodide-build-0.14.3.tar.bz2");');
+//  script.add('    console.log("      https://github.com/iodide-project/pyodide/releases/download/0.18.1/pyodide-build-0.18.1.tar.bz2");');
+//  script.add('    console.log("   and also include the file loadlocal.js, which can be found at:");');
+//  script.add('    console.log("      https://github.com/iodide-project/pyodide/tree/6a2dd522f1eb4143f2630deae0a1fa9555546dfe/runlocal");');
+//  script.add('    console.log("   Alternatively there is a pyodide_local folder containing minimum required files provided at:");');
+//  script.add('    console.log("      https://github.com/Steve--W/XIDE");');
   script.add('    localErrDone = true;');
   script.add('    alert("cannot load pyodide - Python will be unavailable. See console for messages."); ');
+  script.add('    HidePystatdiv()');
   script.add('}} ');
+
   script.add('pysrc2.onerror = function (){');
   script.add('              noLocalPyodide(); ');
   script.add('            }');
   script.add('pysrc3.onerror = function (){');
   script.add('              noLocalPyodide(); ');
   script.add('            }');
+
+  script.add('async function loadpyodidelocal(){ ');
+  script.add('  console.log("try local pyodide load..."); ');
+  script.add('  console.log("do languagePluginUrl...."); ');
+  script.add('  window.languagePluginUrl = "./pyodide_local/";');
+  script.add('  pysrc2.setAttribute("src", "pyodide_local/loadlocal.js");');
+  script.add('  pysrc2.async = false;');
+  script.add('  document.getElementsByTagName("head")[0].prepend(pysrc2);');
+  script.add('  pysrc3.setAttribute("src", "pyodide_local/pyodide.js");');
+  script.add('  pysrc3.async = false;');
+  script.add('  pysrc2.after(pysrc3); ');
+  script.add('  pysrc3.addEventListener("load", async function() { ');
+  script.add('  console.log("do await thing...."); ');
+  script.add('  await (async () => {  ');
+  script.add('    console.log("language plugin thing...."); ');
+  script.add('    await languagePluginLoader; ');
+//  script.add('    await pyodide.loadPackage(['numpy', 'matplotlib']);  } ');
+  script.add('      if (pyodide) {');
+  script.add('        console.log("done loadpyodidelocal. calling pysrcLoaded");');
+  script.add('        PyodideOffline=true; ');
+  script.add('        pysrcLoaded();}');
+  script.add('      else {noLocalPyodide();}');
+  script.add('})();');
+script.add('  }); ');
+script.add('}');
+
+
+  script.add('loadpyodidefromweb(); ');
+  script.add('</script>');
+
+  script.add('<script type="text/javascript" > ');
+  //script.add('pywebsrc.onerror = function (){');
+  //script.add('              console.log("web load failed");');
+  //script.add('              loadpyodidelocal();');
+  //script.add('            } ');
+
   script.add('</script>');
 
   script.add('<script type="text/javascript" > ');
   script.add('function DoFinalInits(){');
+  script.add('  readyForRunMode = true;');
   script.add('  if (myDeployedMode!="FromLaz") { ');
   // script.add('  alert("python DoFinalInits - checking for saved system now"); ');
   script.add('    var ok=pas.XObjectInsp.CheckForSavedSystemOnLoad();');
@@ -521,29 +696,140 @@ begin
   script.add('    pas.XObjectInsp.ContinueToggleToRunMode();  }');
   script.add('  }');
 
-  script.add('function pysrcLoaded() { ');
-  script.add('    // pyodide is now ready to use...  ' );
-  script.add('    console.log("python: "+pyodide.runPython("import sys\nsys.version"));' );
-
-  script.add('    pyodide.loadPackage("numpy").then(() => {');
-  script.add('      if ("numpy" in pyodide.loadedPackages) {console.log("numpy is now available"); } ' );
-  script.add('      else {alert("Pyodide failed to load package numpy - please check console for details");} ' );
-  script.add('    });');
-  script.add('    pyodide.loadPackage("matplotlib").then(() => {');
-  script.add('      if ("matplotlib" in pyodide.loadedPackages) {console.log("matplotlib is now available"); } ' );
-  script.add('      else {alert("Pyodide failed to load package matplotlib - please check console for details");} ' );
-  script.add('      pyodideReady = "yes";' );
-  script.add('      DoFinalInits();');
-  script.add('    }); ' );
-
-  script.add('  pas.XIDEMain.StartupPython(); ');
+  script.add('function doContinueFunc(continueFunc) { ');
+  script.add('    continueFunc();');
   script.add(' } ');
+  script.add('function doAllFinalInits() { ');
+  script.add('      DoFinalInits();');
+  script.add('      pas.XIDEMain.StartupPython();');
+  script.add(' } ');
+  script.add('function checkReady(pkgName,numpaks,continueFunc) { ');
+  script.add('  console.log("pyodideReady="+pyodideReady+" numpaks="+numpaks);' );
+  script.add('  if (pkgName=="micropip") {' );
+  script.add('    loadPyPkgs(doAllFinalInits);');
+  script.add('  }' );
+  script.add('  if (pyodideReady==numpaks) {');               // required packages all loaded
+  script.add('      console.log(''######### required packages loaded ##################'');');
+  script.add('      doContinueFunc(continueFunc);');
+  script.add('      HidePystatdiv()');
+  script.add('    };');
+  script.add(' } ');
+
+  script.add('function testPyPkLoaded(pkgName) {');
+  script.add('var scrip=''pas.PyXUtils.PyPkTest=1;\n''+');
+  script.add('''try:\n''+');
+  script.add('''  import ''+pkgName+''\n''+');
+  script.add('''  print("no exceptions")\n''+');
+  script.add('''except ImportError as error:\n''+');
+  script.add('''  pas.PyXUtils.PyPkTest=0;\n''+');
+  script.add('''except Exception as exception:\n''+');
+  script.add('''  pas.PyXUtils.PyPkTest=0;\n'';');
+  //script.add('  console.log(scrip);');
+  script.add('  pyodide.runPython(scrip);');
+  //script.add('  console.log(''pas.PyXUtils.PyPkTest=''+pas.PyXUtils.PyPkTest);');
+  script.add(' } ');
+  //????'import pkgutil; print(1 if pkgutil.find_loader("module") else 0)'
+  //???? or... try:
+  //  import cow
+  //  print('\nModule was installed')
+  //except ImportError:
+  //  print('\nThere was no such module installed')"
+  script.add('function loadPyPkg0(pkgName,numpaks,continueFunc) { ');
+  script.add('  if ((!(pkgName in pyodide.loadedPackages)) && (!(otherloadedPackages.includes(pkgName)))) {');
+  script.add('    try {');
+  script.add('      pyodide.loadPackage(pkgName).then(() => {');
+  script.add('      if (pkgName in pyodide.loadedPackages) {');     // sadly, the pkg name is now in this list, even if the load failed.
+  script.add('        testPyPkLoaded(pkgName);');
+  script.add('        if (pas.PyXUtils.PyPkTest==1) {');
+  script.add('          console.log(pkgName+" is now available");');
+  script.add('          pyodideReady = pyodideReady+1;' );
+  script.add('          checkReady(pkgName,numpaks,continueFunc);');
+  script.add('        } ');
+  script.add('        else {alert("Pyodide failed to load package " +pkgName+ " - please check console for details");} ' );
+  script.add('      } ');
+  script.add('      else {' );
+  script.add('        console.log("Pyodide failed to load package " +pkgName+ " - attempting with micropip..."); ' );
+  script.add('        if (PyodideOffline==false) { ' );
+  script.add('          pyodide.runPython("import micropip"); ' );
+  script.add('          pyodide.runPythonAsync("await micropip.install(''"+pkgName+"'')").then(() => {');
+  script.add('            if (1==1) {');
+  script.add('              PkgLoaded(pkgName); ');
+  script.add('              checkReady(pkgName,numpaks,continueFunc);');
+  script.add('            }');
+  script.add('          },() => {alert("Pyodide/micropip failed to load package " +pkgName+ " - please check console for details");});');
+  script.add('        }');
+  script.add('        else {alert("Pyodide failed to load package " +pkgName+ " - please check console for details");} ' );
+  script.add('      }  ');
+  script.add('    },() => {alert("Pyodide failed to load package " +pkgName+ " - please check console for details");} );');
+  script.add('  }  ');
+  script.add('  catch(err) {alert("Pyodide failed to load package " +pkgName+ " - please check console for details");}  ');
+  script.add(' }} ');
+
+  script.add('function PkgLoaded(pkgName) { ');
+  script.add('  pyodideReady = pyodideReady+1;' );
+  script.add('  console.log("pyodideReady="+pyodideReady);' );
+  script.add('  console.log(pkgName+" is now available");');
+  script.add('  otherloadedPackages.push(pkgName); ');
+  script.add('  }');
+
+  script.add('async function LoadNextPkg(pkgNames,i,continueFunc) { ');
+  script.add('  console.log("loadNextPackage ",i); ');
+  script.add('  var mystr=pkgNames[i]; ');
+  script.add('  console.log("Load Package "+mystr); ');
+  script.add('  if (mystr=="xarray") {mystr="xarray==0.19.0";} ');
+  script.add('  if ((!(pkgNames[i] in pyodide.loadedPackages)) && (!(otherloadedPackages.includes(pkgNames[i])))) {');
+  script.add('    if (PyodideOffline==false) { ');
+  script.add('      console.log("Need to load "+mystr); ');
+  script.add('      pyodide.runPython("micropip.install(''"+mystr+"'')").then(() => {');
+  script.add('        console.log(mystr+" micropip returned ok");');
+  script.add('        testPyPkLoaded(pkgNames[i]);');
+  script.add('        if (pas.PyXUtils.PyPkTest==1) {');
+  script.add('          PkgLoaded(pkgNames[i])');
+  script.add('          checkReady(pkgNames[i],pkgNames.length+2,continueFunc);');
+  script.add('        }');
+  script.add('        else {alert("Pyodide/micropip failed to load package " +pkgNames[i]+ " - please check console for details");} ' );
+  script.add('        if (i<pkgNames.length-1) {');
+  script.add('          i=i+1;');
+  script.add('          LoadNextPkg(pkgNames,i,continueFunc);');
+  script.add('        }');
+  script.add('      },() => {alert("Pyodide/micropip failed to load package " +pkgNames[i]+ " - please check console for details");})');
+  script.add('    } ');
+  script.add('    else {');      // offline Pyodide.  micropip.install unavailable
+  script.add('      loadPyPkg0(pkgNames[i],pkgNames.length+2,continueFunc)');
+  script.add('      if (i<pkgNames.length-1) {');
+  script.add('        i=i+1;');
+  script.add('        LoadNextPkg(pkgNames,i,continueFunc); }');
+  script.add('    } ');
+  script.add('  } ');
+  script.add('  else {');
+  script.add('    console.log(mystr + " already loaded. "); ');
+  script.add('    if (i<pkgNames.length-1) {');
+  script.add('      i=i+1;');
+  script.add('      await LoadNextPkg(pkgNames,i,continueFunc);');
+  script.add('      checkReady(pkgNames[i],pkgNames.length+2,continueFunc);');
+  script.add('    }');
+  script.add('    else { ');
+  script.add('      checkReady("",pkgNames.length+2,continueFunc);');
+  script.add('    }');
+  script.add('  }}');
+
+  script.add('async function loadPyPkgs(continueFunc) { ');
+  script.add('  console.log("loadPyPkgs"); ' );
+  script.add('  pyodide.runPython("import micropip"); ' );
+    //???           //https://pypi.org/project/numpy/#files
+  script.add('  ShowPystatdiv()');
+  script.add('  var pkNames=pas.PyXUtils.BuildPackageList();' );
+  script.add('  if (pkNames.length>0) {await LoadNextPkg(pkNames,0,continueFunc);} ' );
+  script.add('  else {checkReady("",2,continueFunc);} ' );
+  script.add('} ');
+
   script.add('</script> ');
+
 
   script.add('<script> ');
   //script.add('        window.addEventListener(''DOMContentLoaded'', function() { ');
   script.add('        window.addEventListener(''load'', function() { ');
-  script.add('             languagePluginLoader.then(() => { pysrcLoaded();}); ');
+  //script.add('             languagePluginLoader.then(() => { pysrcLoaded();}); ');
   script.add('	    });');
   script.add('</script> ');
 
@@ -555,6 +841,8 @@ var
   InitScript:TStringList;
 //  FPUExceptionMask:TFPUExceptionMask;
 begin
+  if PyMemoComponent=nil then
+    PyMemoComponent:=XIDEMain.XIDEForm.XMemo1;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
   InitScript:=TStringList.Create;
   // load the initialisation py script
@@ -583,6 +871,7 @@ begin
   InitScript.add('  PyInterfaceVar.Value = Xmsg');
   InitScript.add('  return Xmsg.rslt');
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
+  //InitScript.add('  print(''GetPropertyValue(''+NodeName+'',''+PropName+'')'')');
   InitScript.add('  return RunXIDEFunc(''GetPropertyValue'',(NodeName,PropName)).decode(''utf-8'')');
 //  InitScript.add('  print(msg.args[0]+'' ''+msg.args[1]+'' = ''+msg.rslt)');
   InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');
@@ -615,6 +904,8 @@ begin
   InitScript.add('  return RunXIDEFunc(''DeleteComponent'',(NodeId,ShowNotFoundMsg,ShowConfirm))');
   InitScript.add('def GetGPUParamNumValue(GPUName,pName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUParamNumValue'',(GPUName,pName))');
+  InitScript.add('def GetGPUParam2DNumValue(GPUName,pName):');
+  InitScript.add('  return RunXIDEFunc(''GetGPUParam2DNumValue'',(GPUName,pName))');
   InitScript.add('def GetGPUConstIntValue(GPUName,pName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUConstIntValue'',(GPUName,pName))');
   InitScript.add('def SetGPUParamNumValue(GPUName,pName,pValue):');
@@ -647,25 +938,23 @@ begin
   InitScript.add('  return RunXIDEFunc(''GetGPUStageArray'',(GPUName,0))');
   InitScript.add('def GetGPUStageArrayAsString(GPUName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUStageArrayAsString'',(GPUName,0))');
+  InitScript.add('def GetGPUInitStageArray(GPUName):');
+  InitScript.add('  return RunXIDEFunc(''GetGPUInitStageArray'',(GPUName,0))');
   InitScript.add('def ShowPythonPlot(ImgName,fig):');            //!!!! do this with string var instead of file ????
   InitScript.add('  fig.savefig(ImgName+''.png'')');
   InitScript.add('  SetPropertyValue(ImgName,''Source'',ImgName+''.png'')');
   InitScript.add('def ConvertNumpyArrayToJSON(npArray):');
   InitScript.add('  return json.dumps(npArray.tolist())');
-
-
+  InitScript.add('def SetPyConsole(nm):');
+  InitScript.add('  RunXIDEFunc(''RedirectPyLog'',(nm,))');
+  InitScript.add('def ResetXArrays(DefaultDims):');
+  InitScript.add('  RunXIDEFunc(''BuildXArrays'',(DefaultDims,))');
 
   InitScript.add('print(''Python Engine Initialised'')');
 
   // execute the initialisation py script  (creates MyMessage python class and object)
   PythonEngine1.ExecStrings( InitScript );
   InitScript.Free;
-
-//  FPUExceptionMask := GetExceptionMask;
-//  SetExceptionMask([exZeroDivide, exPrecision]);
-//  PythonEngine1.ExecString('import numpy as np');
-//  PythonEngine1.ExecString('import matplotlib.pyplot as plt');
-//  SetExceptionMask(FPUExceptionMask);
 
 end;
 {$else}
@@ -674,6 +963,9 @@ var
   InitScript:TStringList;
   txt:String;
 begin
+asm
+console.log('......................RunInitialScript');
+end;
   // remove any previously-declared python vars, functions etc
   txt:='for name in dir(): '+LineEnding+
        '  if not name.startswith(''_''):'+LineEnding+
@@ -686,6 +978,8 @@ begin
   // load the initialisation py script
   // Sets up an internal library of XIDE Interface functions, available to the user.
   InitScript.Clear;
+
+  InitScript.add('print("Initialising Pyodide Python environment...")');
 
   InitScript.add('class eClass:');
   InitScript.add('  EventType = ''''');
@@ -721,7 +1015,7 @@ begin
   InitScript.add('def GetTableDataArray(TableName,SkipHeader):');
   InitScript.add('  arr = eval(pas.InterfaceTypes.GetPropertyValue(TableName,''TableData''))');
   InitScript.add('  if ((len(arr)>0) and (SkipHeader==True)):');
-  InitScript.add('    arr = arr.pop(0)');
+  InitScript.add('    hdr = arr.pop(0)');
   InitScript.add('  return arr');
   InitScript.add('def DoEvent(EventType,NodeId,myValue):');
   InitScript.add('  pas.InterfaceTypes.DoEvent(EventType,NodeId,myValue)');
@@ -733,6 +1027,8 @@ begin
   InitScript.add('  return pas.InterfaceTypes.DeleteComponent(NodeId,ShowNotFoundMsg,ShowConfirm)');
   InitScript.add('def GetGPUParamNumValue(GPUName,pName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUParamNumValue(GPUName,pName)');
+  InitScript.add('def GetGPUParam2DNumValue(GPUName,pName):');
+  InitScript.add('  return pas.InterfaceTypes.GetGPUParam2DNumValue(GPUName,pName)');
   InitScript.add('def GetGPUConstIntValue(GPUName,pName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUConstIntValue(GPUName,pName)');
   InitScript.add('def SetGPUParamNumValue(GPUName,pName,pValue):');
@@ -765,6 +1061,8 @@ begin
   InitScript.add('  return pas.InterfaceTypes.GetGPUStageArray(GPUName)');
   InitScript.add('def GetGPUStageArrayAsString(GPUName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUStageArrayAsString(GPUName)');
+  InitScript.add('def GetGPUInitStageArray(GPUName):');
+  InitScript.add('  return pas.InterfaceTypes.GetGPUSInittageArray(GPUName)');
   InitScript.add('def ShowPythonPlot(ImgName,fig):');
   InitScript.add('  buf = io.BytesIO()');
   InitScript.add('  fig.savefig(buf, format=''png'')');
@@ -777,11 +1075,18 @@ begin
   InitScript.add('  pas.InterfaceTypes.PyodideLoadPackage(nm)');
   InitScript.add('def PyodidePackageLoaded(nm):');
   InitScript.add('  return pas.InterfaceTypes.PyodidePackageLoaded(nm)');
+  InitScript.add('def SetPyConsole(nm):');
+  InitScript.add('  pas.PyXUtils.RedirectPyLog(nm)');
+  InitScript.add('def ResetXArrays(DefaultDims):');
+  InitScript.add('  pas.XDataModel.BuildXArrays(DefaultDims)');
+
+  InitScript.add('print("Initialising Python done.")');
 
 
   // execute the initialisation py script
   txt:=InitScript.Text;
   asm
+  console.log('RUN InitScript..............');
   pyodide.runPython(txt);
   end;
   InitScript.Free;
@@ -807,6 +1112,53 @@ begin
   end;
 end;
 
+procedure RedirectPyLog(MemoName:String);
+var
+  MemoNode:TdataNode;
+begin
+  MemoNode:=NodeUtils.FindDataNodeById(UIRootNode,MemoName,'',false);
+  {$ifndef JScript}
+  if (MemoNode<>nil)
+  and (MemoNode.ScreenObject is TXMemo) then
+    PyMemoComponent:=TXMemo(MemoNode.ScreenObject);
+  {$else}
+  if (MemoNode<>nil)
+  and (MemoNode.NodeType='TXMemo') then
+    PyMemoComponent:=TXMemo(MemoNode);
+  {$endif}
+end;
+
+procedure BuildXarray(XArrName:String;dims,mults:TStringArray;dflt:String);
+var
+  s: TStringList;
+  i,m:integer;
+  smults:String;
+begin
+//#Example = xr.DataArray(np.empty((X1_Num,X2_Num,Y_Num,1,NumXVars,)),  dims={"X1_Num":X1_Num,"X2_Num":X2_Num,"Y_Num":Y_Num,"one":1,"NumXVars":NumXVars})
+
+  s := TStringList.create;
+  s.Add('import numpy as np');
+  s.Add('import xarray as xr');
+  s.Add('dimsdict={}');
+
+  // build the dimensions dictionary for this XArray
+  smults:='';
+  for i:=0 to length(dims)-1 do
+  begin
+    //dimsdict[dimname] =  nnn
+    s.Add('dimsdict["'+dims[i]+'"]='+mults[i]);
+    smults:=smults+mults[i]+',';
+  end;
+  //  build the XArray
+  s.Add('print('''+XArrName+' = xr.DataArray(np.empty(('+smults+')), dims='',dimsdict,'')'+''')');
+  s.add(XArrName+' = xr.DataArray(np.empty(('+smults+')), dims=dimsdict)');
+  if dflt<>'' then
+    s.add(XArrName+' = xr.full_like('+XArrName+','+dflt+')');
+  s.Add('print('+XArrName+')');
+
+  PyExeString( s.text);
+  s.free;
+end;
 
 //var.decode('utf-8') ... might be of use
 

@@ -8,25 +8,25 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <OtherUnitFiles Value="$(XComponents_Pas2JSPaths);$(XComponents_cefPaths)"/>
+        <OtherUnitFiles Value="$(XComponents_Pas2JSPaths)"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <Conditionals Value="UnitPath += &apos;;$PkgOutDir(CEF4Delphi_Lazarus)&apos;;
 if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
  begin
    XComponents_Pas2JSPaths :=  &apos;C:\XComponentsLaz2\pas2js0\&apos;;
-   XComponents_cefPaths :=  &apos;C:\cef4Master\CEF4Delphi-master\packages\lib\i386-win32\&apos;;
+   //XComponents_cefPaths :=  &apos;C:\cef4Master\CEF4Delphi-master\packages\lib\i386-win32\&apos;;
  end
  else if (TargetOS=&apos;linux&apos;) then
  begin
    XComponents_Pas2JSPaths :=  &apos;./pas2js0/&apos;;
-   XComponents_cefPaths :=  &apos;&apos;;
+   //XComponents_cefPaths :=  &apos;&apos;;
  end;"/>
       <Other>
         <CustomOptions Value="//-dChromium"/>
       </Other>
     </CompilerOptions>
-    <Files Count="7">
+    <Files Count="8">
       <Item1>
         <Filename Value="xgpucanvas.pas"/>
         <UnitName Value="XGPUCanvas"/>
@@ -49,12 +49,16 @@ if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
       </Item5>
       <Item6>
         <Filename Value="xgpueditor.pas"/>
-        <UnitName Value="xgpueditor"/>
+        <UnitName Value="XGPUEditor"/>
       </Item6>
       <Item7>
         <Filename Value="x3dtable.pas"/>
-        <UnitName Value="x3dtable"/>
+        <UnitName Value="X3DTable"/>
       </Item7>
+      <Item8>
+        <Filename Value="xdbtable.pas"/>
+        <UnitName Value="XDBTable"/>
+      </Item8>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

@@ -45,18 +45,19 @@ type  TGPUEventClass = class
     procedure TabChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     {$ifndef JScript}
     procedure EditorResize(Sender: TObject);
+    procedure EditorDestroy(Sender: TObject);
     {$endif}
   end;
-
 var
   GPUEditorForm:TXForm;
   GPUEditorTabControl:TXTabControl;
   GPUCodeEditor:TXCode;
   GPUComboBox:TXComboBox;
   GPUEditBox:TXEditBox;
-  GPUMemo:TXMemo;
+  GPUMemo,GPUPasMemo:TXMemo;
   GPUTableEditor:TX3DTable;
   EditingGPUNode:TDataNode;
+  MemoNode,PasMemoNode,VBNode2,TabPageNode4:TdataNode;
   {$ifndef JScript}
     GPUEditorTopControl:TWinControl;
     {$endif}
@@ -67,18 +68,64 @@ var
 procedure CreateGPUEditForm;
 procedure ShowGPUEditor(GPUNode:TDataNode;TabPage:integer);
 procedure ShowGPUKernel(GPUNode:TDataNode;filename:string;targetLine:integer;CharPos:String);
-
+{$ifndef JScript}
+procedure ShowGPUKernelLater(GPUNode:TDataNode;filename:string;targetLine:integer;CharPos:String);
+{$endif}
 
 implementation
 uses XGPUCanvas;
 
+{$ifndef JScript}
+type
+// record type for queued showkernel function
+TQueueKRec = record
+  GPUNode:TDataNode;
+  filename:string;
+  targetLine:integer;
+  CharPos:String;
+end;
+PQueueKRec = ^TQueueKRec;
+type
+  TAsyncProcs = class(TObject)
+    procedure ShowGPUKernelAsync(thedata:PtrInt);
+  end;
+var
+    AsyncProcs:TAsyncProcs;
+{$endif}
+var
+MainVB:TXVBox;
+
+procedure CreateGPUMemo(ParentNode:TDataNode);
+begin
+  MemoNode:=AddDynamicWidget('TXMemo',GPUEditorForm,ParentNode,'XGPUHTMLMemo','','Left',0);
+  GPUMemo:=TXMemo(MemoNode.ScreenObject);
+  GPUMemo.MemoHeight:='85%';
+  GPUMemo.MemoWidth:='99%';
+  GPUMemo.Border:=false;
+  GPUMemo.LabelPos:='Top';
+  GPUMemo.LabelText:='HTML generated at the last GPU activation';
+  MemoNode.IsDynamic:=false;
+end;
+
+procedure CreatePasMemo(ParentNode:TDataNode);
+begin
+  PasMemoNode:=AddDynamicWidget('TXMemo',GPUEditorForm,ParentNode,'XGPUPasMemo','','Left',-1);
+  PasMemoNode.IsDynamic:=false;
+  GPUPasMemo:=TXMemo(PasMemoNode.ScreenObject);
+  GPUPasMemo.MemoHeight:='85%';
+  GPUPasMemo.MemoWidth:='99%';
+  GPUPasMemo.Border:=false;
+  GPUPasMemo.LabelPos:='Top';
+  GPUPasMemo.LabelText:='Pascal unit generated at the last GPU activation';
+end;
+
 procedure CreateGPUEditForm;
 var
   FormNode,MainVBNode,TabControlNode,EditorNode,VBNode,BtnNode,TableNode:TDataNode;
-  MemoNode,VBNode2,BtnNode2,ComboNode,HBTopNode,EditNode:TDataNode;
+  VBNode3,BtnNode2,ComboNode,HBTopNode,EditNode:TDataNode;
   TabPageNode1,TabPageNode2,TabPageNode3:TdataNode;
   LaunchBtn:TXButton;
-  MainVB,VB,vb2:TXVBox;
+  VB,vb2:TXVBox;
   HB:TXHBox;
 begin
 
@@ -89,10 +136,11 @@ begin
     {$ifndef JScript}
     GPUEditorForm:=TXForm.CreateNew(Application);
     GPUEditorForm.Name:='XGPUCodeEditorForm';
+    GPUEditorForm.IsContainer:=true;
     FormNode:=CreateFormNode(GPUEditorForm);
     GPUEditorForm.BorderStyle:=bsSizeable;           // allows resizing
     GPUEditorForm.OnResize:=@GPUEvents.EditorResize;
-
+    GPUEditorForm.OnDestroy:=@GPUEvents.EditorDestroy;
 
     {$else}
     FormNode:=AddDynamicWidget('TXForm',nil,nil,'XGPUCodeEditorForm','','Left',-1);
@@ -124,16 +172,19 @@ begin
     TabPageNode1:=AddDynamicWidget('TXTabSheet',GPUEditorForm,TabControlNode,'XGPUTabSheet1','','Left',-1);
     TabPageNode2:=AddDynamicWidget('TXTabSheet',GPUEditorForm,TabControlNode,'XGPUTabSheet2','','Left',-1);
     TabPageNode3:=AddDynamicWidget('TXTabSheet',GPUEditorForm,TabControlNode,'XGPUTabSheet3','','Left',-1);
+    TabPageNode4:=AddDynamicWidget('TXTabSheet',GPUEditorForm,TabControlNode,'XGPUTabSheet4','','Left',-1);
     TabPageNode1.IsDynamic:=false;
     TabPageNode2.IsDynamic:=false;
     TabPageNode3.IsDynamic:=false;
+    TabPageNode4.IsDynamic:=false;
     TXTabSheet(TabPageNode1.ScreenObject).Caption:='GPU Kernel Code';
     TXTabSheet(TabPageNode2.ScreenObject).Caption:='Generated HTML';
     TXTabSheet(TabPageNode3.ScreenObject).Caption:='Initial Stage Matrix';
+    TXTabSheet(TabPageNode4.ScreenObject).Caption:='Pascal Kernels';
     TXTabControl(TabControlNode.ScreenObject).TabIndex:=0;
 
 
-
+    //---------- Tab Page 1 ----------------------------------------------------------
     VBNode:=AddDynamicWidget('TXVBox',GPUEditorForm,TabPageNode1,'XGPUVBox','','Left',-1);
     VB:=TXVBox(VBNode.ScreenObject);
     VB.ContainerHeight:='100%';
@@ -179,20 +230,14 @@ begin
     GPUEditorDoneBtn.myNode.registerEvent('ButtonClick',@GPUEvents.CloseCodeEditor);
     BtnNode.IsDynamic:=false;
 
+    //---------- Tab Page 2 ----------------------------------------------------------
     VBNode2:=AddDynamicWidget('TXVBox',GPUEditorForm,TabPageNode2,'XGPUVBox2','','Left',-1);
     VB2:=TXVBox(VBNode2.ScreenObject);
     VB2.ContainerHeight:='100%';
     VB2.Border:=false;
     VBNode2.IsDynamic:=false;
 
-    MemoNode:=AddDynamicWidget('TXMemo',GPUEditorForm,VBNode2,'XGPUHTMLMemo','','Left',-1);
-    GPUMemo:=TXMemo(MemoNode.ScreenObject);
-    GPUMemo.MemoHeight:='85%';
-    GPUMemo.MemoWidth:='99%';
-    GPUMemo.Border:=false;
-    GPUMemo.LabelPos:='Top';
-    GPUMemo.LabelText:='HTML generated at the last GPU activation';
-    MemoNode.IsDynamic:=false;
+    CreateGPUMemo(VBNode2);
 
     BtnNode2:=AddDynamicWidget('TXButton',GPUEditorForm,VBNode2,'XGPULaunchBtn','','Left',-1);
     LaunchBtn:=TXButton(BtnNode2.ScreenObject);
@@ -201,11 +246,20 @@ begin
     LaunchBtn.Hint:='Launch the generated GPU HTML in a separate browser page to aid diagnostics';
     BtnNode2.IsDynamic:=false;
 
-    TableNode:=AddDynamicWidget('TX3DTable',GPUEditorForm,TabPageNode3,'XGPU3DTable','','Left',-1);
+    //---------- Tab Page 3 ----------------------------------------------------------
+    VBNode3:=AddDynamicWidget('TXVBox',GPUEditorForm,TabPageNode3,'XGPUVBox3','','Left',-1);
+    VB:=TXVBox(VBNode3.ScreenObject);
+    VB.ContainerHeight:='100%';
+    VB.Border:=false;
+    VBNode3.IsDynamic:=false;
+    TableNode:=AddDynamicWidget('TX3DTable',GPUEditorForm,VBNode3,'XGPU3DTable','','Left',-1);
     GPUTableEditor := TX3DTable(TableNode.ScreenObject);
     TableNode.IsDynamic:=false;
     GPUTableEditor.ContainerWidth:='99%';
-    GPUTableEditor.ContainerHeight:='100%';
+    GPUTableEditor.ContainerHeight:='99%';
+
+    //---------- Tab Page 4 ----------------------------------------------------------
+    CreatePasMemo(TabPageNode4);
 
     {$ifndef JScript}
     GPUEditorTopControl:=MainVB;
@@ -218,6 +272,9 @@ end;
 procedure TGPUEventClass.EditorResize(Sender: TObject);
 begin
   DoFormResize(TXForm(Sender), GPUEditorTopControl);
+end;
+procedure TGPUEventClass.EditorDestroy(Sender: TObject);
+begin
 end;
 
 {$endif}
@@ -325,9 +382,11 @@ end;
 procedure TGPUEventClass.TabChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 begin
   if GPUEditorTabControl.TabIndex=1 then
-    GPUMemo.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).GeneratedHTML;
+    GPUMemo.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).GeneratedHTML
+  else if GPUEditorTabControl.TabIndex=3 then
+    GPUPasMemo.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).GeneratedPascalUnit;
   {$ifndef JScript}
-  GPUEvents.EditorResize(GPUEditorForm);
+  //GPUEvents.EditorResize(GPUEditorForm);
   {$endif}
 end;
 
@@ -365,8 +424,16 @@ begin
   GPUCodeEditor.MessageLines:='';
   GPUCodeEditor.MessagesHeight:='1';
   GPUEditBox.ItemValue:='* pixelmap size *';
+
   //   GPUMemo.ItemValue:=TXGPUCanvas(ObjectInspectorSelectedCodeTreeNode.ScreenObject).GeneratedHTML;
   //!! Lazarus bug?     Have to populate GPUMemo later (eg. on tab change), otherwise the popup form crashes.
+  //!! In fact, popup is not happy unless we first delete the memo components, and reinstate them again...
+  DeleteNode(VBNode2,MemoNode);
+  DeleteNode(TabPageNode4,PasMemoNode);
+  CreateGPUMemo(VBNode2);
+  CreatePasMemo(TabPageNode4);
+  //!!
+
   EditingGPUNode:=GPUNode;
   GPUEditorMode:='Animation';
   GPUComboBox.OptionList:=TXGPUCanvas(EditingGPUNode.ScreenObject).BuildKernelList;
@@ -386,6 +453,28 @@ begin
   GPUEditorForm.Showing:='Modal';
 
 end;
+{$ifndef JScript}
+procedure TAsyncProcs.ShowGPUKernelAsync(thedata:PtrInt);
+var
+  ReceivedQueueRec: TQueueKRec;
+begin
+  ReceivedQueueRec := PQueueKRec(theData)^;
+  XGPUEditor.ShowGPUKernel(ReceivedQueueRec.GPUNode,ReceivedQueueRec.filename,ReceivedQueueRec.targetLine,ReceivedQueueRec.CharPos);
+end;
+
+procedure ShowGPUKernelLater(GPUNode:TDataNode;filename:string;targetLine:integer;CharPos:String);
+var
+  QueueRecToSend: PQueueKRec;
+begin
+  New(QueueRecToSend);
+  QueueRecToSend^.GPUNode:=GPUNode;
+  QueueRecToSend^.filename:=filename;
+  QueueRecToSend^.targetLine:=targetLine;
+  QueueRecToSend^.CharPos:=CharPos;
+
+  Application.QueueAsyncCall(@AsyncProcs.ShowGPUKernelAsync,PtrInt(QueueRecToSend)); // put msg into queue that will be processed from the main thread after all other messages
+end;
+{$endif}
 
 procedure ShowGPUKernel(GPUNode:TDataNode;filename:string;targetLine:integer;CharPos:String);
 var
@@ -399,9 +488,11 @@ begin
   begin
     EditingGPUNode:=GPUNode;
   end;
-  // FileName is NodeName.num.AnimationCode  If num is zero, this is the final kernel, otherwise one of the stage kernels.
+  //// FileName is NodeName.num.AnimationCode  If num is zero, this is the final kernel, otherwise one of the stage kernels.
+  // FileName is NodeName__num.inc  If num is zero, this is the final (graphical) kernel, otherwise one of the stage kernels.
   // Set the comboBox to the relevant item.
-  bits:=stringsplit(FileName,EditingGPUNode.NodeName+'.');
+  //bits:=stringsplit(FileName,EditingGPUNode.NodeName+'.');
+  bits:=stringsplit(FileName,EditingGPUNode.NodeName+'__');
   for i:=0 to bits.count-1 do
   begin
     tmp:=bits[i];

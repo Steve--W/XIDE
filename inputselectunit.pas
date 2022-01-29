@@ -78,7 +78,8 @@ begin
     excludemyname:=excludemyname+'.'+exclPropertyName;
   Exclusions.Add(excludemyname);
   //showmessage('ConstructSystemTreeString in inputselectform');
-  treestring:= ConstructSystemTreeString(SystemNodeTree,0,true,true,Exclusions,PropType);
+  //treestring:= ConstructSystemTreeString(SystemNodeTree,0,true,true,Exclusions,PropType);
+  treestring:= ConstructSystemTreeString(UIRootNode,0,true,true,Exclusions,PropType);
   InputSelectTree.TreeData:=treestring;
   FreeAndNil(Exclusions);
 end;

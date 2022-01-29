@@ -50,7 +50,7 @@
         <PackageName Value="FCL"/>
       </Item7>
     </RequiredPackages>
-    <Units Count="19">
+    <Units Count="20">
       <Unit0>
         <Filename Value="XIDE.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -176,6 +176,11 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="IntfEventUnit"/>
       </Unit18>
+      <Unit19>
+        <Filename Value="xdatamodel.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="XDataModel"/>
+      </Unit19>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -213,7 +218,7 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
     </Other>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="6">
+    <Exceptions Count="8">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -232,6 +237,12 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
       <Item6>
         <Name Value="EPropertyError"/>
       </Item6>
+      <Item7>
+        <Name Value="EDatabaseError"/>
+      </Item7>
+      <Item8>
+        <Name Value="EConvertError"/>
+      </Item8>
     </Exceptions>
   </Debugging>
 </CONFIG>

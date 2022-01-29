@@ -1,5 +1,3 @@
-//  support for running pyodide offline from:
-//  https://github.com/iodide-project/pyodide/pull/606
 var append_file = ((() => {
   pending_files = []
   var document_ready = false;

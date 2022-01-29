@@ -156,6 +156,8 @@ begin
   '=====================' + LineEnding +
   'function  GetGPUParamNumValue(GPUName,pName:String):TNumArray; '  + LineEnding +
   '                            For the given TXGPUCanvas component, returns the value of the named numeric parameter as an array '  + LineEnding +
+  'function  GetGPUParam2DNumValue(GPUName,pName:String):TNumArray; '  + LineEnding +
+  '                            For the given TXGPUCanvas component, returns the value of the named 2D numeric parameter as an array '  + LineEnding +
   'function  GetGPUConstIntValue(GPUName,pName:String):integer;'  + LineEnding +
   '                            For the given TXGPUCanvas component, returns the value of the named integer parameter '  + LineEnding +
   'procedure SetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);'  + LineEnding +
@@ -171,15 +173,43 @@ begin
   'function  GetGPUStageArray(GPUName:String):T3DNumArray; '  + LineEnding +
   '                            Fetch the stage array (resulting from the non-graphical kernel stack) for the given TXGPUCanvas component  '  + LineEnding +
   'function  GetGPUStageArrayAsString(GPUName:String):String;'  + LineEnding +
-  '                            Fetch the stage array in string format for the given TXGPUCanvas component  '  + LineEnding;
+  '                            Fetch the stage array in string format for the given TXGPUCanvas component  '  + LineEnding +
+  'function  GetGPUInitStageArray(GPUName:String):T3DNumArray; '  + LineEnding +
+  '                            Fetch the initial stage array (from the InitStageData property) for the given TXGPUCanvas component  '  + LineEnding;
+
+  PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
+  ' ' + LineEnding +
+  'DataStore Functions' + LineEnding +
+  '====================' + LineEnding +
+  '          All of these are async functions (necessary for browser use), so must be coded in the  ' + LineEnding +
+  '          ''Init'' section of an event handler.         ' + LineEnding +
+  '          The ''Main'' section of the event handler follows when async functions(s) have completed. ' + LineEnding +
+  'function DSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; '  + LineEnding +
+  '                            Append a row to the named dataStore (named for a class in the data model). '  + LineEnding +
+  '                            recObject is an instance of the relevant class, containing the data to be appended. '  + LineEnding +
+  'function DSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; '  + LineEnding +
+  '                            Fetch a row from the named dataStore (named for a class in the data model). '  + LineEnding +
+  '                            DSKeyValues is a ;-delimited string of key values to identify the requested row. '  + LineEnding +
+  '                            Set e.ValueObject to an empty instance of the relevant class. '  + LineEnding +
+  '                            On return in the ''Main'' event handler, e.AsyncReturnObject will contain the found row. '  + LineEnding +
+  'function DSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  '  + LineEnding +
+  '                            Delete a row from the named dataStore (named for a class in the data model). '  + LineEnding +
+  '                            DSKeyValues is a ;-delimited string of key values to identify the requested row. '  + LineEnding +
+  'function DSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;  '  + LineEnding +
+  '                            Delete all rows from the named dataStore (named for a class in the data model). '  + LineEnding;
 
   PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
   ' ' + LineEnding +
   'Python Only' + LineEnding +
   '===========' + LineEnding +
   'function  ShowPythonPlot(ImgName,fig) '  + LineEnding +
-  '                            In the given TXImage component, displays the contents of fig (a matplotlib figure) '  + LineEnding;
-
+  '                            In the given TXImage component, displays the contents of fig (a matplotlib figure) '  + LineEnding +
+  'function  ConvertNumpyArrayToJSON(npArray) '  + LineEnding +
+  '                            Converts the given np.data item to JSON format (eg. ready to load a TXTable) '  + LineEnding +
+  'function  SetPyConsole(MemoName) '  + LineEnding +
+  '                            Redirects console log output to the named TXMemo component '  + LineEnding +
+  'function  ResetXArrays(DefaultDims) '  + LineEnding +
+  '                            Rebuilds all XArrays as defined in the data tree. Set DefaultDims False to retain session settings of dimension sizes. '  + LineEnding;
 
 end;
 

@@ -10,6 +10,7 @@
  **********************************************************************
  *)
 
+
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -21,10 +22,9 @@ interface
 uses
   Classes, SysUtils, strutils,
 {$ifndef JScript}
-  FileUtil, Forms, Controls, Graphics, Dialogs, LCLIntf,
-  ExtCtrls, Menus, ComCtrls, StdCtrls, TypInfo, LazIDEIntf, LResources,
-  Types,
-  Events, DllInterface, LazsUtils, CompilerLogUnit,
+  FileUtil, Forms, Controls, Graphics, Dialogs, LCLIntf, ExtCtrls, Menus,
+  ComCtrls, StdCtrls, TypInfo, LazIDEIntf, LResources, DBGrids, DBCtrls, Types,
+  BufDataset, DB, Events, DllInterface, LazsUtils, CompilerLogUnit,
 {$else}
   HTMLUtils,
 {$endif}
@@ -37,12 +37,12 @@ uses
   XBitMap, XTrapEvents, XIDEHelpUnit,
   XHTMLText, XHTMLEditor, EventsInterface,
   // XIDEComponents units...
-  XGPUCanvas, XGPUEditor, X3DTable, XThreads, XComposite,
+  XGPUCanvas, XGPUEditor, X3DTable, XThreads, XComposite, XDBTable,
   // XIDE project units...
   CompileUserCode, XObjectInsp,XIDESettings,
   CodeEditor, InputSelectUnit, PropertyEditUnit,
   PopupMemo, AboutUnit, SavedSystems, StylesUtils,
-  IntfParamUnit, IntfEventUnit;
+  IntfParamUnit, IntfEventUnit, XDataModel;
 
 
 {$ifdef JScript}
@@ -64,7 +64,6 @@ TXIDEForm = class(TXForm)
   CompilerShowLog: TMenuItem;
   {$endif}
 
-
   ToggleDesignRunMode: TXMenuItem;
   CodeTreePascalUnitBtn: TXButton;
   NavTreeUpBtn: TXButton;
@@ -84,6 +83,17 @@ TXIDEForm = class(TXForm)
   CodeTreeSearchBtn: TXButton;
   CodeTreePythonBtn: TXButton;
   CompositePropsScrollbox: TXScrollBox;
+  DataTree: TXTree;
+  DMTreeButtonHBox: TXHBox;
+  DMTreeAddButton: TXButton;
+  DMTreeAddContainsBtn: TXButton;
+  DMTreeDelBtn: TXButton;
+  DMTreeAddOpBtn: TXButton;
+  DMUpBtn: TXButton;
+  DMDownBtn: TXButton;
+  DMTreeAddRefBtn: TXButton;
+  XEditBox1: TXEditBox;
+  DMUpDownHBox: TXHBox;
   XIDEMainMenu: TXMainMenu;
 
   MyRootDiv: TXScrollBox;
@@ -109,6 +119,7 @@ TXIDEForm = class(TXForm)
   OIClear: TXButton;
 
   CodeTreeButtonHBox: TXHBox;
+  DMTreeAddLabel: TXLabel;
   XLabel3: TXLabel;
   EventsEditorScrollBox: TXScrollBox;
   SystemMenu: TXMenuItem;
@@ -138,9 +149,26 @@ TXIDEForm = class(TXForm)
   StyleResources: TXTree;
   XMemo1: TXMemo;
   OICompositePropsTab: TXTabSheet;
+  DataDesigner: TXTabSheet;
+  DMAttribsScrollbox: TXScrollBox;
 
   procedure CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
     nodeID: AnsiString; myValue: AnsiString);
+  procedure DataTreeHandleTreeNodeClick(e: TEventStatus; nodeID: AnsiString;
+    myValue: AnsiString);
+  function DataTreeTreeNodeHintFunc(TreeLabelStr: String): String;
+  procedure DMTreeAddButtonHandleButtonClick(e: TEventStatus;
+    nodeID: AnsiString; myValue: AnsiString);
+  procedure DMTreeAddOpBtnHandleButtonClick(e: TEventStatus;
+    nodeID: AnsiString; myValue: AnsiString);
+  procedure DMTreeAddContainsBtnHandleButtonClick(e: TEventStatus;
+    nodeID: AnsiString; myValue: AnsiString);
+  procedure DMTreeDelBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
+    myValue: AnsiString);
+  procedure DMDownBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
+    myValue: AnsiString);
+  procedure DMUpBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
+    myValue: AnsiString);
   procedure DummyPositionMarker;   // DO not delete this line.
 
   {$ifndef JScript}
@@ -222,6 +250,10 @@ TXIDEForm = class(TXForm)
   procedure ToggleDesignRunModeHandleClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure StyleTreeEditBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
     myValue: AnsiString);
+  procedure XButton1HandleButtonClick(e: TEventStatus; nodeID: AnsiString;
+    myValue: AnsiString);
+  procedure DMTreeAddRefBtnHandleButtonClick(e: TEventStatus;
+    nodeID: AnsiString; myValue: AnsiString);
   procedure XIDETrapEvents1HandleAny(e: TEventStatus; nodeID: AnsiString;  myValue: AnsiString);
   procedure CodeTreeDelBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
   procedure CodeTreeEditBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString;myValue: AnsiString);
@@ -238,6 +270,7 @@ public
 
 var
 XIDEForm: TXIDEForm;
+
 
 implementation
 
@@ -318,6 +351,59 @@ procedure TXIDEForm.CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
   OIAddCodeUnitNode('PythonScript');
+end;
+
+procedure TXIDEForm.DataTreeHandleTreeNodeClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMDataTreeNodeChange(e,nodeId,'',myValue);
+end;
+
+function TXIDEForm.DataTreeTreeNodeHintFunc(TreeLabelStr: String): String;
+begin
+  result:=DMTreeNodeHint(TreeLabelStr);
+end;
+
+procedure TXIDEForm.DMTreeAddButtonHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMAddElement;
+end;
+
+procedure TXIDEForm.DMTreeAddOpBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMAddElement('DMOp');
+end;
+
+procedure TXIDEForm.DMTreeAddContainsBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMAddElement('DMContains');
+end;
+
+procedure TXIDEForm.DMTreeAddRefBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMAddElement('DMRef');
+end;
+
+procedure TXIDEForm.DMTreeDelBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMDeleteElement;
+end;
+
+procedure TXIDEForm.DMUpBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMMoveSiblingUpDown('Up');
+end;
+
+procedure TXIDEForm.DMDownBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  DMMoveSiblingUpDown('Down');
 end;
 
 procedure TXIDEForm.NavTreeHandleTreeNodeClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -404,7 +490,7 @@ end;
 procedure TXIDEForm.ObjectInspectorTabsHandleChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 begin
   {$ifdef JScript}
-  if ObjectInspectorTabs.TabIndex=2 then
+  if ObjectInspectorTabs.TabIndex=3 then
   begin
      SetStyleOptions;
      ResourceInspectorTabs.TabIndex:=1;
@@ -458,6 +544,7 @@ function TXIDEForm.ResourceTreeTreeNodeHintFunc(TreeLabelStr: String): String;
 begin
   result := OIResTreeNodeHint(TreeLabelStr);
 end;
+
 
 procedure TXIDEForm.StyleNodeQualifierHandleChange(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
@@ -522,8 +609,6 @@ begin
   {$endif}
 end;
 
-
-
 procedure TXIDEForm.StyleSheetHandleTreeNodeClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
@@ -540,7 +625,6 @@ begin
   GenerateStyleSheets;
   {$endif}
 end;
-
 
 procedure TXIDEForm.StyleTreeDelBtnHandleButtonClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
@@ -662,6 +746,12 @@ begin
   {$endif}
 end;
 
+procedure TXIDEForm.XButton1HandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+//  ConstructPascalDM();
+end;
+
 procedure TXIDEForm.XIDETrapEvents1HandleAny(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 var
@@ -716,8 +806,10 @@ procedure XIDESetupUIRootNode;
 begin
   UIRootNode.SetAttributeValue('DeploymentMode','Design');
   UIRootNode.SetAttributeValue('SystemName','XIDESystem');
+  UIRootNode.SetAttributeValue('DBVersion','1','Integer',true);
   // Add root node attributes for 'settings' data...
   UIRootNode.SetAttributeValue('ShowResources','Right');     //Left,Right
+  UIRootNode.SetAttributeValue('PythonPackages','');    //eg. numpy;matplotlib;scipy
 
   // Add root node events
   UIRootNode.myeventTypes.Add('OnEnterRunMode');
@@ -749,7 +841,7 @@ begin
   {$ifdef JScript}
   if ResourceInspectorTabs.TabIndex=1 then
   begin
-     ObjectInspectorTabs.TabIndex:=2;
+     ObjectInspectorTabs.TabIndex:=3;
   end
   else if ResourceInspectorTabs.TabIndex=0 then
     ObjectInspectorTabs.TabIndex:=0;
@@ -764,6 +856,7 @@ end;
 
 {$ifndef JScript}
 
+
 procedure InitialiseResources;
 // define project-specific resources.
 // required files have been pre-built into the resource file xide.lrs.
@@ -777,6 +870,7 @@ begin
   AddRequiredFile('xgpucanvas','resources/project/xgpucanvas.pas');
   AddRequiredFile('xgpueditor','resources/project/xgpueditor.pas');
   AddRequiredFile('x3dtable','resources/project/x3dtable.pas');
+  AddRequiredFile('xdbtable','resources/project/xdbtable.pas');
   AddRequiredFile('xcomposite','resources/project/xcomposite.pas');
   AddRequiredFile('xcompositeintf','resources/project/xcompositeintf.pas');
   AddRequiredFile('gpu-browser','resources/project/gpu-browser.js');
@@ -798,6 +892,7 @@ begin
   AddRequiredFile('xidesettings','resources/project/xidesettings.pas');
   AddRequiredFile('intfparamunit','resources/project/intfparamunit.pas');
   AddRequiredFile('intfeventunit','resources/project/intfeventunit.pas');
+  AddRequiredFile('xdatamodel','resources/project/xdatamodel.pas');
 
   // files needed for web-pas2jscompiler to be compilable by pas2js, and built into the project JS file...
   AddRequiredFile('fppas2js','resources/pas2jstranspiler/fppas2js.pp');
@@ -851,12 +946,12 @@ begin
 
   myNode:=DoXFormCreated(self);
 
-  //UIRootitem:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
   XIDESetupUIRootNode;
 
   MainFormProjectRoot:=FindDataNodeById(SystemNodeTree,UIProjectRootName,'',true);
 
   NavTreeComponent:=self.NavTree.myNode;
+  DataTreeComponent:=self.DataTree.myNode;
   ResourceTreeComponent:=self.ResourceTree.myNode;
   CodeTreeComponent:=self.CodeTree.myNode;
 
@@ -884,6 +979,7 @@ begin
   {$ifdef Python}
   StartupPython;
   {$endif}
+
 end;
 
 procedure TXIDEForm.LoadIframes(dum:integer);
@@ -899,15 +995,15 @@ begin
  // Application.QueueAsyncCall(@LoadIframes, 0);
 end;
 
-
 procedure TXIDEForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-  inherited FormClose(Sender, CloseAction);
   SaveSystemData;
+  SuppressEvents:=true;
+  inherited FormClose(Sender, CloseAction);
   {$ifdef Python}
   if Assigned(PythonEngine1) then
   begin
-    PythonEngine1.Finalize;  //!! to prevent crash when main form is closed  !!!! not working.
+    PythonEngine1.Finalize;  //!! to prevent crash when main form is closed  !!!! not working?.
     PythonEngine1.UnloadDll;
     PythonEngine1.Destroy;
   end;
@@ -1001,8 +1097,10 @@ begin
   end;
 
   XIDESetupUIRootNode;
+  InitDMTree;
 
   NavTreeComponent:=XIDEForm.NavTree.myNode;
+  DataTreeComponent:=XIDEForm.DataTree.myNode;
   ResourceTreeComponent:=XIDEForm.ResourceTree.myNode;
   CodeTreeComponent:=XIDEForm.CodeTree.myNode;
 
@@ -1019,13 +1117,13 @@ begin
 //  showmessage('after XMLToNodeTree. Node '+SystemRootName+' has '+inttostr(length(systemnodetree.childnodes))+' children');
   InitialiseXIDE;
 
+
   PopupMemoForm.InitialiseMemo;
   CodeEditForm.Initialise;
 
   RedisplayResourceTree;
   InitialiseStyleResources;
   StyleRootNode:=XIDEForm.StyleSheet.myNode;
-  //BuildStylesDataFromTreeData(StyleRootNode);
   GenerateStyleSheets;
 
   //systempas:='1' + LineEnding
@@ -1058,8 +1156,6 @@ begin
   //  {$I rttipas.inc}
 
   {$I gpu-browserjs.inc}
-
-  //SetupAnimatedPointer;
 
   // If this JS startup was NOT initiated from the Lazarus/Desktop runtime, then load up
   // the last stored system description. This replaces the user interface area being designed by the user, but not
@@ -1126,6 +1222,7 @@ begin
 end;
 {$endif}
 
+
 begin
   MainUnitName:='XIDEMain';
 
@@ -1134,6 +1231,5 @@ begin
     {$I rtl.lrs}
     {$I xide.lrs}
   {$endif}
-
 end.
 

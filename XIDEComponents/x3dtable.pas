@@ -137,6 +137,10 @@ begin
 
   VBNode:=AddDynamicWidget('TXVBox',self.myNode.MyForm,self.myNode,'VBox',self.myNode.NodeName,'Left',-1);
   VBNode.IsDynamic:=false;
+  {$ifndef JScript}
+  myControl:=TControl(TXVBox(VBNode.ScreenObject));
+  {$endif}
+  TXVBox(VBNode.ScreenObject).ContainerHeight:='100%';
 
   ZNumNode:=AddDynamicWidget('TXComboBox',self.myNode.MyForm,VBNode,'ZSelector',self.myNode.NodeName,'Left',-1);
   ZSelector:=TXComboBox(ZNumNode.ScreenObject);
@@ -189,26 +193,28 @@ begin
   ZDimEdit.myNode.registerEvent('Change',@self.ZEditBoxChange);
 
   {$ifndef JScript}
-  myControl:=TControl(TXVBox(VBNode.ScreenObject));    //!!!! ????
-  AddLabel(myControl);
+  //AddLabel(myControl);
+  TXVBox(VBNode.ScreenObject).IsVisible:=false;  // !!fudge (problem with auto-resizing on display)
   {$endif}
+
   IsBuilt:=true;
 end;
 
 {$ifndef JScript}
 procedure TX3DTable.ResequenceComponents;
 begin      // fix for Lazarus 'feature'....
-  self.RemoveControl(ZSelector);
-  self.RemoveControl(myTableView);
-  self.RemoveControl(PasteBtn);
-  self.RemoveControl(XDimEdit);
-  self.RemoveControl(YDimEdit);
-  self.InsertControl(YDimEdit,0);
-  self.InsertControl(XDimEdit,0);
-  self.InsertControl(PasteBtn,0);
-  self.InsertControl(myTableView,0);
-  self.InsertControl(ZSelector,0);
-  CascadeResize(myControl)
+  TXVBox(myControl).RemoveControl(ZSelector);
+  TXVBox(myControl).RemoveControl(myTableView);
+  TXVBox(myControl).RemoveControl(PasteBtn);
+  TXVBox(myControl).RemoveControl(XDimEdit);
+  TXVBox(myControl).RemoveControl(YDimEdit);
+  TXVBox(myControl).InsertControl(YDimEdit,0);
+  TXVBox(myControl).InsertControl(XDimEdit,0);
+  TXVBox(myControl).InsertControl(PasteBtn,0);
+  TXVBox(myControl).InsertControl(myTableView,0);
+  TXVBox(myControl).InsertControl(ZSelector,0);
+  TXVBox(myControl).IsVisible:=true;
+  CascadeResize(myControl);
 end;
 
 function Create3DTableWidget(ParentNode:TDataNode;ScreenObjectName,NameSpace:string;position:integer;Alignment:String):TDataNode;
