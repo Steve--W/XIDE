@@ -131,6 +131,7 @@ procedure SaveCompositesToIncFile;
 procedure OICopyToNewParent(nodeId,NameSpace:string;NewParentId:string;NewName:PChar);  overload;
 {$endif}
 procedure OIMoveNavSiblingUpDown(UpDown:String);
+procedure CodeTreeMoveSiblingUpDown(UpDown:String);
 procedure DoSelectNavTreeNode(CurrentNode:TDataNode; refresh:boolean);
 procedure RefreshObjectInspector(CurrentNode:TDataNode);
 procedure ShowHideObjectInspector(show:Boolean);
@@ -1824,6 +1825,20 @@ procedure PasteItemQuietly(InTree:TDataNode;pos:integer;ParentNode,SourceNode:TD
 var
    TreePos:integer;
    glb:Boolean;
+   SaveSelectedCodeTreeNode:TDataNode;
+   SaveNodeText:String;
+   procedure UnHighlight(TreeNode:TDataNode);
+   begin
+     {$ifndef JScript}
+     if TreeNode.NodeClass='UI' then
+       SetBooleanProperty(TreeNode.ScreenObject,'IsSelected',false)
+     else
+       SetBooleanProperty(TreeNode,'IsSelected',false);
+     {$else}
+     if IsPublishedProp(TreeNode,'IsSelected') then
+       SetBoolProp(TreeNode,'IsSelected',false);
+     {$endif}
+   end;
 begin
   SourceNode.ScreenObject:=nil;
   TreePos:=pos;
@@ -1836,19 +1851,11 @@ begin
     if SourceNode.NodeType <> 'TXComposite' then
       RenameChildNodes(SourceNode,SourceNode.NodeName);    //!!!! this will break any references in event code to these nodes
 
-  if InTree.NodeName=SystemRootName then
+  if (InTree.NodeName=SystemRootName) then
   begin
     // un-highlight selected item in nav tree
     if ObjectInspectorSelectedNavTreeNode<>nil then
-    {$ifndef JScript}
-      if ObjectInspectorSelectedNavTreeNode.NodeClass='UI' then
-        SetBooleanProperty(ObjectInspectorSelectedNavTreeNode.ScreenObject,'IsSelected',false)
-      else
-        SetBooleanProperty(ObjectInspectorSelectedNavTreeNode,'IsSelected',false);
-      {$else}
-      if IsPublishedProp(ObjectInspectorSelectedNavTreeNode,'IsSelected') then
-        SetBoolProp(ObjectInspectorSelectedNavTreeNode,'IsSelected',false);
-      {$endif}
+      UnHighlight(ObjectInspectorSelectedNavTreeNode);
 
     //.........Create the new node and associated screen object........................
     {$ifndef JScript}
@@ -1862,9 +1869,26 @@ begin
     if DesignMode then
     begin
       SaveSystemData;
-
       // rebuild the system description tree
       RebuildNavigatorTree;
+      RebuildCodeTree;
+    end;
+  end
+  else if (InTree.NodeName=CodeRootName) then
+  begin
+    // un-highlight selected item in code tree
+    if ObjectInspectorSelectedCodeTreeNode<>nil then
+      UnHighlight(ObjectInspectorSelectedCodeTreeNode);
+    //.........Create the new node ........................
+    SaveNodeText:=ObjectInspectorSelectedCodeNodeText;
+    SaveSelectedCodeTreeNode:=InsertSystemNode(ParentNode,SourceNode,TreePos);
+
+    if DesignMode then
+    begin
+      SaveSystemData;
+      ObjectInspectorSelectedCodeTreeNode:=SaveSelectedCodeTreeNode;
+      ObjectInspectorSelectedCodeNodeText:=SaveNodeText;
+      // rebuild the system description tree
       RebuildCodeTree;
     end;
   end;
@@ -2770,22 +2794,17 @@ var
 begin
   // Drop an item on the Navigator tree
   //showmessage('OIDropItem.  myValue='+myValue);
-//  if e<>nil then
-//  begin
-//    values:=TNodeEventValue(e.ValueObject);
-//    if values<>nil then showmessage('values.SourceName='+values.SourceName+' DstText='+values.DstText);
-//  end;
 
   TreeNodeId:=TreeLabelToID( myValue, 'NavTree',p1);  // destination node
 
   TreeInFocus:=UIRootNode;
+  DeHighlightObject(ObjectInspectorSelectedNavTreeNode);
   ObjectInspectorSelectedNavTreeNode:=FindDataNodeById(UIRootNode,TreeNodeId,'',true);
   //ShowMessage('drop '+ObjectInspectorSourceNode.NodeName+' at '+ObjectInspectorSelectedNavTreeNode.NodeName);
 
   // if an intra-tree drag/drop, then cut the source node first
   // find the original source node (still in the nav tree)
   OriginalSource:=FindDataNodeById(SystemNodeTree,ObjectInspectorSourceNode.NodeName,'',false);
-  //OriginalParent:=FindParentOfNode(SystemNodeTree,OriginalSource,true);
   if (OriginalSource<>nil) then
   begin
     OriginalParent:=OriginalSource.NodeParent;
@@ -2844,6 +2863,46 @@ begin
       end;
     end;
     RebuildNavigatorTree;
+  end;
+end;
+
+procedure CodeTreeMoveSiblingUpDown(UpDown:String);
+var
+  thisNode, myParent:TdataNode;
+  c,n,i:integer;
+  NodeText:String;
+begin
+  thisNode:=ObjectInspectorSelectedCodeTreeNode;
+  NodeText:=ObjectInspectorSelectedCodeNodeText;
+  if thisNode<>nil then
+  begin
+    myParent:=thisNode.NodeParent;
+    if (myParent<>nil)
+    and (myParent.NodeName = 'CodeUnits') then
+    begin
+      for i:=0 to length(myParent.ChildNodes)-1 do
+      begin
+        if myParent.ChildNodes[i]=thisNode then
+          c:=i;
+      end;
+      if UpDown='Up' then
+        if c>0 then n:=c-1
+        else n:=-1;
+      if UpDown='Down' then
+        if c<length(myParent.ChildNodes)-1 then
+          n:=c+1
+        else
+          n:=-1;
+      if n>-1 then
+      begin
+        CopyNavNode( thisNode);    // populates  ObjectInspectorSourceNode
+        CutItemQuietly(CodeRootNode,thisNode);
+        // paste the source node back under the parent at new position
+        PasteItemQuietly(CodeRootNode,n,myParent,ObjectInspectorSourceNode);
+      end;
+    end;
+    ObjectInspectorSelectedCodeNodeText:=NodeText;
+    RebuildCodeTree;
   end;
 end;
 
@@ -3568,7 +3627,6 @@ begin
     GatherAndRunPythonScriptsLater;
     {$endif}
     {$else}
-    //GatherSourcedAttributes(SystemNodeTree);
     GatherSourcedAttributes(UIRootNode);
     PushAllSourcesToAttributes;
     v:=StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue);
@@ -3653,6 +3711,8 @@ begin
     // Go to Run Mode
     EditAttributeValue('XMemo1','','ItemValue','',false);
     {$ifdef Python}
+    PyScriptsExecuted:=false;
+
     if (PyMemoComponent<>nil)
     and (assigned(PyMemoComponent)) then
     begin
@@ -3684,7 +3744,6 @@ begin
 
     {$ifdef Python}
     asm
-      //if ((pyodideReady<5)&&(readyForRunMode==false)) {
       if (readyForRunMode==false) {
         if (pas.XObjectInsp.RunModeAttempts>3) {
           alert('Pyodide still not ready. Please check console for possible problems.');
@@ -3710,6 +3769,7 @@ begin
   else
   begin
     // Go to Design Mode
+    PyScriptsExecuted:=false;
     if StartingUp=false then
     begin
       // First, STOP any running GPU components

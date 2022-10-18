@@ -1055,7 +1055,9 @@ end;
       //GenerateStyleRule generates the text in  InlineCSSText and  ExternalCSSText
     end;
 
-    setPropertyValue('GeneratedStyleSheetText','ItemValue',InlineCSSText);
+//asm console.log('CSSi: '+pas.StylesUtils.InlineCSSText); end;
+//asm console.log('CSSe: '+pas.StylesUtils.ExternalCSSText); end;
+    setPropertyValue('GeneratedStyleSheetText','ItemValue',InlineCSSText + LineEnding + ExternalCSSText);
  //   setPropertyValue('ExternalCssText','ItemValue',ExternalCSSText);
     RefreshStyleSheet(InlineCSSText,ExternalCSSText);
   end;

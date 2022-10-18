@@ -38,6 +38,7 @@ TCopyFromClip=function(e:TEventStatus):String of object;
 TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;
 TGetTableDataForExcel=function(TableName:String):String of object;
 TLoadTableFromNumArray=procedure(TableName:String;NumArray:T2DNumArray) of object;
+TLoadTableFromStringArray=procedure(TableName:String;StrArray:T2DStringArray) of object;
 TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray of object;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;
@@ -89,6 +90,7 @@ CopyFromClip:TCopyFromClip;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
 GetTableDataForExcel:TGetTableDataForExcel;
 LoadTableFromNumArray:TLoadTableFromNumArray;
+LoadTableFromStringArray:TLoadTableFromStringArray;
 GetTableDataArray:TGetTableDataArray;
 DoEvent:TDoEvent;
 MoveComponent:TMoveComponent;
@@ -146,6 +148,7 @@ type TMethodsClass = class(TObject)
  procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
  function mmiGetTableDataForExcel(TableName:String):String;
  procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);
+ procedure mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);
  function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;
  procedure mmiDoEvent(EventType,NodeId,myValue:String);
  procedure mmiMoveComponent(nodeId:string;NewParentId:string);
@@ -210,6 +213,7 @@ begin
   LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
   GetTableDataForExcel:=@AppMethods.mmiGetTableDataForExcel;
   LoadTableFromNumArray:=@AppMethods.mmiLoadTableFromNumArray;
+  LoadTableFromStringArray:=@AppMethods.mmiLoadTableFromStringArray;
   GetTableDataArray:=@AppMethods.mmiGetTableDataArray;
   doevent:=@appmethods.mmiDoEvent;
   movecomponent:=@appmethods.mmiMoveComponent;
@@ -430,6 +434,17 @@ begin
   end;
 end;
 
+procedure TMethodsClass.mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
+    {
+      myNode.LoadTableFromStringArray(StrArray);
+    }
+  end;
+end;
+
 function TMethodsClass.mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;
 var
   arr:T2DStringArray;
@@ -569,19 +584,26 @@ begin
   // 'Init' section of an event handler.
   asm
     {
+      console.log('ShowBusy');
       if (e!=null)
       {
+        console.log('  e not null');
         if (e.InitRunning==false) {
           alert('Warning: ShowBusy must be called from the "Init" section of an event handler');
           }
+        console.log('  adding async proc');
         e.AsyncProcsRunning.Add('ShowBusy');
         var ob=document.getElementById('Grey99');
         if (ob==null) {
+          console.log('  creating Grey99');
           pas.HTMLUtils.ShowGreyOverlay('UIRoot','Grey99','Please Wait...');
         }
+        else  console.log('  Grey99 already exists');
       }
       else
+      {
         alert('ShowBusy must be called with parameter "e"');
+      }
     }
   end;
 end;

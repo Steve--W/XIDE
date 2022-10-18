@@ -92,8 +92,11 @@ TXIDEForm = class(TXForm)
   DMUpBtn: TXButton;
   DMDownBtn: TXButton;
   DMTreeAddRefBtn: TXButton;
+  CodeTreeUpBtn: TXButton;
+  CodeTreeDownBtn: TXButton;
   XEditBox1: TXEditBox;
   DMUpDownHBox: TXHBox;
+  CodeTreeUpDownHBox: TXHBox;
   XIDEMainMenu: TXMainMenu;
 
   MyRootDiv: TXScrollBox;
@@ -152,8 +155,12 @@ TXIDEForm = class(TXForm)
   DataDesigner: TXTabSheet;
   DMAttribsScrollbox: TXScrollBox;
 
+  procedure CodeTreeDownBtnHandleButtonClick(e: TEventStatus;
+    nodeID: AnsiString; myValue: AnsiString);
   procedure CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
     nodeID: AnsiString; myValue: AnsiString);
+  procedure CodeTreeUpBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
+    myValue: AnsiString);
   procedure DataTreeHandleTreeNodeClick(e: TEventStatus; nodeID: AnsiString;
     myValue: AnsiString);
   function DataTreeTreeNodeHintFunc(TreeLabelStr: String): String;
@@ -285,7 +292,6 @@ begin
 end;
 {$endif}
 
-
 function TXIDEForm.HandleGenericEvent(MyEventType,myValue:string;EventNode:TDataNode):Boolean;
 var
   CompositeNode:TdataNode;
@@ -351,6 +357,18 @@ procedure TXIDEForm.CodeTreePythonBtnHandleButtonClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
   OIAddCodeUnitNode('PythonScript');
+end;
+
+procedure TXIDEForm.CodeTreeDownBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  CodeTreeMoveSiblingUpDown('Down');
+end;
+
+procedure TXIDEForm.CodeTreeUpBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+  CodeTreeMoveSiblingUpDown('Up');
 end;
 
 procedure TXIDEForm.DataTreeHandleTreeNodeClick(e: TEventStatus;
@@ -738,6 +756,7 @@ begin
   DoToggleDesignRunMode(ToggleDesignRunMode);
 end;
 
+
 procedure TXIDEForm.StyleTreeEditBtnHandleButtonClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
@@ -1117,7 +1136,6 @@ begin
 //  showmessage('after XMLToNodeTree. Node '+SystemRootName+' has '+inttostr(length(systemnodetree.childnodes))+' children');
   InitialiseXIDE;
 
-
   PopupMemoForm.InitialiseMemo;
   CodeEditForm.Initialise;
 
@@ -1125,6 +1143,7 @@ begin
   InitialiseStyleResources;
   StyleRootNode:=XIDEForm.StyleSheet.myNode;
   GenerateStyleSheets;
+
 
   //systempas:='1' + LineEnding
   //+ '2' + LineEnding

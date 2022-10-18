@@ -104,7 +104,7 @@ begin
   '                            Returns the string representation of the current user system (can be imported to XIDE via System>Load)  '  + LineEnding +
   'function  LoadUserSystemString(SystemString:String);'  + LineEnding +
   '                            Imports a new user system to the XIDE framework (can only be done in ''Design'' mode) '  + LineEnding +
-  'procedure ShowBusy(e:TEventStatus);'  + LineEnding +
+  'procedure Show  Busy(e:TEventStatus);'  + LineEnding +
   '                            Shows the busy cursor  '  + LineEnding +
   '          ShowBusy is an async function (required for browser use), so it must be coded in the  ' + LineEnding +
   '          ''Init'' section of an event handler.         ' + LineEnding +
@@ -143,6 +143,8 @@ begin
   '                            Populate the given TXTable component with a string in Excel format (eg. as copied from a spreadsheet)  '  + LineEnding +
   'procedure  LoadTableFromNumArray(TableName,NumArray:T2DNumArray);  '  + LineEnding +
   '                            Populate the given TXTable component from a 2D numeric array  '  + LineEnding +
+  'procedure  LoadTableFromStringArray(TableName,NumArray:T2DStringArray);  '  + LineEnding +
+  '                            Populate the given TXTable component from a 2D string array  '  + LineEnding +
   'function  GetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  '  + LineEnding +
   '                            Fetch the cells from the given TXTable component as a 2D string array  '  + LineEnding +
   'function  GetTableDataForExcel(TableName:String):String;  '  + LineEnding +

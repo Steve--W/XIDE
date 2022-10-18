@@ -40,6 +40,7 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
     function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
     procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
+    procedure mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);  stdcall;
     function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
@@ -93,6 +94,7 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
       function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
       procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
+      procedure mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);  stdcall;
       function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
       procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
       procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
@@ -468,6 +470,17 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      end;
    end;
 
+   procedure TMyMethodObject.mmiLoadTableFromStringArray(TableName:String; StrArray:T2DStringArray);   stdcall;
+   var
+    myNode:TDataNode;
+   begin
+     myNode:=FindDataNodeById(UIRootNode,TableName,StrPas(EventsNameSpace),true);   //SystemNodeTree?
+     if (mynode<>nil) and (myNode.NodeType='TXTable') then
+     begin
+       TXTable(myNode.ScreenObject).LoadTableFromStringArray(StrArray);
+     end;
+   end;
+
    function TMyMethodObject.mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;   stdcall;
    var
     myNode:TDataNode;
@@ -736,7 +749,16 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
    procedure TMyMethodObject.mmiRunPython(str:String);                  stdcall;
    begin
      {$ifdef Python}
-     PyExeString(str);
+     try            // example, on entry to run mode, some events may fire before the python scripts have been run, so function(s) might not exist yet
+       if PyScriptsExecuted then
+         PyExeString(str);
+     except
+       on E: Exception do
+       begin
+         //showmessage('Python error');
+         //raise;   ////makes the whole thing fall over ....
+       end;
+     end;
      {$endif}
    end;
    procedure TMyMethodObject.mmiSetImageSource(nm,str:String);                  stdcall;

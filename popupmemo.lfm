@@ -12,7 +12,7 @@ object PopupMemoForm: TPopupMemoForm
   LCLVersion = '2.1.0.0'
   object PopupMemoVBox: TXVBox
     Name = 'PopupMemoVBox'
-    Tag = 454631408
+    Tag = 462798648
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -40,7 +40,7 @@ object PopupMemoForm: TPopupMemoForm
       Width = 929
       Align = alTop
       AutoSize = True
-      myControl.Tag = 454631488
+      myControl.Tag = 462798728
       myControl.AnchorSideLeft.Control = PopupHelpText
       myControl.AnchorSideLeft.Side = asrCenter
       myControl.AnchorSideTop.Side = asrBottom
@@ -69,6 +69,7 @@ object PopupMemoForm: TPopupMemoForm
       Border = False
       ItemValue = '....text....'
       ReadOnly = True
+      IncludeTextInSave = True
       MemoHeight = '100%'
       MemoWidth = '98%'
     end

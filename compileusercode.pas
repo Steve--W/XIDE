@@ -320,14 +320,14 @@ begin
   procName:= 'procedure '+NameSpace+NodeName + 'Handle' + EventType + Phase;
   if RunMode<>'JSJS' then
   begin
-    result:=procName + '(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString); ';
+    result:=procName + '(e:TEventStatus;NodeId: AnsiString; myValue: AnsiString); ';
     if RunMode='LazDll' then
       result:=result + '  stdcall; ';
   end
   else
   begin
     // JSJS
-    result:=procName + '(e:TEventStatus;nodeID,myValue:String); ';
+    result:=procName + '(e:TEventStatus;NodeId,myValue:String); ';
   end;
 end;
 
@@ -541,42 +541,6 @@ begin
            // Insert a control procedure to run the init and main code for the event
            tmp:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
            UnitCode.Add(tmp);
-(*
-           UnitCode.Add('var');
-           UnitCode.Add('  asyncWaiting:boolean;');
-           UnitCode.Add('begin');
-           UnitCode.Add('  asyncWaiting := false; ');
-           UnitCode.Add('  if (e<>nil) then');
-           UnitCode.Add('    asyncWaiting := e.EventHasWaitingAsyncProcs;');
-           UnitCode.Add('  AppMethods.mmiSetEventsNameSpace('''+NameSpace+''');');
-           UnitCode.Add('  if ((e=nil) or (e.InitDone=false))');
-           UnitCode.Add('  and (not asyncWaiting) then');
-           UnitCode.Add('  begin');
-           UnitCode.Add('    if (e=nil) then');
-           UnitCode.Add('    begin');
-           UnitCode.Add('      e:=TEventStatus.Create('''+StartNode.myEventTypes[i]+''','''+StartNode.NodeName+''');');
-           UnitCode.Add('      e.NameSpace:='''+NameSpace+''';');
-           UnitCode.Add('    end;');
-            // If the event has initialisation code, run this first...
-           UnitCode.Add('    e.InitRunning:=true;');
-           UnitCode.Add('    e.InitDone:=true;');
-           UnitCode.Add('    '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Init(e,nodeID,myValue);');
-           UnitCode.Add('    e.InitRunning:=false;');
-           UnitCode.Add('  end;');
-
-           // If the initialisation code has called any async functions, these will have been logged in the
-           // event status.  Do not continue with the main event code unless all of the async functions
-           // have recorded completion.
-           UnitCode.Add('  if e.AsyncProcsRunning.Count = 1 then');
-           UnitCode.Add('    e.ClearAsync(''ShowBusy'');');
-           UnitCode.Add('  if e.EventHasWaitingAsyncProcs = false then');
-           UnitCode.Add('  begin');
-           UnitCode.Add('        '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Main(e,nodeID,myValue);');
-           //UnitCode.Add('        AppMethods.mmiStartMain(e);');
-           UnitCode.Add('  end;');
-
-           UnitCode.Add('end;');
-*)
 
            UnitCode.Add('begin');
            UnitCode.Add('  ExecuteEventHandler(e,nodeID,myValue,'
@@ -690,6 +654,7 @@ begin
   SysUtils.DeleteFile('tempinc/'+DllName+'Threads'+'.pas');
   UnitCode.SaveToFile('tempinc/'+DllName+'Threads'+'.pas');
   {$else}
+
   TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(DllName+'Threads'+'.pas',UnitCode.Text);
   {$endif}
 
@@ -723,6 +688,7 @@ begin
   UnitCode.SaveToFile('tempinc/'+nm+'.pas');
   {$else}
   TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(nm+'.pas',UnitCode.Text);
+  //WriteToLocalStore(nm+'.pas',UnitCode.Text);
   //??//XIDEUserUnits.add(nm+'.pas');
   {$endif}
 
@@ -753,8 +719,8 @@ end;
 
 procedure AddExecFunc(Namespace:String;UnitCode:TStringList);
 begin
-  UnitCode.Add('type THandler = procedure(e:TEventStatus;nodeID:AnsiString;myValue:AnsiString); ');
-  UnitCode.Add('procedure ExecuteEventHandler(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString; initfunc,mainfunc:THandler); ' );
+  UnitCode.Add('type THandler = procedure(e:TEventStatus;NodeId:AnsiString;myValue:AnsiString); ');
+  UnitCode.Add('procedure ExecuteEventHandler(e:TEventStatus;NodeId: AnsiString; myValue: AnsiString; initfunc,mainfunc:THandler); ' );
   UnitCode.Add('var  ' );
   UnitCode.Add('  asyncWaiting:boolean; ' );
   UnitCode.Add('begin' );
@@ -767,19 +733,25 @@ begin
   UnitCode.Add('  begin ' );
   UnitCode.Add('    if (e=nil) then' );
   UnitCode.Add('    begin ' );
-  UnitCode.Add('      e:=TEventStatus.Create(e.eventType,nodeID);' );
+  UnitCode.Add('      e:=TEventStatus.Create(e.eventType,NodeId);' );
   UnitCode.Add('      e.NameSpace:='''+Namespace+''';' );
   UnitCode.Add('    end;' );
   UnitCode.Add('    e.InitRunning:=true; ' );
   UnitCode.Add('    e.InitDone:=true;' );
-  UnitCode.Add('    initfunc(e,nodeID,myValue);' );
+  UnitCode.Add('    initfunc(e,NodeId,myValue);' );
   UnitCode.Add('    e.InitRunning:=false;' );
   UnitCode.Add('  end;' );
   UnitCode.Add('  if e.AsyncProcsRunning.Count = 1 then' );
   UnitCode.Add('    e.ClearAsync(''ShowBusy'');' );
   UnitCode.Add('  if e.EventHasWaitingAsyncProcs = false then ' );
   UnitCode.Add('  begin ' );
-  UnitCode.Add('    mainfunc(e,nodeID,myValue);' );
+  {$ifndef JScript}
+  UnitCode.Add('    mainfunc(e,NodeId,myValue);' );
+  {$else}
+  UnitCode.Add('    asm' );     /// timeout/job-queue so that any changes made in the 'init' secton will be refreshed on screen
+  UnitCode.Add('    myTimeout(mainfunc,5,''Event Main'',0,e,NodeId,myValue); ');
+  UnitCode.Add('    end;' );
+  {$endif}
   UnitCode.Add('  end;' );
   UnitCode.Add('end;' );
 end;
@@ -1049,6 +1021,7 @@ begin
     asm console.log('done GatherAndRunPythonScripts'); end;
     {$endif}
   end;
+  PyScriptsExecuted:=true;
 
 
   FreeAndNil(PyCode);
@@ -1550,6 +1523,7 @@ begin
   if ok then
   begin
     MyCodeEditor.ItemValue:=PascalCode.Text;
+    //WriteToLocalStore('CompileMain',PascalCode.Text);
 
     Res:=False;
 
