@@ -433,11 +433,16 @@ begin
     if ((ev.data.objid!=undefined)&&(ev.data.objid==ns+nm)) {
 //      console.log("handle GPU outbound message "+ev.data.objid+"  "+ev.data.mtype);
       if (ev.data.mtype=="GPUReady") {
-        let lGPUStageArray=pas.StringUtils.DelChars(nd.GetAttribute('InitStageData',false).AttribValue,'"');
-        let StageArrayValue = JSON.parse(lGPUStageArray);
-        lGPUStageArray='';
-        ob = document.getElementById(ns+nm+"Contents");
-        ob.contentWindow.postMessage({"objid":ns+nm, "mtype":"StartTheGPU", "pName":"", "pValue":StageArrayValue},"*")
+        let sdattrib=nd.GetAttribute('InitStageData',true);
+        if ((sdattrib!=null)&&(sdattrib!=undefined)) {
+          let lGPUStageArray=pas.StringUtils.DelChars(sdattrib.AttribValue,'"');
+          if (lGPUStageArray=='')   lGPUStageArray='[[[1]]]';
+          let StageArrayValue = JSON.parse(lGPUStageArray);
+          lGPUStageArray='';
+          ob = document.getElementById(ns+nm+"Contents");
+          ob.contentWindow.postMessage({"objid":ns+nm, "mtype":"StartTheGPU", "pName":"", "pValue":StageArrayValue},"*")
+        }
+        else {console.log('GPU node not ready');}
       }
       else if (ev.data.mtype=="Debug") {
         console.log("Debug:"+ev.data.dets);

@@ -106,14 +106,22 @@ var
   varr:Variant;
   i,j:integer;
 begin
-  varr:=VarArrayCreate([0, Length(arr2ds) - 1, 0, length(arr2ds[0])-1], varVariant);
-  for i:=0 to length(arr2ds)-1 do
+  if Length(arr2ds) > 0 then
   begin
-    for j:=0 to length(arr2ds[0])-1 do
+    varr:=VarArrayCreate([0, Length(arr2ds) - 1, 0, length(arr2ds[0])-1], varVariant);
+    for i:=0 to length(arr2ds)-1 do
     begin
-      VarArrayPut(varr,arr2ds[i,j],[i,j]);
-      //varr[i,j]:=arr2ds[i,j];
+      for j:=0 to length(arr2ds[0])-1 do
+      begin
+        VarArrayPut(varr,arr2ds[i,j],[i,j]);
+        //varr[i,j]:=arr2ds[i,j];
+      end;
     end;
+  end
+  else
+  begin
+    //varr:=[];
+    varr:=VarArrayCreate([0, 0, 0, 0], varVariant);
   end;
   result:=varr;
 end;

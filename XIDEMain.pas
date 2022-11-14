@@ -10,7 +10,6 @@
  **********************************************************************
  *)
 
-
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -1087,6 +1086,7 @@ procedure TXIDEForm.FormResize(Sender: TObject);
 begin
   DoFormResize(self, MyRootDiv);
 end;
+
 
 {$else}
 procedure InitialisePage(dummy:string);
