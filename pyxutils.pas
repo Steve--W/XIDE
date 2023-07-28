@@ -35,6 +35,8 @@ procedure PyExeString(cmds: string);
 procedure RunInitialScript;
 procedure RedirectPyLog(MemoName:String);
 function BuildPackageList:TStringArray;
+procedure UpdateMemo(Data:String);
+procedure UpdatepyLoadedFuncs(sss:String);
 
 //const
 //  cPyLibraryWindows = 'C:\Python-for-Lazarus-master\python4lazarus\Runtime\python38.dll';
@@ -62,9 +64,17 @@ var
 var
   PyPkTest:integer;
 {$endif}
+type
+  TPyUnitFunc = record
+    PyUnitName : String;
+    PyFuncName : String;
+  end;
+  TPyUnitFuncs = array of TPyUnitFunc;
+
 var
   PyMemoComponent:TXmemo;
-
+  pyLoadedFuncs:TStringList;
+  pyUnitFuncs:TPyUnitFuncs;
 
 implementation
 uses XIDEMain,XDataModel,XObjectInsp;
@@ -94,6 +104,29 @@ begin
   for i:=0 to numpaks-1 do
     pknames[i]:=pypaks[i];
   result:=pknames;
+end;
+
+procedure UpdateMemo(Data:String);
+var
+  oldval,nm:string;
+begin
+  if (PyMemoComponent<>nil)
+  and (assigned(PyMemoComponent)) then
+  begin
+    {$ifndef JScript}
+    oldval:=PyMemoComponent.myNode.GetAttribute('ItemValue',false).AttribValue;
+    PyMemoComponent.ItemValue:=oldval+LineEnding+Data;
+    {$else}
+    nm:=PyMemoComponent.myNode.NodeName;
+    if (nm<>'') and (nm<>'XMemo1') then
+    begin
+    asm
+      console.log('file to memo '+nm);
+      pyodide.runPython('FileToMemo("'+nm+'")');
+    end;
+    end;
+    {$endif}
+  end;
 end;
 
 {$ifndef JScript}
@@ -130,15 +163,20 @@ var
   varr:Variant;
   i,j,k:integer;
 begin
-  varr:=VarArrayCreate([0, Length(arr3dn)-1, 0, length(arr3dn[0])-1, 0, length(arr3dn[0,0])-1], varVariant);
-  for i:=0 to length(arr3dn)-1 do
+  if length(arr3dn)=0 then
+    varr:=VarArrayCreate([0, 0, 0, 0, 0, 0], varVariant)
+  else
   begin
-    for j:=0 to length(arr3dn[0])-1 do
+    varr:=VarArrayCreate([0, Length(arr3dn)-1, 0, length(arr3dn[0])-1, 0, length(arr3dn[0,0])-1], varVariant);
+    for i:=0 to length(arr3dn)-1 do
     begin
-     for k:=0 to length(arr3dn[0,0])-1 do
-     begin
-      VarArrayPut(varr,arr3dn[i,j,k],[i,j,k]);
-     end;
+      for j:=0 to length(arr3dn[0])-1 do
+      begin
+        for k:=0 to length(arr3dn[0,0])-1 do
+        begin
+          VarArrayPut(varr,arr3dn[i,j,k],[i,j,k]);
+        end;
+      end;
     end;
   end;
   result:=varr;
@@ -274,7 +312,7 @@ begin
   end
   else if fname='GetTableDataForExcel' then
   begin
-    mmo.mmiGetTableDataForExcel(fnArgs[0]);
+    v:=mmo.mmiGetTableDataForExcel(fnArgs[0]);
   end
   else if fname='LoadTableFromNumArray' then
   begin
@@ -303,6 +341,10 @@ begin
   begin
     bool:=mmo.mmiDeleteComponent(fnArgs[0], fnargs[1], fnargs[2]);
     v:=bool;
+  end
+  else if fname='DeleteSelectedTreeNode' then
+  begin
+    mmo.mmiDeleteSelectedTreeNode(fnArgs[0]);
   end
   else if fname='GetGPUParamNumValue' then
   begin
@@ -372,7 +414,9 @@ begin
   else if fname='BuildXArrays' then
     BuildXArrays(fnArgs[0])
   else if fname='DebugStart' then
-    mmo.mmiDebugStart;
+    mmo.mmiDebugStart
+  else if fname='UpdatepyLoadedFuncs' then
+    UpdatepyLoadedFuncs(fnArgs[0]);
 
   result:=v;
 end;
@@ -466,18 +510,6 @@ with PythonEngine1 do
     Py_XDecRef(glbPyObjE); // This is very important
     glbPyObjE := Data;
     Py_XIncRef(glbPyObjE); // This is very important
-  end;
-end;
-
-procedure UpdateMemo(Data:String);
-var
-  oldval:string;
-begin
-  if (PyMemoComponent<>nil)
-  and (assigned(PyMemoComponent)) then
-  begin
-    oldval:=PyMemoComponent.myNode.GetAttribute('ItemValue',false).AttribValue;
-    PyMemoComponent.ItemValue:=oldval+LineEnding+Data;
   end;
 end;
 
@@ -911,6 +943,7 @@ begin
   InitScript.Clear;
   InitScript.add('import sys');
   InitScript.add('import json');
+  InitScript.add('from inspect import getmembers, isfunction');
   InitScript.add('print(sys.version)');
   InitScript.add('class MyMessage:');
   InitScript.add('  fname = ''xxx''');
@@ -950,7 +983,7 @@ begin
   InitScript.add('def LoadTableFromExcelCopy(TableName,CopiedString):');
   InitScript.add('  RunXIDEFunc(''LoadTableFromExcelCopy'',(TableName,CopiedString))');
   InitScript.add('def GetTableDataForExcel(TableName):');
-  InitScript.add('  RunXIDEFunc(''GetTableDataForExcel'',(TableName))');
+  InitScript.add('  return RunXIDEFunc(''GetTableDataForExcel'',(TableName,0)).decode(''utf-8'')');
   InitScript.add('def LoadTableFromNumArray(TableName,NumArray):');
   InitScript.add('  RunXIDEFunc(''LoadTableFromNumArray'',(TableName,NumArray))');
   InitScript.add('def LoadTableFromStringArray(TableName,StrArray):');
@@ -965,6 +998,8 @@ begin
   InitScript.add('  RunXIDEFunc(''CopyComponent'',(NodeId,NewParentId,NewName))');
   InitScript.add('def DeleteComponent(NodeId,ShowNotFoundMsg,ShowConfirm):');
   InitScript.add('  return RunXIDEFunc(''DeleteComponent'',(NodeId,ShowNotFoundMsg,ShowConfirm))');
+  InitScript.add('def DeleteSelectedTreeNode(TreeName):');
+  InitScript.add('  return RunXIDEFunc(''DeleteSelectedTreeNode'',(TreeName))');
   InitScript.add('def GetGPUParamNumValue(GPUName,pName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUParamNumValue'',(GPUName,pName))');
   InitScript.add('def GetGPUParam2DNumValue(GPUName,pName):');
@@ -1013,6 +1048,9 @@ begin
   InitScript.add('def ResetXArrays(DefaultDims):');
   InitScript.add('  RunXIDEFunc(''BuildXArrays'',(DefaultDims,))');
 
+  InitScript.add('def UpdatepyLoadedFuncs(sss):');
+  InitScript.add('  RunXIDEFunc(''UpdatepyLoadedFuncs'',(sss,))');
+
   InitScript.add('print(''Python Engine Initialised'')');
 
   // execute the initialisation py script  (creates MyMessage python class and object)
@@ -1041,6 +1079,8 @@ end;
   // load the initialisation py script
   // Sets up an internal library of XIDE Interface functions, available to the user.
   InitScript.Clear;
+  InitScript.add('import sys');
+  InitScript.add('sys.stdout=sys.__stdout__'); //normal stdout
 
   InitScript.add('print("Initialising Pyodide Python environment...")');
 
@@ -1055,6 +1095,18 @@ end;
   InitScript.add('import io');
   InitScript.add('import base64');
   InitScript.add('import json');
+  InitScript.add('def FileToMemo(nm):');
+  InitScript.add('  try:');
+  InitScript.add('    sys.stdout.flush()');
+  InitScript.add('    f = open("pystdout.txt","r")');
+  InitScript.add('    contents = f.read()');
+  //InitScript.add('    SetPropertyValue(nm,"ItemValue","kkkkkk")');
+  InitScript.add('    ConsoleLog(">"+contents+"<")');
+  InitScript.add('    SetPropertyValue(nm,"ItemValue",str(contents))');
+  InitScript.add('  except FileNotFoundError:');
+  InitScript.add('    print("no stdout file for "+nm)');
+
+
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
   InitScript.add('  return pas.InterfaceTypes.GetPropertyValue(NodeName,PropName)');
   InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');
@@ -1072,11 +1124,13 @@ end;
   InitScript.add('def LoadTableFromExcelCopy(TableName,CopiedString):');
   InitScript.add('  pas.InterfaceTypes.LoadTableFromExcelCopy(TableName,CopiedString)');
   InitScript.add('def GetTableDataForExcel(TableName):');
-  InitScript.add('  pas.InterfaceTypes.GetTableDataForExcel(TableName)');
+  InitScript.add('  return pas.InterfaceTypes.GetTableDataForExcel(TableName)');
   InitScript.add('def LoadTableFromNumArray(TableName,NumArray):');
   InitScript.add('  pas.InterfaceTypes.LoadTableFromNumArray(TableName,NumArray)');
   InitScript.add('def LoadTableFromStringArray(TableName,StrArray):');
-  InitScript.add('  pas.InterfaceTypes.LoadTableFromStringArray(TableName,StrArray)');
+  InitScript.add('  sss = ConvertNumpyArrayToJSON(np.asarray(StrArray))');
+  InitScript.add('  SetPropertyValue(TableName,"TableData",sss)');
+//  InitScript.add('  pas.InterfaceTypes.LoadTableFromStringArray(TableName,StrArray)');  //doesn't work in browser/Pyodide
   InitScript.add('def GetTableDataArray(TableName,SkipHeader):');
   InitScript.add('  arr = eval(pas.InterfaceTypes.GetPropertyValue(TableName,''TableData''))');
   InitScript.add('  if ((len(arr)>0) and (SkipHeader==True)):');
@@ -1090,6 +1144,8 @@ end;
   InitScript.add('  pas.InterfaceTypes.CopyComponent(NodeId,NewParentId,NewName)');
   InitScript.add('def DeleteComponent(NodeId,ShowNotFoundMsg,ShowConfirm):');
   InitScript.add('  return pas.InterfaceTypes.DeleteComponent(NodeId,ShowNotFoundMsg,ShowConfirm)');
+  InitScript.add('def DeleteSelectedTreeNode(TreeName):');
+  InitScript.add('  pas.InterfaceTypes.DeleteSelectedTreeNode(TreeName)');
   InitScript.add('def GetGPUParamNumValue(GPUName,pName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUParamNumValue(GPUName,pName)');
   InitScript.add('def GetGPUParam2DNumValue(GPUName,pName):');
@@ -1144,9 +1200,27 @@ end;
   InitScript.add('  pas.PyXUtils.RedirectPyLog(nm)');
   InitScript.add('def ResetXArrays(DefaultDims):');
   InitScript.add('  pas.XDataModel.BuildXArrays(DefaultDims)');
+  InitScript.add('def UpdatepyLoadedFuncs(sss):');
+  InitScript.add('  pas.PyXUtils.UpdatepyLoadedFuncs(sss)');
 
   InitScript.add('print("Initialising Python done.")');
 
+
+  InitScript.add('_print = print ');
+  InitScript.add('def print(*args, **kw): ');
+  InitScript.add('  _print(*args, **kw) ');
+  InitScript.add('  pas.PyXUtils.UpdateMemo("") ');
+  InitScript.add('def print1(*args, **kw): ');
+  InitScript.add('  _print(*args, **kw) ');
+
+
+  InitScript.add('def ListFunctions(TempDict):');
+  InitScript.add('  functions = []');
+  InitScript.add('  for key, value in TempDict.items():');
+  InitScript.add('     if callable(value) : functions.append(key)');
+  InitScript.add('  return(functions)');
+  InitScript.add('TempDict = locals().copy()');
+  InitScript.add('InitialFunctions =  ListFunctions(TempDict)');
 
   // execute the initialisation py script
   txt:=InitScript.Text;
@@ -1194,7 +1268,22 @@ begin
   {$else}
   if (MemoNode<>nil)
   and (MemoNode.NodeType='TXMemo') then
+  begin
     PyMemoComponent:=TXMemo(MemoNode);
+    asm
+      console.log('redirecting Python output to '+MemoNode.NodeName);
+      pyodide.runPython('sys.stdout.close()');
+      pyodide.runPython('sys.stdout = open("pystdout.txt", "w")');
+    end;
+  end
+  else
+  begin
+    asm
+      console.log('reverting Python output to standard');
+      pyodide.runPython('sys.stdout.close()');
+      pyodide.runPython('sys.stdout=sys.__stdout__'); //revert to normal
+    end;
+  end;
   {$endif}
 end;
 
@@ -1228,6 +1317,29 @@ begin
 
   PyExeString( s.text);
   s.free;
+end;
+
+procedure UpdatepyLoadedFuncs(sss:String);
+// sss is a JSON string....load into a stringlist
+var
+  i:integer;
+  bits:TStringList;
+begin
+  pyLoadedFuncs:=StringUtils.JSONStringToStringList(sss);
+  SetLength(pyUnitFuncs,0);
+  bits:=TStringList.Create;
+  for i:=0 to pyLoadedFuncs.count-1 do
+  begin
+    bits:=stringsplit(pyLoadedFuncs[i],',');
+    if bits.count=2 then
+    begin
+      SetLength(pyUnitFuncs,Length(pyUnitFuncs)+1);
+      pyUnitFuncs[Length(pyUnitFuncs)-1].PyUnitName := bits[0];
+      pyUnitFuncs[Length(pyUnitFuncs)-1].PyFuncName := bits[1];
+    end;
+  end;
+  RebuildCodeTree;
+
 end;
 
 //var.decode('utf-8') ... might be of use

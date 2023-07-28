@@ -11,7 +11,7 @@ object SavedSystemsForm: TSavedSystemsForm
   LCLVersion = '2.1.0.0'
   object SavedSystemsVBox: TXVBox
     Name = 'SavedSystemsVBox'
-    Tag = 419424288
+    Tag = 486976888
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -38,7 +38,7 @@ object SavedSystemsForm: TSavedSystemsForm
       Width = 396
       Align = alTop
       AutoSize = True
-      myControl.Tag = 419393664
+      myControl.Tag = 486976952
       myControl.AnchorSideLeft.Control = SavedSystemsList
       myControl.AnchorSideLeft.Side = asrCenter
       myControl.AnchorSideTop.Side = asrCenter
@@ -52,8 +52,10 @@ object SavedSystemsForm: TSavedSystemsForm
       myControl.Constraints.MinHeight = 312
       myControl.Constraints.MinWidth = 398
       myControl.DragMode = dmAutomatic
+      myControl.ParentShowHint = False
       myControl.ReadOnly = True
       myControl.SelectionColor = clYellow
+      myControl.ShowHint = True
       myControl.TabOrder = 0
       myControl.Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips]
       myControl.Items.Data = {
@@ -193,6 +195,36 @@ object SavedSystemsForm: TSavedSystemsForm
         Caption = 'Delete'
         Enabled = True
         HandleButtonClick = SavedSystemsDeleteHandleButtonClick
+      end
+      object SavedSystemsSortBtn: TXButton
+        Name = 'SavedSystemsSortBtn'
+        Tag = -1
+        Left = 177
+        Height = 40
+        Top = 0
+        Width = 90
+        Align = alLeft
+        AutoSize = True
+        myControl.Tag = -1
+        myControl.AnchorSideLeft.Side = asrCenter
+        myControl.AnchorSideTop.Control = SavedSystemsSortBtn
+        myControl.Left = 0
+        myControl.Height = 25
+        myControl.Top = 0
+        myControl.Width = 90
+        myControl.AutoSize = True
+        myControl.Caption = 'Sort by Date'
+        myControl.TabOrder = 0
+        IsContainer = False
+        AlignChildrenVertical = True
+        Alignment = 'Top'
+        IsVisible = True
+        BgColor = clNone
+        SpacingAround = 0
+        Border = False
+        Caption = 'Sort by Date'
+        Enabled = True
+        HandleButtonClick = SavedSystemsSortBtnHandleButtonClick
       end
     end
   end

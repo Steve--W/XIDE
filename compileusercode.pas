@@ -54,7 +54,7 @@ type
 {$endif}
 type
   TPyProcs = class(TObject)
-    procedure GatherAndRunPythonScripts(dummy:PtrInt);
+    procedure GatherAndRunPythonScripts(parms:PtrInt);
   end;
 var
     PyProcs:TPyProcs;
@@ -75,6 +75,16 @@ procedure GatherAndRunPythonScriptsFromJS;
 function RunPyScript(PyScriptCode:TStringList;nm:String):Boolean;
 procedure GatherAndRunPythonScriptsLater;
 {$endif}
+
+//type
+//  TUserPyFile = record
+//    ModuleName:String;
+//    FuncName:String;
+//  end;
+//
+Var
+//  PyFuncsList:array of TUserPyFile;
+  PyFuncsString:String;
 
 var
     ConfigfpcPath:String;
@@ -689,7 +699,7 @@ begin
   {$else}
   TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(nm+'.pas',UnitCode.Text);
   //WriteToLocalStore(nm+'.pas',UnitCode.Text);
-  //??//XIDEUserUnits.add(nm+'.pas');
+  XIDEUserUnits.add(nm+'.pas');      // used within the pas2js compiler (see pparser.pp)
   {$endif}
 
   // add this unit to the uses list in the main module
@@ -767,7 +777,7 @@ begin
   // create a pas file on disk for each unit, and insert the unit name for the dll 'uses' clause
 
   {$ifdef JScript}
-  //??//XIDEUserUnits.clear;
+  XIDEUserUnits.clear;
   {$endif}
 
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
@@ -919,6 +929,7 @@ begin
   AllGPUNodes := NodeUtils.FindNodesOfType(UIRootNode,'TXGPUCanvas');
   for i:=0 to length(AllGPUNodes)-1 do
   begin
+    {$ifdef JScript} asm console.log('RunMode',RunMode); end; {$endif}
     ok:=TXGPUCanvas(AllGPUNodes[i].ScreenObject).BuildPascalAnimationUnit(Compiler,RunMode);
     if ok then
     begin
@@ -967,15 +978,26 @@ begin
   result:=ok;
 end;
 
-procedure TPyProcs.GatherAndRunPythonScripts(dummy:PtrInt);
+procedure TPyProcs.GatherAndRunPythonScripts(parms:PtrInt);
 var
   ok:Boolean;
   i,j:integer;
   tmp,nm:string;
   lines:TStringList;
   UnitNode:TdataNode;
-  PyCode:TStringList;
+  PyCode,PyList:TStringList;
   txt:String;
+  {$ifndef JScript}
+  ReceivedQueueRec: TPyXQueueRec;
+  {$endif}
+  function RunPythonCodeAndClear:Boolean;
+  var
+    ok:Boolean;
+  begin
+    ok:=RunPyScript(PyCode,'');
+    PyCode.Clear;            // this is to reset Python line numbering back to 0
+    result:=ok;
+  end;
 
 begin
   {$ifndef JScript}
@@ -988,8 +1010,37 @@ begin
   // user-created scripts are held as data nodes (class 'Code', type 'PythonScript')
   Lines:=TStringList.Create;
   PyCode:=TStringList.Create;
-
+  //PyExeString('import os');
+  //PyExeString('orig = os.getcwd()');
+  //PyExeString('print("orig = ",os.getcwd())');
+  //{$ifndef JScript}
+  //PyExeString('os.chdir("tempinc")');
+  //{$else}
+  //{$endif}
+  //SetLength(PyFuncsList,0);
   PyCode.Clear;
+
+  {$ifndef JScript}
+  PyCode.add('def ListFunctions(TempDict):');
+  PyCode.add('  functions = []');
+  PyCode.add('  for key, value in TempDict.items():');
+  PyCode.add('     if callable(value) : functions.append(key)');
+  PyCode.add('  return(functions)');
+  PyCode.add('TempDict = locals().copy()');
+  PyCode.add('InitialFunctions =  ListFunctions(TempDict)');
+  {$else}
+  // in the browser/Pyodide environment, we have not re-initialised Python on entry to run mode,
+  // so it is necessary to clear previous declarations of functions from the dictionary first
+  PyCode.add('TempDict = locals().copy()');
+  PyCode.add('FinalFunctions =  ListFunctions(TempDict)');
+  PyCode.add('AddedFunctions = [item for item in FinalFunctions if item not in InitialFunctions]');
+  PyCode.add('for item in AddedFunctions:');
+  PyCode.add('  exec(str(item) + " = None")');
+  {$endif}
+  PyCode.add('WorkingFunctions = [item for item in InitialFunctions]');
+  PyCode.add('AllFuncsStr = ''[''');
+  ok:=RunPythonCodeAndClear;
+
   for i:=0 to length(CodeRootNode.ChildNodes)-1 do
   begin
     if ok then
@@ -1001,27 +1052,46 @@ begin
        // code is all in attribute : Code
        nm:=UnitNode.NodeName;
        PyCode.add('print(''running script '+nm+''')');
+       ok:=RunPythonCodeAndClear;
 
        // add user-written unit code block
        tmp:=UnitNode.GetAttribute('Code',true).AttribValue;
        Lines:=StringSplit(tmp,LineEnding);
        for j:=0 to Lines.Count-1 do
          PyCode.add(Lines[j]);
+       //At the bottom of each of our python units add...............
+       PyCode.add('NewDict = locals().copy()');
+       PyCode.add('FinalFunctions =  ListFunctions(NewDict)');
+       PyCode.add('AddedFunctions = [item for item in FinalFunctions if item not in WorkingFunctions]');
+       //PyCode.add('print(''Added '',AddedFunctions)');
+       PyCode.add('if (len(AddedFunctions)>0) and (AllFuncsStr!=''[''):');
+       PyCode.Add('  AllFuncsStr = AllFuncsStr + '',''');
+       PyCode.add('for j in range(len(AddedFunctions)):');
+       PyCode.add('  if j>0:');
+       PyCode.add('    AllFuncsStr = AllFuncsStr + '',''');
+       PyCode.add('  AllFuncsStr = AllFuncsStr + ''"'+nm+','' +str(AddedFunctions[j])+''"''');                // ("myname", "funcname")
+       PyCode.add('WorkingFunctions = [item for item in FinalFunctions]');
+       ok:=RunPythonCodeAndClear;
       end;
     end;
   end;
-  if PythonCodeExists then
-  begin
-    AllUserPyCode:=PyCode.Text;
-    // scripts for the main system are held under the root node CodeRootNode.
-    // There may be other scripts held within composite components (already gathered into PyCodeFromComposites).
-    ok:=RunPyScript(PyCodeFromComposites,'');
-    ok:=RunPyScript(PyCode,'');
-    {$ifdef JScript}
-    asm console.log('done GatherAndRunPythonScripts'); end;
-    {$endif}
-  end;
-  PyScriptsExecuted:=true;
+  PyCode.add('AllFuncsStr = AllFuncsStr + '']''');
+  //PyCode.add('print("AllFuncsStr",AllFuncsStr)');
+  PyCode.add('UpdatepyLoadedFuncs(AllFuncsStr)');
+
+    if PythonCodeExists then
+    begin
+      AllUserPyCode:=PyCode.Text;
+      // scripts for the main system are held under the root node CodeRootNode.
+      // There may be other scripts held within composite components (already gathered into PyCodeFromComposites).
+      ok:=RunPyScript(PyCodeFromComposites,'');
+      ok:=RunPyScript(PyCode,'');
+      {$ifdef JScript}
+      asm console.log('done GatherAndRunPythonScripts'); end;
+      {$endif}
+    end;
+    PyScriptsExecuted:=true;
+
 
 
   FreeAndNil(PyCode);
@@ -1030,12 +1100,14 @@ begin
   Screen.Cursor := crDefault;
   {$endif}
 end;
+
 {$ifndef JScript}
 procedure GatherAndRunPythonScriptsLater;
 var
   QueueRecToSend: PPyXQueueRec;
 begin
   New(QueueRecToSend);
+  QueueRecToSend^.QDummy:='1';
   Application.QueueAsyncCall(@PyProcs.GatherAndRunPythonScripts,PtrInt(QueueRecToSend)); // put msg into queue that will be processed from the main thread after all other messages
 end;
 {$else}
@@ -1090,10 +1162,10 @@ begin
  ExportsList.Clear;
  PyCodeFromComposites.Clear;
  n:=0;
- setlength(XIDEProcsList,0);
 
  if (RunMode = 'LazJS') or (RunMode = 'JSJS') then
  begin
+   setlength(XIDEProcsList,0);
    // Build pascal source code for events unit - to be compiled by the Pas2JS compiler
    PascalCode.Add('unit '+DllName+';' );
    PascalCode.Add('interface' );
@@ -1420,7 +1492,7 @@ begin
       {$endif}
       TranspileMyProgram(DllName,ProjectDirectory,'resources/project/',MyCodeEditor,false,ExtraDirectives);
       // retrieve the list of functions to be shown under the code tree
-      RebuildCodeTree;  //xpparser.XIDEProcsList;
+      RebuildCodeTree;  //uses xpparser.XIDEProcsList;
     end
 
     else if RunMode = 'LazDll' then
@@ -1499,7 +1571,7 @@ function CompileEventCode(MyCodeEditor:TXCode; RunMode:String):Boolean;
 var
   tmp,FirstUnitName,CurrentUnitName:String;
   ok:Boolean;
-  i,j:integer;
+  i,j,l:integer;
   args,JSOutputLines,JSKeep : TStringList;
   Res,PasModuleExists : Boolean;
   lWebFS : TPas2JSWebFS;
@@ -1570,7 +1642,6 @@ begin
 
     if res=true then
     begin
-      //showmessage('compiler all done - success');
 
       // First De-register the events unit, plus any other user units used
       SetLength(NSUnits,NamespaceUnits.Count);
@@ -1618,21 +1689,12 @@ begin
 
         // and the DataModel unit ....
         var DMRoot=pas.XDataModel.DMRoot;
-        console.log('removing unit DMRoot');
+        //console.log('removing unit DMRoot');
         pas['DMRoot']=null;
-
-        //for (var i=0; i<DMRoot.ChildNodes.length; i++) {
-        //     if (DMRoot.ChildNodes[i].NodeType=='DMPkg')
-        //        {
-        //         console.log('removing unit '+DMRoot.ChildNodes[i].NodeName);
-        //         pas[DMRoot.ChildNodes[i].NodeName]=null;
-        //         }
-        //   }
 
         }
       } catch(err) { alert(err.message + ' in CompileEventCode (units de-registration) ');     div.innerHTML=''; ok=false;}
       end;
-
 
       // Capture the output from the Pas2JS compiler
       JSOutput:=MyWebCompiler.Compiler.WebFS.GetFileContent(DllName+'.js');
@@ -1655,7 +1717,7 @@ begin
       begin
         i:=LocateNexTModule(JSOutputLines);
         CurrentUnitName:=ExtractModuleName(JSOutputLines[i]);
-        //showmessage('i='+inttostr(i)+' checking module '+CurrentUnitName);
+        //asm console.log('i=',i,' checking module '+CurrentUnitName); end;
         if (i-1) > 0 then
           for j:=0 to i-1 do
           begin
@@ -1668,14 +1730,14 @@ begin
         begin
           PasModuleExists:=true;
           asm
-          //alert(pas[CurrentUnitName]);
+          //console.log(pas[CurrentUnitName]);
           if (pas[CurrentUnitName]==undefined) {
              PasModuleExists = false;
           }
           end;
           if PasModuleExists = false then
           begin
-            //showmessage('keeping module '+CurrentUnitName);
+            //asm console.log('keeping module '+CurrentUnitName); end;
             JSKeep.Add(JSOutputLines[0]);
           end;
           JSOutputLines.Delete(0);

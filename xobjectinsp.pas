@@ -9,6 +9,7 @@
 
  **********************************************************************
  *)
+
 unit XObjectInsp;
 
 {$ifndef JScript}
@@ -20,7 +21,7 @@ interface
 uses
   Classes, SysUtils, TypInfo, Stringutils, StrUtils, NodeUtils, Events, PopupMemo,
 {$ifndef JScript}
-  LazsUtils, Menus, DynLibs,
+  LazsUtils, Menus, DynLibs, Contnrs, FileUtil,
   Controls, ComCtrls, PropEdits, ExtCtrls, Dialogs,Forms,CompilerLogUnit, xpparser,
 {$else}
   AboutUnit,pparser,HTMLUtils,
@@ -130,6 +131,7 @@ procedure OICopyToNewParent(nodeId,NameSpace:string;NewParentId:string;NewName:S
 procedure SaveCompositesToIncFile;
 procedure OICopyToNewParent(nodeId,NameSpace:string;NewParentId:string;NewName:PChar);  overload;
 {$endif}
+procedure DiscoverSavedFiles(suffix:String;var NamesList:TStringList; SortBy:String);
 procedure OIMoveNavSiblingUpDown(UpDown:String);
 procedure CodeTreeMoveSiblingUpDown(UpDown:String);
 procedure DoSelectNavTreeNode(CurrentNode:TDataNode; refresh:boolean);
@@ -190,7 +192,7 @@ const
   AttributeEditorNameDelimiter:string = '__';
 
 implementation
-uses PasteDialogUnit, PyXUtils, XDataModel, XIDEMain;
+uses SavedSystems, PasteDialogUnit, PyXUtils, XDataModel, XIDEMain;
 
 
   //SandraMode:Boolean = true;
@@ -369,7 +371,7 @@ end;
 
 Function ConstructCodeTreeString(CurrentItem:TDataNode; level:Integer):String;
 // Recursive
-var ArrayString, ProcsString:String;
+var ArrayString, ProcsString,ss:String;
     i,p,numchildren:integer;
 begin
   if CurrentItem<>nil then
@@ -381,6 +383,7 @@ begin
     )
     then
     begin
+      ss:=CurrentItem.NodeName;
       numchildren:=length(CurrentItem.ChildNodes);
 
       p:=0;
@@ -388,9 +391,10 @@ begin
       if (CurrentItem.NodeClass='Code')
       and (NumChildren=0) then
       begin
-        // This is a raw unit.
-        // If the compiler has been run (pas2js), then there will be a list of defined procedures
+        // This is a raw Pascal unit or a Python script.
+        // Pascal: If the compiler has been run (pas2js), then there will be a list of defined procedures/functions
         // available for display in this tree.
+        i:=length(pyUnitFuncs);
         for i:=0 to length(XIDEProcsList)-1 do
         begin
           if lowercase(XIDEProcsList[i].FileName) = lowercase(CurrentItem.NodeName)+'.pas' then
@@ -398,6 +402,15 @@ begin
             p:=p+1;
             //ProcsString:=ProcsString+',"'+inttostr(XIDEProcsList[i].LineNum)+'('+XIDEProcsList[i].Name+')"';
             ProcsString:=ProcsString+',"'+XIDEProcsList[i].Name+'"';
+          end;
+        end;
+        // Python:
+        for i:=0 to length(pyUnitFuncs)-1 do
+        begin
+          if lowercase(pyUnitFuncs[i].PyUnitName) = lowercase(CurrentItem.NodeName) then
+          begin
+            p:=p+1;
+            ProcsString:=ProcsString+',"'+pyUnitFuncs[i].PyFuncName+'"';
           end;
         end;
       end;
@@ -734,7 +747,29 @@ begin
   DeleteNodeChildren(composites);
 end;
 
-procedure DiscoverSavedFiles(suffix:String;var NamesList:TStringList);
+type
+  TFileDetails = class
+    Name: String;
+    Size, Time: int64;
+    TimeStamp:TDateTime;
+  end;
+
+  function CompareName(A, B: Pointer): Integer;
+  begin
+    //Result := CompareFilenames(TFileDetails(A).Name, length(TFileDetails(A).Name), TFileDetails(B).Name, length(TFileDetails(B).Name), false);
+  end;
+
+  function CompareSize(A, B: Pointer): Integer;
+  begin
+    Result := TFileDetails(A).Size - TFileDetails(B).Size;
+  end;
+
+  function CompareTime(A, B: Pointer): Integer;
+  begin
+    Result := TFileDetails(A).Time - TFileDetails(B).Time;
+  end;
+
+procedure DiscoverSavedFiles(suffix:String;var NamesList:TStringList; SortBy:String);
 {$ifndef JScript}
 var
   Info : TSearchRec;
@@ -742,9 +777,51 @@ var
   bits:TStringList;
   tmp:String;
   dt: TDateTime;
+  i:integer;
   y, d, m, h, min, sec, msec: word;
-begin
+  FileList: TObjectList;
+  LDetails : TFileDetails;
+  function FormatLine(Info: TSearchRec):String;
+  begin
+    with Info do
+    begin
+      bits:=stringsplit(Name,'.');
+      tmp:=bits[0];
+      if tmp<>'' then
+        if suffix<>'xcmp' then
+        begin
+          dt := Info.TimeStamp;
+          decodeDate( dt, y, m, d );
+          decodeTime( dt, h, min, sec, msec );
+          tmp:=tmp+'      '+format('%.2d',[d])+'/'+format('%.2d',[m])+'/'+inttostr(y)+
+               ' '+format('%.2d',[h])+':'+format('%.2d',[min])+':'+format('%.2d',[sec]);
+        end;
 
+    end;
+    result:=tmp;
+  end;
+  function FormatLine2(Info: TFileDetails):String;
+  begin
+    with Info do
+    begin
+      bits:=stringsplit(Name,'.');
+      tmp:=bits[0];
+      if tmp<>'' then
+        if suffix<>'xcmp' then
+        begin
+          dt := Info.TimeStamp;
+          decodeDate( dt, y, m, d );
+          decodeTime( dt, h, min, sec, msec );
+          tmp:=tmp+'      '+format('%.2d',[d])+'/'+format('%.2d',[m])+'/'+inttostr(y)+
+               ' '+format('%.2d',[h])+':'+format('%.2d',[min])+':'+format('%.2d',[sec]);
+        end;
+
+    end;
+    result:=tmp;
+  end;
+
+begin
+  FileList := TObjectList.Create;
   bits:=TStringList.Create;
     Count:=0;
     If FindFirst ('SavedSystems/*.'+suffix,faAnyFile,Info)=0 then
@@ -753,22 +830,32 @@ begin
         Inc(Count);
         With Info do
           begin
-            bits:=stringsplit(Name,'.');
-            tmp:=bits[0];
-            if suffix<>'xcmp' then
+            tmp:=FormatLine(Info);
+            if tmp<>'' then
             begin
-              dt := Info.TimeStamp;
-              decodeDate( dt, y, m, d );
-              decodeTime( dt, h, min, sec, msec );
-              tmp:=tmp+'      '+format('%.2d',[d])+'/'+format('%.2d',[m])+'/'+inttostr(y)+
-                       ' '+format('%.2d',[h])+':'+format('%.2d',[min])+':'+format('%.2d',[sec]);
-            end;
-            if bits[0]<>'' then
               NamesList.Add(tmp);
+
+              LDetails := TFileDetails.Create;
+              LDetails.Name := Info.Name;
+              LDetails.Size := Info.Size;
+              LDetails.Time := Info.Time;
+              LDetails.TimeStamp := Info.TimeStamp;
+              FileList.Add(LDetails);
+            end;
           end;
       Until FindNext(info)<>0;
     end;
     FindClose(Info);
+    if SortBy = 'Time' then
+    begin
+      NamesList.Clear;
+      FileList.Sort(@CompareTime);
+      for i := FileList.Count - 1 downto 0 do
+      begin
+        tmp:=FormatLine2(TFileDetails(FileList[i]));
+        NamesList.Add(tmp);
+      end;
+    end;
 {$else}
 var
   namesArray:TStringArray;
@@ -780,6 +867,16 @@ begin
   setlength(namesArray,0);
   asm
   namesArray = Object.keys(localStorage);
+  if (SortBy == "Time") {
+    namesArray.sort(function(a,b){
+      // subtract dates
+      // to get a value that is either negative, positive, or zero.
+      var aobj = localStorage.getItem(a);
+      var bobj = localStorage.getItem(b);
+      return (new Date(JSON.parse(bobj).timestamp) - new Date(JSON.parse(aobj).timestamp));
+    });
+  }
+  //console.log('namesArray',namesArray);
   end;
   for n:= 0 to length(namesArray)-1 do
   begin
@@ -790,18 +887,17 @@ begin
       nm:=bits[0];
       asm
       if (suffix!='xcmp') {
-      // find the timestamp...
-      try {
-      var object = JSON.parse(localStorage.getItem(namesArray[n]));
-      ts = '';
-      if ((object!=null)&&(suffix!='xcmp')) {
-        if ( object.hasOwnProperty('timestamp') ) {
-        var tsd = new Date(object.timestamp);
-        ts = '      '+tsd.toLocaleDateString()+' '+tsd.toLocaleTimeString();
-        }
-      }
-      } catch(err) {ts='';  // skip the un-parseable item.
-                   }
+        // find the timestamp...
+        try {
+          var object = JSON.parse(localStorage.getItem(namesArray[n]));
+          ts = '';
+          if (object!=null) {
+            if ( object.hasOwnProperty('timestamp') ) {
+              var tsd = new Date(object.timestamp);
+              ts = '      '+tsd.toLocaleDateString()+' '+tsd.toLocaleTimeString();
+            }
+          }
+        }  catch(err) {ts=''; }  // skip the un-parseable item.
       }
       end;
       NamesList.Add(nm+ts);
@@ -811,13 +907,22 @@ begin
   bits.Free;
 end;
 
+(*
+namesArray.sort(function(a,b){
+  // Turn your strings into dates, and then subtract them
+  // to get a value that is either negative, positive, or zero.
+  return new Date(b.timestamp) - new Date(a.timestamp);
+});
+*)
+
 procedure DiscoverSavedSystems(var NamesList:TStringList);
 begin
-  DiscoverSavedFiles('xide',NamesList);
+  //SavedSystemsForm.SavedSystemsSortBtn.IsVisible:=true;
+  DiscoverSavedFiles('xide',NamesList,'Name');
 end;
 procedure DiscoverSavedComposites(var NamesList:TStringList);
 begin
-  DiscoverSavedFiles('xcmp',NamesList);
+  DiscoverSavedFiles('xcmp',NamesList,'Name');
 end;
 
 procedure SetupAvailableResources;
@@ -1577,6 +1682,42 @@ begin
   result:=ln;
 end;
 
+function FindLineNumForPyFunc(UnitNode:TDataNode;FuncName:String):integer;
+var
+  i,j,ln:integer;
+  codetxt:String;
+  Lines:TStringList;
+begin
+  ln:=-1;
+  i:=0;
+  while i<length(pyUnitFuncs) do
+  begin
+    if (lowercase(pyUnitFuncs[i].PyUnitName) = lowercase(UnitNode.NodeName))
+    and (pyUnitFuncs[i].PyFuncName = FuncName) then
+    begin
+      // have to look for the function in the script to find line number
+      CodeTxt:=UnitNode.GetAttribute('Code',true).AttribValue;
+      Lines:=StringSplit(CodeTxt,LineEnding);
+      j:=0;
+      while (j < Lines.Count) and (ln<0) do
+      begin
+        Lines[j]:=trim(Lines[j]);
+        Lines[j]:=Copy(Lines[j], 1, 4+length(FuncName));
+        if Lines[j] = 'def '+FuncName then
+        begin
+          ln:=j+1;
+          j:=Lines.Count;
+        end;
+        j:=j+1;
+      end;
+
+    end;
+    i:=i+1;
+  end;
+  if ln<0 then ln:=0;
+  result:=ln;
+end;
+
 procedure HandleCodeTreeClickEvent(TreeNodeId,TreeNodeText,FirstBit:String);
 var
   CurrentNode :TDataNode;
@@ -1594,7 +1735,9 @@ begin
   and (TreeNodeText<>'Root(Events)')
   and (TreeNodeText<>'Root(GPUCode)') then
   begin
-    CurrentNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',false);
+    CurrentNode:=FindDataNodeById(CodeRootNode,TreeNodeId,'',false);
+    if CurrentNode = nil then
+      CurrentNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',false); // might be an event handler or GPU code
     if CurrentNode<>nil then
     begin
       SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
@@ -1613,16 +1756,22 @@ begin
       ParentText:=TXTree(CodeTreeComponent).TextOfNode(ParentText);
       //showmessage('ParentText2='+ParentText);
       {$endif}
+
       ParentId:=TreeLabelToID(ParentText,'CodeTree',p1);
       CurrentNode:=FindDataNodeById(SystemNodeTree,ParentId,'',true);
-      //CurrentNode:=FindDataNodeById(UIRootNode,ParentId,'',true);
       if (CurrentNode<>nil)
       and (CurrentNode.NodeType='PasUnit') then
       begin
          SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
          OISelectedCodeProcName:=TreeNodeId;
-         //OISelectedCodeLineNum:=strtoint(FirstBit);
          OISelectedCodeLineNum:=FindLineNumForProc(OISelectedCodeProcName);
+      end
+      else if (CurrentNode<>nil)
+      and (CurrentNode.NodeType='PythonScript') then
+      begin
+         SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
+         OISelectedCodeProcName:=TreeNodeId;
+         OISelectedCodeLineNum:=FindLineNumForPyFunc(CurrentNode,OISelectedCodeProcName);
       end
       else
       begin
@@ -4136,7 +4285,8 @@ begin
     else if EditNode.NodeType='TXMemo' then
       NewValue:=EditNode.GetAttribute('ItemValue',false).AttribValue
     else if EditNode.NodeType='TXTree' then
-      NewValue:=EditNode.GetAttribute('TreeData',false).AttribValue
+      NewValue:=TXTree(EditNode.ScreenObject).buildTreeDataString
+      //NewValue:=EditNode.GetAttribute('TreeData',false).AttribValue
     else if EditNode.NodeType='TXTable' then
     begin
       NewValue:=EditNode.GetAttribute('TableData',false).AttribValue;
@@ -4901,7 +5051,8 @@ begin
       {$ifdef JScript}
       ShowXForm('CodeEditForm',true);
       {$endif}
-      if ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit' then
+      if (ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit')
+      or (ObjectInspectorSelectedCodeTreeNode.NodeType='PythonScript') then
       begin
         CodeEditForm.SetCursorPosition(OISelectedCodeLineNum,1);
       end;

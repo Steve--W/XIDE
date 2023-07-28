@@ -44,6 +44,7 @@ TDoEvent=procedure(EventType,NodeId,myValue:String) of object;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;
 TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean of object;
+TDeleteSelectedTreeNode=procedure(TreeName:string) of object;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;
 TGetGPUParam2DNumValue=function(GPUName,pName:String):T2DNumArray of object;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
@@ -96,6 +97,7 @@ DoEvent:TDoEvent;
 MoveComponent:TMoveComponent;
 CopyComponent:TCopyComponent;
 DeleteComponent:TDeleteComponent;
+DeleteSelectedTreeNode:TDeleteSelectedTreeNode;
 GetGPUParamNumValue:TGetGPUParamNumValue;
 GetGPUParam2DNumValue:TGetGPUParam2DNumValue;
 GetGPUConstIntValue:TGetGPUConstIntValue;
@@ -154,6 +156,7 @@ type TMethodsClass = class(TObject)
  procedure mmiMoveComponent(nodeId:string;NewParentId:string);
  procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);
  function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;
+ procedure mmiDeleteSelectedTreeNode(TreeName:string);
  function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
  function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;
  function mmiGetGPUConstIntValue(GPUName,pName:String):integer;
@@ -219,6 +222,7 @@ begin
   movecomponent:=@appmethods.mmiMoveComponent;
   copycomponent:=@appmethods.mmiCopyComponent;
   deletecomponent:=@appmethods.mmiDeleteComponent;
+  deleteselectedtreenode:=@appmethods.mmiDeleteSelectedTreeNode;
   getgpuparamnumvalue:=@appmethods.mmiGetGPUParamNumValue;
   getgpuparam2dnumvalue:=@appmethods.mmiGetGPUParam2DNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
@@ -489,6 +493,15 @@ begin
   Deleted=pas.XObjectInsp.OIDeleteItem(nodeId,pas.InterfaceTypes.EventsNameSpace,ShowNotFoundMsg,ShowConfirm);
   end;
   result:=Deleted;
+end;
+procedure TMethodsClass.mmiDeleteSelectedTreeNode(TreeName:string);
+begin
+  asm
+  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TreeName,pas.InterfaceTypes.EventsNameSpace,true);
+  if ((myNode!=null)&&(myNode.NodeType=='TXTree')) {
+    myNode.DeleteSelectedNode();
+    }
+  end;
 end;
 procedure TMethodsClass.mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
 begin

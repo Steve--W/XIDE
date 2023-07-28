@@ -42,16 +42,20 @@ type
     SavedSystemsBtns: TXHBox;
     SavedSystemsCancel: TXButton;
     SavedSystemsDelete: TXButton;
+    SavedSystemsSortBtn: TXButton;
     {$ifndef JScript}
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
     {$endif}
+    procedure PopulateFilesList(NamesList:TStringList);
     procedure SavedSystemsCancelHandleButtonClick(e: TEventStatus;
       nodeID: AnsiString; myValue: AnsiString);
     procedure SavedSystemsDeleteHandleButtonClick(e: TEventStatus;
       nodeID: AnsiString; myValue: AnsiString);
     procedure SavedSystemsLoadHandleButtonClick(e: TEventStatus;
       nodeID: AnsiString; myValue: AnsiString);
+    procedure SavedSystemsSortBtnHandleButtonClick(e: TEventStatus; nodeID: AnsiString;
+      myValue: AnsiString);
 
   public
     procedure Initialise;
@@ -147,27 +151,54 @@ begin
   end;
 end;
 
+procedure TSavedSystemsForm.SavedSystemsSortBtnHandleButtonClick(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+var
+NamesList:TStringList;
+begin
+  NamesList:=TStringList.Create;
+  if SavedSystemsSortBtn.Caption = 'Sort by Name' then
+  begin
+    // sort by name
+    DiscoverSavedFiles('xide',NamesList, 'Name');
+    SavedSystemsSortBtn.Caption := 'Sort by Date';
+  end
+  else
+  begin
+    // sort by date
+    DiscoverSavedFiles('xide',NamesList, 'Time');
+    SavedSystemsSortBtn.Caption := 'Sort by Name';
+  end;
+  PopulateFilesList(NamesList);
+end;
+
+procedure TSavedSystemsForm.PopulateFilesList(NamesList:TStringList);
+var
+TreeString:String;
+i:integer;
+begin
+  //Example Tree String = '["myTreeName",["AAAAAA","BBBBB"],"CCCCC","DDDDDD",["EEEEE","FFFFF"],"GGGGG"]';
+    TreeString:='["Saved Systems"';
+
+    for i:=0 to NamesList.count-1 do
+    begin
+      if NamesList[i]<>'' then
+        TreeString:=TreeString + ',"' + NamesList[i] + '"';
+    end;
+    TreeString:=TreeString + ']';
+    SavedSystemsList.TreeData:=TreeString;
+end;
+
 procedure TSavedSystemsForm.Initialise;
 var
   NamesList:TStringList;
-  TreeString:String;
-  i:integer;
 begin
   // populate SavedSystemsList from stored data
   NamesList:=TStringList.Create;
   NamesList.Clear;
   DiscoverSavedSystems(NamesList);
+  PopulateFilesList(NamesList);
 
-//Example Tree String = '["myTreeName",["AAAAAA","BBBBB"],"CCCCC","DDDDDD",["EEEEE","FFFFF"],"GGGGG"]';
-  TreeString:='["Saved Systems"';
-
-  for i:=0 to NamesList.count-1 do
-  begin
-    if NamesList[i]<>'' then
-      TreeString:=TreeString + ',"' + NamesList[i] + '"';
-  end;
-  TreeString:=TreeString + ']';
-  SavedSystemsList.TreeData:=TreeString;
 
   NamesList.Free;
 end;

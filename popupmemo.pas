@@ -154,6 +154,14 @@ begin
 
   PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
   ' ' + LineEnding +
+  'TXTree Functions' + LineEnding +
+  '=================' + LineEnding +
+  'procedure  DeleteSelectedTreeNode(TreeName:string); '  + LineEnding +
+  '                            deletes the currently selected node in the named tree component '   + LineEnding;
+
+
+  PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
+  ' ' + LineEnding +
   'TXGPUCanvas Functions' + LineEnding +
   '=====================' + LineEnding +
   'function  GetGPUParamNumValue(GPUName,pName:String):TNumArray; '  + LineEnding +

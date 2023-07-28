@@ -107,6 +107,7 @@ type
     function GPUJSCode(AnimCode:TStringList):String;
     function GPUJSAnimationFooter:String;
     procedure setupGPUPage;
+    function AddFuncsBlockIfMissing(GPUCode:String):String;
 
     {$ifndef JScript}
     procedure DoGPUCanvasConstructor;
@@ -223,7 +224,7 @@ var
   OList:String;
   i:integer;
 begin
-  OList:='["Graphical (Final)"';
+  OList:='["Graphical (Final)","Common Functions"';
   for i:=0 to numKernels-1 do
     OList:=OList+',"Kernel '+inttostr(i+1)+'"';
   OList:=OList+']';
@@ -379,8 +380,8 @@ begin
       sText := message.ArgumentList.GetString(1);
       acText := message.ArgumentList.GetString(2);
       // convert the array string to 3d numeric array
-     self.GPUOutputString:=oText;
-     self.GPUStageString:=sText;
+     self.GPUOutputString:=oText;   // the pixel array
+     self.GPUStageString:=sText;  //the final stage array
      self.animCounterString:=acText;
      //self.GPUStageArray:=JSONStringTo3DNumArray(sText);    //!!!! takes ages ..... tbd
      setlength(self.GPUStageArray,0);
@@ -580,11 +581,16 @@ var
   n:integer;
 begin
   result:=false;
-  setlength(self.Dimensions,numKernels+1);
+  //setlength(self.Dimensions,numKernels+1);
+  setlength(self.Dimensions,numKernels+2);    // add dummy 'kernel' for the common functions code
   setlength(self.Dimensions[0],3);
+  setlength(self.Dimensions[1],3);
   self.Dimensions[0,0]:=self.ActualWidth;
   self.Dimensions[0,1]:=self.ActualHeight;
   self.Dimensions[0,2]:=1;
+  self.Dimensions[1,0]:=0;
+  self.Dimensions[1,1]:=0;
+  self.Dimensions[1,2]:=0;
   TempStr:=self.KernelXDims;
   xdims:=JSONStringToStringList(TempStr);
   TempStr:=self.KernelyDims;
@@ -626,12 +632,13 @@ begin
     end;
   end;
   // set up the kernel dimensions...
-  for n:=1 to numKernels do
+  //for n:=1 to numKernels do
+  for n:=2 to numKernels+1 do
   begin
     setlength(self.Dimensions[n],3);            //x,y,z
-    self.Dimensions[n,0]:=strtoint(xdims[n-1]);
-    self.Dimensions[n,1]:=strtoint(ydims[n-1]);
-    self.Dimensions[n,2]:=strtoint(zdims[n-1]);
+    self.Dimensions[n,0]:=strtoint(xdims[n-2]);
+    self.Dimensions[n,1]:=strtoint(ydims[n-2]);
+    self.Dimensions[n,2]:=strtoint(zdims[n-2]);
   end;
   result:=true;
 end;
@@ -644,9 +651,10 @@ begin
     showmessage('Error: Unable to find any animation code block(s)');
     result:=false;
   end;
-  if AnimCode.Count<numKernels+1 then
+  //if AnimCode.Count<numKernels+1 then
+  if AnimCode.Count<numKernels+2 then
   begin
-    showmessage('Error: Unable to find '+inttostr(numKernels+1)+' animation code blocks');
+    showmessage('Error: Unable to find '+inttostr(numKernels+2)+' animation code blocks');
     result:=false;
   end;
 end;
@@ -784,7 +792,7 @@ begin
   +'    sa.style.display="none";' + LineEnding
   +'    document.body.appendChild(sa);}' + LineEnding
   +'  if (running) {  ' + LineEnding
-  +'    sa.innerHTML=MyStringify(stageArray);' + LineEnding;
+  +'    sa.innerHTML=MyStringify(outputStageArray);' + LineEnding;
   {$ifndef JScript}
   {$ifdef Chromium}
   str:=str
@@ -910,14 +918,65 @@ begin
   result:=str;
 end;
 
+function funcnamesFromPascal(codelist:TStringList):TStringList;
+// extract individual function names from the 'common functions' code block
+var
+    i,j,n:integer;
+    fnm:String;
+    names:TStringList;
+begin
+  n:=0;
+  names:=TStringList.Create();
+  for i:=0 to codelist.count-1 do
+  begin
+    if FoundString(trim(codelist[i]),'function ')=1 then
+    begin
+      fnm:= trim(copy(codelist[i],10));
+      j:=FoundString(fnm,'(');
+      if j=0 then j:=FoundString(fnm,':');
+      fnm:=copy(fnm,0,j-1);
+      names.add(fnm)
+    end;
+  end;
+  result:=names;
+end;
+function funcnamesFromJS(codestr:String;var codelist:TStringList):TStringList;
+// extract individual function names from the transpiled 'common functions' code block
+var
+    i,j,k,n:integer;
+    ss,fnm:String;
+    names:TStringList;
+begin
+  n:=0;
+  names:=TStringList.Create();
+  codelist:=TStringList.Create();
+  codelist.text:=codestr;
+  for i:=0 to codelist.count-1 do
+  begin
+    ss:=codelist[i];
+    if FoundString(ss,'= function ')>0 then
+    begin
+      // find the name, and change the function declaration to   function fname () {......
+      j:=FoundString(ss,'=');
+      fnm:= trim(copy(ss,0,j-1));
+      names.add(fnm);
+      k:=j+10;
+      ss:='function '+fnm+copy(ss,k);
+      codelist[i]:=ss;
+    end;
+  end;
+  result:=names;
+end;
+
 function TXGPUCanvas.GPUJSCode(AnimCode:TStringList):String;
 //function TXGPUCanvas.GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
 var
   str,vstr,plist, KName,tempstr:String;
   i,j,k,d:integer;
   h,w,n:integer;
-  xdims,ydims,zdims:TStringList;
+  xdims,ydims,zdims,fnames,fcode:TStringList;
   ok:boolean;
+  allcode:TAnimCodeArray;
 begin
   result:='';
   ok := CheckForKernels(AnimCode);
@@ -931,6 +990,24 @@ begin
 
   plist:=self.FullParamList;
   KName:=self.MyNode.NodeName+'CanvasRenderFn';
+
+  // Create common functions
+  allcode := FetchAllAnimCode;
+  if trim(AnimCode[1])<>'' then
+  begin
+    ////// find the func names !!!!!!!!  (using the original Pascal code)
+    //fnames:=funcnamesFromPascal(allcode[1].CodeBlock);
+    fnames:=funcnamesFromJS(AnimCode[1],fcode);
+    str:=str
+    +fcode.text  + LineEnding;
+    for n:=0 to fnames.Count-1 do
+    begin
+      str:=str
+      +self.MyNode.NodeName+'Matrix.addFunction('
+      +fnames[n]
+      +');'  + LineEnding;
+    end;
+  end;
 
   // Build the Dimensions array
   ok:=self.BuildDimensionsArray(xdims,ydims,zdims);
@@ -946,15 +1023,16 @@ begin
     +'const '+KName+inttostr(n)+' = '+self.MyNode.NodeName+'Matrix.createKernel(function(myArray,AnimationCounterValue'+plist
        +') { ' + LineEnding;
     str:=str + '  var myValue=0.0;' + LineEnding;
-    str:=str + AnimCode[n+1];
+    //str:=str + AnimCode[n+1];
+    str:=str + AnimCode[n+2];          // extra 1 for common functions
     str:=str + '  return myValue;' + LineEnding;   // this goes into the relevant x,y,z position in outputArray
     str:= str
     +'},'+LineEnding
     +'{  output: [';
-    for d:=0 to length(self.Dimensions[n+1])-1 do
+    for d:=0 to length(self.Dimensions[n+2])-1 do
     begin
       if d>0 then str:=str+',';
-      str:= str + inttostr(self.Dimensions[n+1,d]);
+      str:= str + inttostr(self.Dimensions[n+2,d]);
     end;
 
     str:= str
@@ -1081,9 +1159,9 @@ begin
   +'let stageArray=[[[0]]];'  +LineEnding;
   {$endif}
   if numKernels>0 then
-    str:=str+'let outputStageArray=Array('+inttoStr(self.Dimensions[1,2])+
-                                   ').fill(Array('+inttoStr(self.Dimensions[1,1])+
-                                   ').fill(Array('+inttoStr(self.Dimensions[1,0])+').fill(0.0)));' +LineEnding
+    str:=str+'let outputStageArray=Array('+inttoStr(self.Dimensions[2,2])+
+                                   ').fill(Array('+inttoStr(self.Dimensions[2,1])+
+                                   ').fill(Array('+inttoStr(self.Dimensions[2,0])+').fill(0.0)));' +LineEnding
   else
     str:=str+'let outputStageArray=[[[0]]];' +LineEnding;
   str:=str+LineEnding;
@@ -1463,7 +1541,8 @@ begin
   //         Dimensions of output array (eg.  x,y,z)
   //         Delimiter between code block and dimensions spec is EventAttributeDelimiter
 
-  setlength(allcode,numKernels+1);
+  //setlength(allcode,numKernels+1);     // +1 for the final graphical kernel.
+  setlength(allcode,numKernels+2);     // +1 for the final graphical kernel.  +1 again for a common functions kernel
   bits:= stringsplit(self.AnimationCode,eventListdelimiter);
 
   // for each kernel...
@@ -1480,15 +1559,22 @@ begin
   end;
 
   // Add Empty code blocks for missing stages (number of code blocks == numKernels+1)
-  for n:=bits.Count to numKernels do
+  // code[0] is the graphical kernel.
+  // code[1] is reserved for common function declarations
+  // code[2..n] are the non-graphical kernels
+  //for n:=bits.Count to numKernels do
+  for n:=bits.Count to numKernels+1 do           // numKernels=number of non-graphical kernels.  Plus 1 graphicel kernel.  Plus 1 common functions
   begin
     allcode[n].CodeBlock:=TStringList.Create;
-    allcode[n].CodeBlock.Text:='//Kernel '+inttostr(n)+LineEnding
-      +'begin'+LineEnding
-      +'  //eg. for 3D array stages, this will pass through the prior kernel result...'+LineEnding
-      +'  //Note. Dimensions of myArray are as specified for the prior kernel output.'+LineEnding
-      +'  myValue:=myArray[this.thread.z,this.thread.y,this.thread.x]; '+LineEnding
-      +'end;'+LineEnding;
+    if n<>1 then
+      allcode[n].CodeBlock.Text:='//Kernel '+inttostr(n-1)+LineEnding
+        +'begin'+LineEnding
+        +'  //eg. for 3D array stages, this will pass through the prior kernel result...'+LineEnding
+        +'  //Note. Dimensions of myArray are as specified for the prior kernel output.'+LineEnding
+        +'  myValue:=myArray[this.thread.z,this.thread.y,this.thread.x]; '+LineEnding
+        +'end;'+LineEnding
+    else
+      allcode[n].CodeBlock.Text:='//common functions '+LineEnding;
 
 //    setlength(allcode[n].KDimensions,3);
 //    allcode[n].KDimensionsStr:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight)+','+inttostr(self.DfltZDepth);
@@ -1499,7 +1585,8 @@ begin
 
   // In case this has adjusted the data, save the concatenated code block again to the AnimationCode property
   RevisedAnimCode:='';
-  for n:=0 to numKernels do
+  //for n:=0 to numKernels do
+  for n:=0 to numKernels+1 do           // numKernels=number of non-graphical kernels.  Plus 1 graphicel kernel.  Plus 1 common functions
   begin
     if n>0 then
       RevisedAnimCode:=RevisedAnimCode + eventListdelimiter;
@@ -1645,7 +1732,14 @@ begin
   for n:=0 to length(AllAnimationCode)-1 do
   begin
     if n=0 then
+    begin
       PascalHeader.Add('var kkkkk'+inttostr(n)+':integer;')
+    end
+    else if n=1 then
+    begin
+        PascalHeader.Add('var kkkkk'+inttostr(n)+':integer;');
+        PascalHeader.Add('var kkdummy'+inttostr(n)+':integer;');
+    end
     else
       PascalHeader.Add('procedure kkkkk'+inttostr(n)+'(AnimationCounterValue:integer);');
     TheAnimationCode.Text:=AllAnimationCode[n].CodeBlock.Text;
@@ -1686,7 +1780,8 @@ begin
 
       PascalHeader.Add('  // emulate each thread in turn ');
       PascalHeader.Add('  // ...separately for each kernel ..... ');
-      for n:=1 to length(AllAnimationCode)-1 do
+      //for n:=1 to length(AllAnimationCode)-1 do
+      for n:=2 to length(AllAnimationCode)-1 do      // extra block for common functions
       begin
         PascalHeader.Add('  setlength(outArray,'+inttostr(self.Dimensions[n,2])+');');        //Z
         PascalHeader.Add('  for k:=0 to length(outArray)-1 do');
@@ -1919,7 +2014,7 @@ var
   Pas2jsOutput:String;
   PasString,Pas2JSRaw:String;
   Pas2JSTrimmed:TstringList;
-  tmp:String;
+  tmp,ss:String;
   ok:Boolean;
   tmpList:TStringList;
   i,j:integer;
@@ -1938,6 +2033,7 @@ begin
     begin
       tmpList:=TStringList.Create;
       tmpList.Text:=Pas2JSOutput;
+      //tmpList.SaveToFile('kkkkkk0.txt');
       // delete up to the zzzzz1 line
       while (tmpList.Count>0) and (FoundString(tmpList[0],'zzzzz1')<1) do
          tmpList.Delete(0);
@@ -1950,6 +2046,7 @@ begin
         i:=0;
         while i<tmpList.Count do
         begin
+          ss:=tmpList[i];
           if FoundString(tmpList[i],'zzzzz2')>0 then
           begin
 //            showmessage('found zzzzz2 at line '+inttostr(i));
@@ -1958,11 +2055,17 @@ begin
             i:=tmpList.Count;
           end
           else
+          if (FoundString(tmpList[i],'kkkkk1')>0) then
+          begin
+            tmpList[i-1]:='';    // remove the previous closing '};' - will be added back later.
+          end
+          else
           if (FoundString(tmpList[i],'kkkkk')>0)
+          and (FoundString(tmpList[i],'kkkkk2')=0)
           and (FoundString(tmpList[i],'function')>0) then
           begin
-            tmpList[i-1]:='';    // remove the closing '};' - will be added back later.
-           end;
+            tmpList[i-1]:='';    // remove the previous closing '};' - will be added back later.
+          end;
           i:=i+1;
         end;
         // delete all after the zzzzz2 line
@@ -1971,6 +2074,7 @@ begin
            tmpList.Delete(j);
         end;
       end;
+      //tmpList.SaveToFile('kkkkkk0.txt');
       // now, tmplist has the set of kernel procs, plus the graphical final kernel.
       // These need separating.
 
@@ -2004,6 +2108,7 @@ begin
       tmp:='';
       for i:=0 to tmpList.Count-1 do
       begin
+        ss:=tmpList[i];
         if (FoundString(tmpList[i],'kkkkk')>0) then
         begin
           if j>-1 then
@@ -2018,6 +2123,7 @@ begin
         if i=tmpList.Count-1 then
           Pas2JSTrimmed.Add(tmp);
       end;
+      //Pas2JSTrimmed.SaveToFile('kkkkkk1.txt');
 
       tmpList.Free;
     end;
@@ -2279,6 +2385,31 @@ begin
     end;
 end;
 
+function TXGPUCanvas.AddFuncsBlockIfMissing(GPUCode:String):String;
+var
+bits:TStringList;
+n,ExpectedNum:integer;
+begin
+  result:=GPUCode;
+  if (GPUCode='') then
+    EXIT;
+  // #### step for loading old systems (where there was no functions block)... create an empty functions block
+  ExpectedNum := numKernels+2;     // +1 for the final graphical kernel.  +1 again for a common functions kernel
+  bits:= stringsplit(GPUCode,eventListdelimiter,false);
+  if (bits.Count = ExpectedNum-1)
+  then
+  begin
+    bits.Add(' ');
+    for n:=ExpectedNum-1 downto 2 do
+    begin
+      bits[n]:=bits[n-1];
+    end;
+    bits[1]:='// common functions';
+    result:= bits.Text;
+  end;
+  bits.Free;
+end;
+
 procedure TXGPUCanvas.SetAnimationCode(AValue:string);
 var
   GPUString:string;
@@ -2289,6 +2420,7 @@ begin
   {$endif}
   begin
     GPUString:=AValue;
+    GPUString:=AddFuncsBlockIfMissing(GPUString);
 
     //showmessage('Frame setXMLString '+SVGString);
     myNode.SetAttributeValue('AnimationCode',GPUString);

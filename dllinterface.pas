@@ -21,7 +21,7 @@ interface
 uses
   Classes, SysUtils, StringUtils, ExtCtrls, Dialogs, Clipbrd, Forms, Controls,
   NodeUtils, LazsUtils, EventsInterface, Events, XForm, XBitMap, XObjectInsp, XGPUCanvas, XTable,
-  XComposite, XIframe, XDataModel,
+  XComposite, XIframe, XDataModel, XTree,
   MouseAndKeyInput, LCLType, TypInfo;
 
 type
@@ -46,6 +46,7 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
     function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
+    procedure mmiDeleteSelectedTreeNode(TreeName:string);   stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
     function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
@@ -100,6 +101,7 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
       procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
       function mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;  stdcall;
+      procedure mmiDeleteSelectedTreeNode(TreeName:string);   stdcall;
       function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
       function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;  stdcall;
       function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
@@ -266,12 +268,16 @@ function TMyMethodObject.mmiGetPropertyValue(nodeName:String;propName:String):st
 var
  myNode:TDataNode;
  localStr:String;
+ attr:TNodeAttribute;
 begin
   myNode:=FindDataNodeById(UIRootNode,nodename,StrPas(EventsNameSpace),true);      //SystemNodeTree?
+  localStr:='';
   if mynode<>nil then
-    localStr:=mynode.GetAttributeAnyCase(propName).AttribValue
-  else
-    localStr:='';
+  begin
+    attr:=mynode.GetAttributeAnyCase(propName);
+    if attr<>nil then
+      localStr:=attr.AttribValue
+  end;
   result:=localStr;
 end;
 
@@ -523,6 +529,17 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
    begin
      Deleted:=OIDeleteItem(nodeId,StrPas(EventsNameSpace),ShowNotFoundMsg,ShowConfirm);
      result:=Deleted;
+   end;
+
+   procedure TMyMethodObject.mmiDeleteSelectedTreeNode(TreeName:string);  stdcall;
+   var
+     myNode:TDataNode;
+   begin
+     myNode:=FindDataNodeById(UIRootNode,TreeName,StrPas(EventsNameSpace),true);   //SystemNodeTree?
+     if (mynode<>nil) and (myNode.NodeType='TXTree') then
+     begin
+       TXTree(myNode.ScreenObject).DeleteSelectedNode;
+     end;
    end;
 
    procedure TMyMethodObject.mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;

@@ -1065,6 +1065,10 @@ begin
     ExtraDirectives.add('-dPython');
     ExtraHTML:=PyodideScript;
     {$endif}
+    //ExtraHTML.Add('<script src="http://asterius.netlify.app/demo/pandoc/pandoc.js"></script> ');  //###### pandoc test
+    //ExtraHTML.Add('<script src="file:///C:/Laz19Projects/XIDE/pandoc/pandoc.js"></script> ');  //###### pandoc test
+    //ExtraHTML.Add('<script src="file:///C:/Laz19Projects/XIDE/pandoc/tryserver.js"></script> ');  //###### pandoc test
+
     CompileJSandExecute('resources/project/',ExtraDirectives,ExtraHTML);
     if not FileExists('XIDEMain.js') then
       ShowCompilerLog;

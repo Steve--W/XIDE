@@ -405,7 +405,10 @@ begin
     AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
     GPUCodeEditor.ItemValue:=AllKernels[GPUComboBox.ItemIndex].CodeBlock.Text;
     if  GPUComboBox.ItemIndex>0 then
-      GPUEditBox.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).KernelDimsString(GPUComboBox.ItemIndex-1)
+      if GPUComboBox.ItemIndex<>1 then
+        GPUEditBox.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).KernelDimsString(GPUComboBox.ItemIndex-2)
+      else
+        GPUEditBox.ItemValue:='n/a'
     else
       GPUEditBox.ItemValue:='* pixelmap size *';
   end;
