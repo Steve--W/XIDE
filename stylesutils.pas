@@ -237,7 +237,7 @@ begin
       var link = document.createElement('link');
       link.id='myExternalStyleSheet';
       link.rel = 'stylesheet';
-      link.href = 'data:text/css;charset=UTF-8,' + encodeURIComponent(ExternalStyleText);
+      link.href = 'data:text/css;charset="UTF-8",' + encodeURIComponent(ExternalStyleText);
       document.getElementsByTagName('head')[0].appendChild(link);
       end;
     end
@@ -1193,7 +1193,7 @@ var WhiteSpaceRule:string;
 begin
   WhiteSpaceRule:='.noChildren,.hasChildren { white-space: pre;}';
   // spoof:= '.noChildren,.hasChildren { white-space: normal;}';
-  //indirectWhiteSpaceRule:='@import url("data:text/css;charset=utf-8,'+WhiteSpaceRule +'") ';
+  //indirectWhiteSpaceRule:='@import url("data:text/css;charset=''utf-8'','+WhiteSpaceRule +'") ';
   //UpdateOrCreateStyleSheet(' ','CSSEditorStyles');
   //UpdateOrCreateStyleSheet(spoof,'CSSEditorStyles1');
   UpdateOrCreateStyleSheet(WhiteSpaceRule,'CSSEditorStyles',-1);

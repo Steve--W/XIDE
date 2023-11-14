@@ -364,7 +364,6 @@ begin
   else if fname='SetGPUParamNumValue' then
   begin
     arr1dn:=ConvertArrayOfVariantTo1DNumArray(fnargs[2]);
-
     mmo.mmiSetGPUParamNumValue(fnArgs[0], fnArgs[1], arr1dn)
   end
   else if fname='SetGPUParam2DNumValue' then
@@ -1059,6 +1058,30 @@ begin
 
 end;
 {$else}
+//function ConvertArrayOfVariantTo1DNumArray(varr:TArgs):TNumArray;
+//var
+//  arr:TNumArray;
+//  v:Variant;
+//  varri:TArgs;
+//  i,l:integer;
+//begin
+//  setlength(arr,length(varr));
+//  for i:=0 to length(varr)-1 do
+//  begin
+//    v:=varr[i];
+//    if v<>null then
+//      try
+//       arr[i]:=Double(v);
+//      except
+//        on exception do
+//          arr[i]:=-999;
+//      end
+//    else
+//      arr[i]:=-999;
+//  end;
+//  result:=arr;
+//end;
+
 procedure RunInitialScript;
 var
   InitScript:TStringList;
@@ -1153,9 +1176,10 @@ end;
   InitScript.add('def GetGPUConstIntValue(GPUName,pName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUConstIntValue(GPUName,pName)');
   InitScript.add('def SetGPUParamNumValue(GPUName,pName,pValue):');
-  InitScript.add('  pas.InterfaceTypes.SetGPUParamNumValue(GPUName,pName,pValue)');
+  InitScript.add('  pas.InterfaceTypes.SetGPUParamNumValueFromStr(GPUName,pName,str(pValue))');
   InitScript.add('def SetGPUParam2DNumValue(GPUName,pName,pValue):');
-  InitScript.add('  pas.InterfaceTypes.SetGPUParam2DNumValue(GPUName,pName,pValue)');
+  InitScript.add('  sss = ConvertNumpyArrayToJSON(np.asarray(pValue))');
+  InitScript.add('  pas.InterfaceTypes.SetGPUParam2DNumValueFromStr(GPUName,pName,sss)');
   InitScript.add('def SetGPUConstIntValue(GPUName,pName,pValue):');
   InitScript.add('  pas.InterfaceTypes.SetGPUConstIntValue(GPUName,pName,pValue)');
   InitScript.add('def StartMain(e):');
@@ -1179,7 +1203,9 @@ end;
   InitScript.add('def GetGPUPixelArrayAsString(GPUName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUPixelArrayAsString(GPUName)');
   InitScript.add('def GetGPUStageArray(GPUName):');
-  InitScript.add('  return pas.InterfaceTypes.GetGPUStageArray(GPUName)');
+  InitScript.add('  sss = pas.InterfaceTypes.GetGPUStageArrayAsString(GPUName)');
+  InitScript.add('  arr =json.loads(sss)');
+  InitScript.add('  return arr');
   InitScript.add('def GetGPUStageArrayAsString(GPUName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUStageArrayAsString(GPUName)');
   InitScript.add('def GetGPUInitStageArray(GPUName):');

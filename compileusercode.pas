@@ -758,8 +758,14 @@ begin
   {$ifndef JScript}
   UnitCode.Add('    mainfunc(e,NodeId,myValue);' );
   {$else}
-  UnitCode.Add('    asm' );     /// timeout/job-queue so that any changes made in the 'init' secton will be refreshed on screen
-  UnitCode.Add('    myTimeout(mainfunc,5,''Event Main'',0,e,NodeId,myValue); ');
+  UnitCode.Add('    if (e.eventType = ''DropAccepted'')' );
+  UnitCode.Add('    or (e.eventType = ''DragStart'') then' );
+  UnitCode.Add('      mainfunc(e,NodeId,myValue) ' );   // must do these synchronously
+  UnitCode.Add('    else ' );
+  UnitCode.Add('    begin ' );
+  UnitCode.Add('      asm' );     /// timeout/job-queue so that any changes made in the 'init' secton will be refreshed on screen
+  UnitCode.Add('      myTimeout(mainfunc,5,''Event Main'',0,e,NodeId,myValue); ');
+  UnitCode.Add('      end;' );
   UnitCode.Add('    end;' );
   {$endif}
   UnitCode.Add('  end;' );

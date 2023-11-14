@@ -15,7 +15,7 @@ unit XGPUEditor;
 
 interface
 uses
-    Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame,
+    Classes, SysUtils, TypInfo, StringUtils, StrUtils, NodeUtils, XIFrame,
     UtilsJSCompile, XForm, XCode, XButton, XVBox, XHBox, XTabControl, XMemo, XComboBox, XEditBox,
     X3DTable, EventsInterface,
     //WebTranspilerUtils,
@@ -39,6 +39,8 @@ type TAnimCodeArray = Array of TAnimCodeRec;
 type TDimsArray = Array of array of integer;
 type  TGPUEventClass = class
     procedure CloseCodeEditor(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+    procedure InsertKernel(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+    procedure DeleteKernel(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure GPUCodeEditHandleClickMessage(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure LaunchGPUHTML(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure GPUComboBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -64,6 +66,8 @@ var
   GPUEditorMode:String;
   GPUEvents:TGPUEventClass;
   GPUEditorDoneBtn:TXButton;
+  GPUInsKernelBtn:TXButton;
+  GPUDelKernelBtn:TXButton;
 
 procedure CreateGPUEditForm;
 procedure ShowGPUEditor(GPUNode:TDataNode;TabPage:integer);
@@ -121,7 +125,7 @@ end;
 
 procedure CreateGPUEditForm;
 var
-  FormNode,MainVBNode,TabControlNode,EditorNode,VBNode,BtnNode,TableNode:TDataNode;
+  FormNode,MainVBNode,TabControlNode,EditorNode,VBNode,BtnNode,InsBtnNode,DelBtnNode,TableNode:TDataNode;
   VBNode3,BtnNode2,ComboNode,HBTopNode,EditNode:TDataNode;
   TabPageNode1,TabPageNode2,TabPageNode3:TdataNode;
   LaunchBtn:TXButton;
@@ -203,8 +207,23 @@ begin
     GPUComboBox.ItemIndex:=0;
     GPUComboBox.LabelPos:='Left';
     GPUComboBox.LabelText:='Select Kernel Code to Edit';
+    GPUComboBox.BoxWidth:='150';
     ComboNode.IsDynamic:=false;
     GPUComboBox.myNode.registerEvent('Change',@GPUEvents.GPUComboBoxChange);
+
+    InsBtnNode:=AddDynamicWidget('TXButton',GPUEditorForm,HBTopNode,'XGPUInsKernelBtn','','Left',-1);
+    GPUInsKernelBtn:=TXButton(InsBtnNode.ScreenObject);
+    GPUInsKernelBtn.Caption:='Insert Kernel';
+    GPUInsKernelBtn.Hint:='Insert a new kernel AFTER the currently selected one';
+    GPUInsKernelBtn.myNode.registerEvent('ButtonClick',@GPUEvents.InsertKernel);
+    InsBtnNode.IsDynamic:=false;
+
+    DelBtnNode:=AddDynamicWidget('TXButton',GPUEditorForm,HBTopNode,'XGPUDelKernelBtn','','Left',-1);
+    GPUDelKernelBtn:=TXButton(DelBtnNode.ScreenObject);
+    GPUDelKernelBtn.Caption:='Delete Kernel';
+    GPUDelKernelBtn.Hint:='Delete currently selected kernel';
+    GPUDelKernelBtn.myNode.registerEvent('ButtonClick',@GPUEvents.DeleteKernel);
+    DelBtnNode.IsDynamic:=false;
 
     EditNode:=AddDynamicWidget('TXEditBox',GPUEditorForm,HBTopNode,'XGPUEditBox','','Top',-1);
     GPUEditBox:=TXEditBox(EditNode.ScreenObject);
@@ -304,6 +323,21 @@ begin
   EditAttributeValue(EditingGPUNode,'AnimationCode',AllCode);
 end;
 
+procedure DisplaySelectedKernel;
+var
+  AllKernels:TAnimCodeArray;
+begin
+  AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
+  GPUCodeEditor.ItemValue:=AllKernels[GPUComboBox.ItemIndex].CodeBlock.Text;
+  if  GPUComboBox.ItemIndex>0 then
+    if GPUComboBox.ItemIndex<>1 then
+      GPUEditBox.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).KernelDimsString(GPUComboBox.ItemIndex-2)
+    else
+      GPUEditBox.ItemValue:='n/a'
+  else
+    GPUEditBox.ItemValue:='* pixelmap size *';
+end;
+
 procedure TGPUEventClass.CloseCodeEditor(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 begin
   // careful here... if the compile has failed the editor may be showing the whole gpu code unit,
@@ -324,6 +358,112 @@ begin
   GPUTableEditor.Table3DData:='[[[0]]]';
 //  if ObjectInspectorSelectedNavTreeNode<>nil then
 //    RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
+end;
+
+procedure TGPUEventClass.InsertKernel(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+var
+  numKernels,thisKernel,k:integer;
+  AllKernels:TAnimCodeArray;
+  xdims,ydims,zdims:TStringList;
+  str:string;
+begin
+  // careful here... if the compile has failed the editor may be showing the whole gpu code unit,
+  // and not just the user code from the AnimationCode property.
+  TXGPUCanvas(EditingGPUNode.ScreenObject).Active:=false;
+
+  if (GPUEditorMode='Animation')
+  and (GPUComboBox.ItemIndex>0) then
+  begin
+    // Update the property value ...         !! BUT NOT IF THE WHOLE UNIT IS ON DISPLAY>>>>>
+    thisKernel:=GPUComboBox.ItemIndex;
+    SaveThisCodeBlock(thisKernel);
+    AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
+    numKernels:=length(AllKernels);
+
+    // Increment the number of kernels
+    EditingGPUNode.SetAttributeValue('NumKernels',IntToStr(numKernels));
+    numKernels:=numKernels+1;
+    setLength(AllKernels,numKernels);
+    // Insert new kernel AFTER the current one
+    for k:=(numKernels-1) downto thisKernel+1 do
+    begin
+      AllKernels[k]:=AllKernels[k-1];
+    end;
+    TXGPUCanvas(EditingGPUNode.ScreenObject).CreateNewKernel(AllKernels,thisKernel+1);
+    TXGPUCanvas(EditingGPUNode.ScreenObject).NumKernels:=numKernels-2;
+    TXGPUCanvas(EditingGPUNode.ScreenObject).RebuildAnimationCode(numKernels-2,AllKernels);
+    // Add one element to the x,y,z dimension arrays
+    xdims:=JSONStringToStringList(TXGPUCanvas(EditingGPUNode.ScreenObject).KernelxDims);
+    ydims:=JSONStringToStringList(TXGPUCanvas(EditingGPUNode.ScreenObject).KernelyDims);
+    zdims:=JSONStringToStringList(TXGPUCanvas(EditingGPUNode.ScreenObject).KernelzDims);
+    xdims.Insert(thisKernel-1,'1');
+    ydims.Insert(thisKernel-1,'1');
+    zdims.Insert(thisKernel-1,'1');
+    TXGPUCanvas(EditingGPUNode.ScreenObject).KernelxDims := StringListToJSONString(xdims);
+    TXGPUCanvas(EditingGPUNode.ScreenObject).KernelyDims := StringListToJSONString(ydims);
+    TXGPUCanvas(EditingGPUNode.ScreenObject).KernelzDims := StringListToJSONString(zdims);
+    // Navigate the editor to the new kernel
+    GPUComboBox.OptionList:=TXGPUCanvas(EditingGPUNode.ScreenObject).BuildKernelList;
+    GPUComboBox.ItemIndex:=thisKernel+1;
+    GPUComboBox.PriorIndex:=thisKernel+1;
+    DisplaySelectedKernel;
+  end
+  else
+    ShowMessage('Cannot insert here');
+
+end;
+
+procedure TGPUEventClass.DeleteKernel(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+var
+  numKernels,thisKernel,k:integer;
+  AllKernels:TAnimCodeArray;
+  xdims,ydims,zdims:TStringList;
+  str:string;
+begin
+  // careful here... if the compile has failed the editor may be showing the whole gpu code unit,
+  // and not just the user code from the AnimationCode property.
+  TXGPUCanvas(EditingGPUNode.ScreenObject).Active:=false;
+
+  if (GPUEditorMode='Animation')
+  and (GPUComboBox.ItemIndex>1) then
+  begin
+    // Update the property value ...         !! BUT NOT IF THE WHOLE UNIT IS ON DISPLAY>>>>>
+    thisKernel:=GPUComboBox.ItemIndex;
+    AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
+    numKernels:=length(AllKernels);
+
+    // decrement the number of kernels
+    EditingGPUNode.SetAttributeValue('NumKernels',IntToStr(numKernels));
+    // delete kernel
+    for k:= thisKernel to (numKernels-2) do
+    begin
+      AllKernels[k]:=AllKernels[k+1];
+    end;
+    numKernels:=numKernels-1;
+    setLength(AllKernels,numKernels);
+    TXGPUCanvas(EditingGPUNode.ScreenObject).NumKernels:=numKernels-2;
+    TXGPUCanvas(EditingGPUNode.ScreenObject).RebuildAnimationCode(numKernels-2,AllKernels);
+    // delete one element from the x,y,z dimension arrays
+    xdims:=JSONStringToStringList(TXGPUCanvas(EditingGPUNode.ScreenObject).KernelxDims);
+    ydims:=JSONStringToStringList(TXGPUCanvas(EditingGPUNode.ScreenObject).KernelyDims);
+    zdims:=JSONStringToStringList(TXGPUCanvas(EditingGPUNode.ScreenObject).KernelzDims);
+    xdims.Delete(thisKernel-2);
+    ydims.Delete(thisKernel-2);
+    zdims.Delete(thisKernel-2);
+    TXGPUCanvas(EditingGPUNode.ScreenObject).KernelxDims := StringListToJSONString(xdims);
+    TXGPUCanvas(EditingGPUNode.ScreenObject).KernelyDims := StringListToJSONString(ydims);
+    TXGPUCanvas(EditingGPUNode.ScreenObject).KernelzDims := StringListToJSONString(zdims);
+    // Navigate the editor to the new kernel
+    GPUComboBox.OptionList:=TXGPUCanvas(EditingGPUNode.ScreenObject).BuildKernelList;
+    if thisKernel >= numKernels then
+      thisKernel:=thisKernel-1;
+    GPUComboBox.ItemIndex:=thisKernel;
+    GPUComboBox.PriorIndex:=thisKernel;
+    DisplaySelectedKernel;
+  end
+  else
+    ShowMessage('Cannot delete here');
+
 end;
 
 procedure TGPUEventClass.GPUCodeEditHandleClickMessage(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -375,6 +515,8 @@ begin
   if GPUMemo.ItemValue<>'' then
   begin
     myHTML:=GPUMemo.ItemValue;
+    //myHTML:=myHTML.replace('new GPU(','new GPU.GPU(');  // for Chrome
+    myHTML:=ReplaceStr(myHTML,'new GPU(','new GPU.GPU(');  // for Chrome
     TXGPUCanvas(EditingGPUNode.ScreenObject).LaunchHTML('Data',myHTML,'GPU Diagnostic');
   end;
 end;
@@ -385,14 +527,12 @@ begin
     GPUMemo.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).GeneratedHTML
   else if GPUEditorTabControl.TabIndex=3 then
     GPUPasMemo.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).GeneratedPascalUnit;
-  {$ifndef JScript}
+  //{$ifndef JScript}
   //GPUEvents.EditorResize(GPUEditorForm);
-  {$endif}
+  //{$endif}
 end;
 
 procedure TGPUEventClass.GPUComboBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-var
-  AllKernels:TAnimCodeArray;
 begin
   // Select the given Kernel code for display in the editor.
   if (EditingGPUNode<>nil) then
@@ -402,15 +542,7 @@ begin
     if (GPUComboBox.PriorIndex>-1) then
       SaveThisCodeBlock(GPUComboBox.PriorIndex);
     // Fetch the required code block
-    AllKernels:=TXGPUCanvas(EditingGPUNode.ScreenObject).FetchAllAnimCode;
-    GPUCodeEditor.ItemValue:=AllKernels[GPUComboBox.ItemIndex].CodeBlock.Text;
-    if  GPUComboBox.ItemIndex>0 then
-      if GPUComboBox.ItemIndex<>1 then
-        GPUEditBox.ItemValue:=TXGPUCanvas(EditingGPUNode.ScreenObject).KernelDimsString(GPUComboBox.ItemIndex-2)
-      else
-        GPUEditBox.ItemValue:='n/a'
-    else
-      GPUEditBox.ItemValue:='* pixelmap size *';
+    DisplaySelectedKernel;
   end;
 end;
 

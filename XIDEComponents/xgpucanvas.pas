@@ -66,6 +66,8 @@ type
     function GetAnimationCode:string;
     function GetActive:Boolean;
     function GetAnimated:Boolean;
+    function GetOutputStageArray:Boolean;
+    function GetOutputPixelArray:Boolean;
     function GetParamNumList:string;
     function GetParam2DNumList:string;
     function GetConstIntList:string;
@@ -84,6 +86,8 @@ type
     procedure SetAnimationCode(AValue:string);
     procedure SetActive(AValue:Boolean);
     procedure SetAnimated(AValue:Boolean);
+    procedure SetOutputStageArray(AValue:Boolean);
+    procedure SetOutputPixelArray(AValue:Boolean);
     procedure SetParamNumList(AValue:string);
     procedure SetConstIntList(AValue:string);
     procedure SetParam2DNumList(AValue:string);
@@ -140,6 +144,8 @@ type
     {$endif}
     {$else}
     constructor Create(MyForm:TForm;NodeName,NameSpace:String);  override;
+    procedure SetParamNumValueFromStr(pName:String;pValue:String;ForwardToWidget:Boolean);
+    procedure SetParam2DNumValueFromStr(pName:String;pValue:String;ForwardToWidget:Boolean);
     {$endif}
     function FullParamList:String;
     function FullXMLString:String;
@@ -169,6 +175,8 @@ published
     // Properties defined for this class...
     property Active: Boolean read GetActive write SetActive;
     property Animated: Boolean read GetAnimated write SetAnimated;
+    property OutputStageArray: Boolean read GetOutputStageArray write SetOutputStageArray;
+    property OutputPixelArray: Boolean read GetOutputPixelArray write SetOutputPixelArray;
     property AnimationCode: String read GetAnimationCode write SetAnimationCode;
     property ParamNumList: String read GetParamNumList write SetParamNumList;
     property Param2DNumList: String read GetParam2DNumList write SetParam2DNumList;
@@ -185,6 +193,8 @@ published
     property EmulationMode: Boolean read GetEmulationMode write SetEmulationMode;
     property EmulationFrame: integer read GetEmulationFrame write SetEmulationFrame;
     function GPUJSCodeForEmulationMode(AnimCode:TStringList):String;
+    procedure CreateNewKernel(allcode:TAnimCodeArray; n:integer);
+    procedure RebuildAnimationCode(numK:integer;allcode:TAnimCodeArray);
 
   end;
 
@@ -343,17 +353,33 @@ begin
   begin
     NewText:=message;
     Delete(NewText,1,length(self.myNode.NodeName));
-    MType:=NewText[1];     // might be 'O' or 'S'
+    MType:=NewText[1];     // might be 'O' or 'C'
     Delete(NewText,1,1);
     if MType = 'O' then
     begin
-      // converting the JSON string back to numeric array takes ages so just storing the
-      // string for now.  Do the conversion when the array is wanted.
-      // Send a cef message to fetch the new value of the frame output array
-      // (Use the ArgumentList property if you need to pass some parameters.)
-      TempMsg := TCefProcessMessageRef.New('getGPUData');
-      TempMsg.ArgumentList.SetString(0,self.myNode.NodeName);
-      myChromium.SendProcessMessage(PID_RENDERER, TempMsg);
+      //if self.OutputPixelArray = True then
+      //begin
+        // converting the JSON string back to numeric array takes ages so just storing the
+        // string for now.  Do the conversion when the array is wanted.
+        // Send a cef message to fetch the new value of the frame output array
+        // (Use the ArgumentList property if you need to pass some parameters.)
+        TempMsg := TCefProcessMessageRef.New('getGPUData1');
+        TempMsg.ArgumentList.SetString(0,self.myNode.NodeName);
+        myChromium.SendProcessMessage(PID_RENDERER, TempMsg);
+      //end;
+    end
+    else if MType = 'D' then
+    begin
+      if self.OutputStageArray = True then
+      begin
+        // converting the JSON string back to numeric array takes ages so just storing the
+        // string for now.  Do the conversion when the array is wanted.
+        // Send a cef message to fetch the new value of the frame output array
+        // (Use the ArgumentList property if you need to pass some parameters.)
+        TempMsg := TCefProcessMessageRef.New('getGPUData2');
+        TempMsg.ArgumentList.SetString(0,self.myNode.NodeName);
+        myChromium.SendProcessMessage(PID_RENDERER, TempMsg);
+      end;
     end
     else if MType = 'C' then
     begin
@@ -373,9 +399,9 @@ var
   oText,sText,acText:String;
 begin
   case message.Name of
-    'sendGPUarrays':
+    'sendGPUarrays1':
     begin
-      CefDebugLog('TXGPUCanvas.GPUProcessMessageReceived. id='+self.Name);
+      //CefDebugLog('TXGPUCanvas.GPUProcessMessageReceived. sendGPUarrays1 id='+self.Name);
       oText := message.ArgumentList.GetString(0);
       sText := message.ArgumentList.GetString(1);
       acText := message.ArgumentList.GetString(2);
@@ -388,9 +414,24 @@ begin
      Events.CallHandleEventLater('OnFirstStageDone','', self);     // get back to main thread
 
     end;
+    'sendGPUarrays2':
+    begin
+      //CefDebugLog('TXGPUCanvas.GPUProcessMessageReceived. sendGPUarrays2 id='+self.Name);
+      oText := message.ArgumentList.GetString(0);
+      sText := message.ArgumentList.GetString(1);
+      acText := message.ArgumentList.GetString(2);
+      // convert the array string to 3d numeric array
+     self.GPUOutputString:=oText;   // the pixel array
+     self.GPUStageString:=sText;  //the (current) final stage array
+     self.animCounterString:=acText;
+     //self.GPUStageArray:=JSONStringTo3DNumArray(sText);    //!!!! takes ages ..... tbd
+     setlength(self.GPUStageArray,0);
+     //Events.CallHandleEventLater('OnFrameDone','', self);     // get back to main thread
+     // this should be followed by a 'sendGPUcounter' message, which will call OnFrameDone event
+    end;
     'sendGPUcounter':
     begin
-      CefDebugLog('TXGPUCanvas.GPUProcessMessageReceived. id='+self.Name);
+      //CefDebugLog('TXGPUCanvas.GPUProcessMessageReceived. sendGPUcounter id='+self.Name);
       acText := message.ArgumentList.GetString(0);
      self.animCounterString:=acText;
      self.myNode.SetAttributeValue('LastCounterValue',acText);
@@ -503,6 +544,14 @@ end;
 function TXGPUCanvas.GetAnimated:Boolean;
 begin
   result:=myStrToBool(myNode.getAttribute('Animated',true).AttribValue);
+end;
+function TXGPUCanvas.GetOutputStageArray:Boolean;
+begin
+  result:=myStrToBool(myNode.getAttribute('OutputStageArray',true).AttribValue);
+end;
+function TXGPUCanvas.GetOutputPixelArray:Boolean;
+begin
+  result:=myStrToBool(myNode.getAttribute('OutputPixelArray',true).AttribValue);
 end;
 function TXGPUCanvas.GetEmulationMode:Boolean;
 begin
@@ -748,20 +797,27 @@ begin
 
 
   str:=str
-  +'function PostMessageOutputArray(objid, cval) {'  + LineEnding
-  // save the output array in a div element
+  +'function PostMessageOutputArray(objid, cval) {'  + LineEnding;
+
+  str:=str
+  // save the output array in a div element (oarr)
   +'  var oa = document.getElementById("oarr");' + LineEnding
   +'  if (oa==null) {oa=document.createElement("DIV"); oa.id="oarr"; ' + LineEnding
   +'    oa.style.display="none";' + LineEnding
-  +'    document.body.appendChild(oa);}' + LineEnding
-  // save the animation counter value in a div element
+  +'    document.body.appendChild(oa);}' + LineEnding;
+
+  str:=str
+  // save the animation counter value in a div element  (acdiv)
   +'  var ac = document.getElementById("acdiv");' + LineEnding
   +'  if (ac==null) {ac=document.createElement("DIV"); ac.id="acdiv"; ' + LineEnding
   +'    ac.style.display="none";' + LineEnding
   +'    document.body.appendChild(ac);}' + LineEnding
   +'  if (running) {' + LineEnding
-  +'    oa.innerHTML=outputArrayString;' + LineEnding
   +'    ac.innerHTML=cval;' + LineEnding;
+  if (self.Animated = False)
+  or (self.OutputPixelArray = True) then
+  str:=str
+  +'    oa.innerHTML=outputArrayString;' + LineEnding;
   {$ifndef JScript}
   {$ifdef Chromium}
   str:=str
@@ -771,7 +827,8 @@ begin
   +'      console.log("'+myNode.NodeName+'O ");' + LineEnding
   +'    }' + LineEnding
   +'    else { ' + LineEnding
-  +'       console.log("'+myNode.NodeName+'C "); ' + LineEnding
+  +'      console.log("'+myNode.NodeName+'D ");' + LineEnding
+  +'      console.log("'+myNode.NodeName+'C "); ' + LineEnding
   +'    }'  + LineEnding;
   {$endif}
   {$else}
@@ -790,26 +847,33 @@ begin
   +'  var sa = document.getElementById("sarr");' + LineEnding
   +'  if (sa==null) {sa=document.createElement("DIV"); sa.id="sarr"; ' + LineEnding
   +'    sa.style.display="none";' + LineEnding
-  +'    document.body.appendChild(sa);}' + LineEnding
-  +'  if (running) {  ' + LineEnding
-  +'    sa.innerHTML=MyStringify(outputStageArray);' + LineEnding;
-  {$ifndef JScript}
-  {$ifdef Chromium}
-  str:=str
-  +'    if (cval<='+IntToStr(self.StartIteration)+') {  ' + LineEnding
-  +'      // console.log triggers a cef event - see HandleConsoleMessage... ' + LineEnding
-  +'      console.log("'+myNode.NodeName+'S ");' + LineEnding
-  +'    }' + LineEnding;
-  {$endif}
-  {$else}
-  if numKernels>0 then
+  +'    document.body.appendChild(sa);}' + LineEnding;
+  if (self.Animated = False)
+  or (self.OutputStageArray = True) then
   begin
-    str:=str+'    if (cval<='+IntToStr(self.StartIteration)+') {  ' + LineEnding;
-    str:=str+'      window.parent.postMessage({"objid":objid,"mtype":"StageOutput","stageArray":stageArray},"*"); ' + LineEnding;
-    str:=str+'    }' + LineEnding;
+    str:=str
+    +'  if (running) {  ' + LineEnding
+    +'    sa.innerHTML=MyStringify(outputStageArray);' + LineEnding;
+    {$ifndef JScript}
+    {$ifdef Chromium}
+    str:=str
+    +'    if (cval<='+IntToStr(self.StartIteration)+') {  ' + LineEnding
+    +'      // console.log triggers a cef event - see HandleConsoleMessage... ' + LineEnding
+    +'      console.log("'+myNode.NodeName+'S ");' + LineEnding
+    +'    }' + LineEnding;
+    {$endif}
+    {$else}
+    if numKernels>0 then
+    begin
+      str:=str+'    if (cval<='+IntToStr(self.StartIteration)+') {  ' + LineEnding;
+      //str:=str+'      console.log("postMessage stageArray",outputStageArray); ' + LineEnding;
+      str:=str+'      window.parent.postMessage({"objid":objid,"mtype":"StageOutput","stageArray":outputStageArray},"*"); ' + LineEnding;
+      str:=str+'    }' + LineEnding;
+    end;
+    {$endif}
+    str:=str+'} '+LineEnding+LineEnding;
   end;
-  {$endif}
-  str:=str+'} }'+LineEnding+LineEnding;
+  str:=str+'}'+LineEnding+LineEnding;
   result:=str;
 end;
 
@@ -987,7 +1051,6 @@ begin
   str:=str + JSPostMessageCode;
   str:=str + JSGetPixelArray;
 
-
   plist:=self.FullParamList;
   KName:=self.MyNode.NodeName+'CanvasRenderFn';
 
@@ -1099,7 +1162,6 @@ begin
   str:= str + ';' + LineEnding;
   str:=str+LineEnding;
 
-
   str:=str
   +'/*/-------------------Build the nested Kernel codes ----------------------/*/' + LineEnding
   +'let AnimationCounterValue='+IntToStr(self.StartIteration)+'; '  +LineEnding
@@ -1144,7 +1206,6 @@ begin
   end;
 
 
-
   // Initialise the stageArray...   [3D array of real]
   // Initial values come from the 'XGPU3DTable' component (data held in property InitStageData)
   {$ifndef JScript}
@@ -1166,7 +1227,6 @@ begin
     str:=str+'let outputStageArray=[[[0]]];' +LineEnding;
   str:=str+LineEnding;
   str:=str+'function StartTheGPU() {'+LineEnding;
-
 
 
   // Run the combined non-graphical kernels...
@@ -1193,10 +1253,11 @@ begin
   str:=str
   +'    /*/-------------------Run the Graphical Kernel and place the result on the web page----------------------/*/    ' + LineEnding
   +'    '+KName+'G(outputStageArray,AnimationCounterValue'+plist+');               ' + LineEnding;
-//  if self.FetchFrameOutput=true then
+  if ((self.Animated=False) or (self.OutputPixelArray=true)) then
     str:=str
-    +'    outputArrayString = GetPixelArray('+self.MyNode.NodeName+'CanvasRenderFnG); ' + LineEnding
-    +'    PostMessageOutputArray("'+myNode.NodeName+'",AnimationCounterValue);' + LineEnding;
+    +'    outputArrayString = GetPixelArray('+self.MyNode.NodeName+'CanvasRenderFnG); ' + LineEnding;
+  str:=str
+  +'    PostMessageOutputArray("'+myNode.NodeName+'",AnimationCounterValue);' + LineEnding;
 
   // Put the GPU bitmap on the page...
   str:=str
@@ -1427,7 +1488,9 @@ begin
       result:=TXGPUCanvas(myNode.ScreenObject).GPUStageArray;
     {$else}
     if length( TXGPUCanvas(myNode).GPUStageArray)=0 then
+    begin
       TXGPUCanvas(myNode).GPUStageArray:=JSONStringTo3DNumArray(TXGPUCanvas(myNode).GPUStageString);
+    end;
     result:=TXGPUCanvas(myNode).GPUStageArray;
     {$endif}
   end;
@@ -1448,6 +1511,7 @@ end;
 function GetStageArrayString(NodeName:String):String;
 var
   myNode:TDataNode;
+  str:String;
 begin
   result:='';
   myNode:=FindDataNodeById(SystemNodeTree,NodeName,'',true);
@@ -1460,9 +1524,14 @@ begin
       result:=Num3DArrayToJsonString( TXGPUCanvas(myNode.ScreenObject).GPUStageArray);
     {$else}
     if TXGPUCanvas(myNode).GPUStageString<>'' then
+    begin
       result:=TXGPUCanvas(myNode).GPUStageString
+    end
     else
-      result:=Num3DArrayToJsonString(TXGPUCanvas(myNode).GPUStageArray);
+    begin
+      str:= Num3DArrayToJsonString(TXGPUCanvas(myNode).GPUStageArray);
+      result:=str;
+    end;
     {$endif}
   end;
 end;
@@ -1489,14 +1558,16 @@ begin
 // and we can use postMessage, eg. for passing
 // values back out from the IFrame into the project environment.
   str:=str
-  +'function FrameDone(kernel) {'  + LineEnding;
-//  if self.FetchFrameOutput=true then
-//  begin
-  str:=str;
-  str:=str+'    if (running) {outputArrayString = GetPixelArray(kernel); ' + LineEnding
+  +'function FrameDone(kernel) {'  + LineEnding
+  +'    if (running) {' + LineEnding;
+  if (self.OutputPixelArray = True) then
+  str:=str
+          +'      outputArrayString = GetPixelArray(kernel); ' + LineEnding;
+  str:=str
 //          +'      console.log("FrameDone "+AnimationCounterValue);'  + LineEnding
-          +'      PostMessageOutputArray("'+myNode.NodeName+'",AnimationCounterValue);}' + LineEnding;
-//  end;
+          +'      PostMessageOutputArray("'+myNode.NodeName+'",AnimationCounterValue);' + LineEnding
+          +'      PostMessageStageArray("'+myNode.NodeName+'",AnimationCounterValue);}' + LineEnding;
+
   str:=str+'    return new Promise(resolve => { '  + LineEnding
   +'  }); } '+ LineEnding;
 
@@ -1525,12 +1596,41 @@ begin
   result:=str;
 end;
 
+procedure TXGPUCanvas.CreateNewKernel(allcode:TAnimCodeArray; n:integer);
+begin
+    allcode[n].CodeBlock:=TStringList.Create;
+    if n<>1 then
+      allcode[n].CodeBlock.Text:='//Kernel '+inttostr(n-1)+LineEnding
+        +'begin'+LineEnding
+        +'  //eg. for 3D array stages, this will pass through the prior kernel result...'+LineEnding
+        +'  //Note. Dimensions of myArray are as specified for the prior kernel output.'+LineEnding
+        +'  myValue:=myArray[this.thread.z,this.thread.y,this.thread.x]; '+LineEnding
+        +'end;'+LineEnding
+    else
+      allcode[n].CodeBlock.Text:='//common functions '+LineEnding;
+end;
+
+procedure TXGPUCanvas.RebuildAnimationCode(numK:integer;allcode:TAnimCodeArray);
+var
+   RevisedAnimCode:String;
+   n:integer;
+begin
+  RevisedAnimCode:='';
+  for n:=0 to numK+1 do           // numKernels=number of non-graphical kernels.  Plus 1 graphicel kernel.  Plus 1 common functions
+  begin
+    if n>0 then
+      RevisedAnimCode:=RevisedAnimCode + eventListdelimiter;
+    RevisedAnimCode:=RevisedAnimCode + allcode[n].CodeBlock.Text;
+  end;
+  self.myNode.SetAttributeValue('AnimationCode',RevisedAnimCode);
+end;
+
 function TXGPUCanvas.FetchAllAnimCode:TAnimCodeArray;
 var
   allcode:TAnimCodeArray;
   bits,cdbits:TStringList;
   n:integer;
-  RevisedAnimCode:String;
+
 begin
   // The property 'AnimationCode' contains a string which is a concatenation of:
   //     Code block for the graphical output kernel
@@ -1565,34 +1665,30 @@ begin
   //for n:=bits.Count to numKernels do
   for n:=bits.Count to numKernels+1 do           // numKernels=number of non-graphical kernels.  Plus 1 graphicel kernel.  Plus 1 common functions
   begin
-    allcode[n].CodeBlock:=TStringList.Create;
-    if n<>1 then
-      allcode[n].CodeBlock.Text:='//Kernel '+inttostr(n-1)+LineEnding
-        +'begin'+LineEnding
-        +'  //eg. for 3D array stages, this will pass through the prior kernel result...'+LineEnding
-        +'  //Note. Dimensions of myArray are as specified for the prior kernel output.'+LineEnding
-        +'  myValue:=myArray[this.thread.z,this.thread.y,this.thread.x]; '+LineEnding
-        +'end;'+LineEnding
-    else
-      allcode[n].CodeBlock.Text:='//common functions '+LineEnding;
+    CreateNewKernel(allcode,n);
+    //allcode[n].CodeBlock:=TStringList.Create;
+    //if n<>1 then
+    //  allcode[n].CodeBlock.Text:='//Kernel '+inttostr(n-1)+LineEnding
+    //    +'begin'+LineEnding
+    //    +'  //eg. for 3D array stages, this will pass through the prior kernel result...'+LineEnding
+    //    +'  //Note. Dimensions of myArray are as specified for the prior kernel output.'+LineEnding
+    //    +'  myValue:=myArray[this.thread.z,this.thread.y,this.thread.x]; '+LineEnding
+    //    +'end;'+LineEnding
+    //else
+    //  allcode[n].CodeBlock.Text:='//common functions '+LineEnding;
 
-//    setlength(allcode[n].KDimensions,3);
-//    allcode[n].KDimensionsStr:=inttostr(self.ActualWidth)+','+inttostr(self.ActualHeight)+','+inttostr(self.DfltZDepth);
-//    allcode[n].KDimensions[0]:=self.ActualWidth;
-//    allcode[n].KDimensions[1]:=self.ActualHeight;
-//    allcode[n].KDimensions[2]:=self.DfltZDepth;
   end;
 
   // In case this has adjusted the data, save the concatenated code block again to the AnimationCode property
-  RevisedAnimCode:='';
-  //for n:=0 to numKernels do
-  for n:=0 to numKernels+1 do           // numKernels=number of non-graphical kernels.  Plus 1 graphicel kernel.  Plus 1 common functions
-  begin
-    if n>0 then
-      RevisedAnimCode:=RevisedAnimCode + eventListdelimiter;
-    RevisedAnimCode:=RevisedAnimCode + allcode[n].CodeBlock.Text;
-  end;
-  self.myNode.SetAttributeValue('AnimationCode',RevisedAnimCode);
+  RebuildAnimationCode(numKernels,allcode);
+  //RevisedAnimCode:='';
+  //for n:=0 to numKernels+1 do           // numKernels=number of non-graphical kernels.  Plus 1 graphicel kernel.  Plus 1 common functions
+  //begin
+  //  if n>0 then
+  //    RevisedAnimCode:=RevisedAnimCode + eventListdelimiter;
+  //  RevisedAnimCode:=RevisedAnimCode + allcode[n].CodeBlock.Text;
+  //end;
+  //self.myNode.SetAttributeValue('AnimationCode',RevisedAnimCode);
   result:=allcode;
 end;
 
@@ -2172,7 +2268,6 @@ begin
       FullString:= GPUJSCodeForEmulationMode(Pas2JSTrimmed);
     end;
 
-
     tmp:=UnSubstituteSpecials(gpujs);
     HTMLTop:=
     '<!DOCTYPE html>' +  LineEnding
@@ -2287,7 +2382,7 @@ var
   myurl:string;
 begin
   for i:=0 to length(ParamNumArray)-1 do
-    if uppercase(ParamNumArray[i].ParamName)=uppercase(pName) then
+    if trim(uppercase(ParamNumArray[i].ParamName))=trim(uppercase(pName)) then
     begin
       SetLength(ParamNumArray[i].ParamValue,length(pValue));
       for j:=0 to length(pValue)-1 do
@@ -2325,14 +2420,34 @@ begin
     end;
 end;
 
+{$ifdef JScript}
+procedure TXGPUCanvas.SetParamNumValueFromStr(pName:String;pValue:String;ForwardToWidget:Boolean);
+var
+  arr:TNumArray;
+begin
+  arr:=JsonStringTo1DNumArray(pValue);
+  SetParamNumValue(pName,arr,ForwardToWidget);
+end;
+procedure TXGPUCanvas.SetParam2DNumValueFromStr(pName:String;pValue:String;ForwardToWidget:Boolean);
+var
+  arr:T2DNumArray;
+begin
+  arr:=JsonStringTo2DNumArray(pValue);
+  SetParam2DNumValue(pName,arr,ForwardToWidget);
+end;
+{$endif}
+
 procedure TXGPUCanvas.SetParam2DNumValue(pName:String;pValue:T2DNumArray;ForwardToWidget:Boolean);
 var
   i,j,k:integer;
-  tmp:String;
+  tmp,p1,p2:String;
   myurl:string;
 begin
+  p1:= trim(uppercase(pName));
   for i:=0 to length(Param2DNumArray)-1 do
-    if uppercase(Param2DNumArray[i].ParamName)=uppercase(pName) then
+  begin
+    p2:= trim(uppercase(Param2DNumArray[i].ParamName));
+    if p1 = p2 then
     begin
       SetLength(Param2DNumArray[i].ParamValue,length(pValue));
       for j:=0 to length(pValue)-1 do
@@ -2372,6 +2487,7 @@ begin
       end;
 
     end;
+  end;
 end;
 
 procedure TXGPUCanvas.SetConstIntValue(pName:String;pValue:integer);
@@ -2379,7 +2495,7 @@ var
   i:integer;
 begin
   for i:=0 to length(ConstIntArray)-1 do
-    if uppercase(ConstIntArray[i].ConstName)=uppercase(pName) then
+    if trim(uppercase(ConstIntArray[i].ConstName))=trim(uppercase(pName)) then
     begin
       ConstIntArray[i].ConstValue:=pValue;
     end;
@@ -2542,6 +2658,14 @@ procedure TXGPUCanvas.SetAnimated(AValue:Boolean);
 begin
   myNode.SetAttributeValue('Animated',myBoolToStr(AValue),'Boolean');
 end;
+procedure TXGPUCanvas.SetOutputStageArray(AValue:Boolean);
+begin
+  myNode.SetAttributeValue('OutputStageArray',myBoolToStr(AValue),'Boolean');
+end;
+procedure TXGPUCanvas.SetOutputPixelArray(AValue:Boolean);
+begin
+  myNode.SetAttributeValue('OutputPixelArray',myBoolToStr(AValue),'Boolean');
+end;
 procedure TXGPUCanvas.SetEmulationMode(AValue:Boolean);
 begin
   myNode.SetAttributeValue('EmulationMode',myBoolToStr(AValue),'Boolean');
@@ -2594,7 +2718,7 @@ begin
     SetLength(Param2DNumArray,pNames.Count);
     for i:=0 to pNames.Count-1 do
     begin
-      Param2DNumArray[i].ParamName:=pNames[i];
+      Param2DNumArray[i].ParamName:=trim(pNames[i]);
       SetLength(Param2DNumArray[i].ParamValue,1);
       SetLength(Param2DNumArray[i].ParamValue[0],1);
       Param2DNumArray[i].ParamValue[0,0]:=0;
@@ -2720,6 +2844,8 @@ begin
   AddDefaultAttribute(myDefaultAttribs,'HTMLSource','String','','',false,false);
   AddDefaultAttribute(myDefaultAttribs,'Active','Boolean','False','',false,false);
   AddDefaultAttribute(myDefaultAttribs,'Animated','Boolean','False','',false);
+  AddDefaultAttribute(myDefaultAttribs,'OutputStageArray','Boolean','False','When GPU is animated, this makes the stage array available after every frame',false);
+  AddDefaultAttribute(myDefaultAttribs,'OutputPixelArray','Boolean','False','When GPU is animated, this makes the pixel array available after every frame',false);
   AddDefaultAttribute(myDefaultAttribs,'ParamNumList','String','','List of numeric parameters (1D arrays) to be passed in to kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'Param2DNumList','String','','List of numeric parameters (2D arrays) to be passed in to kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'ConstIntList','String','','List of integer constants to be passed in to kernels',false);

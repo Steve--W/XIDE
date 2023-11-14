@@ -49,7 +49,9 @@ TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;
 TGetGPUParam2DNumValue=function(GPUName,pName:String):T2DNumArray of object;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;
+TSetGPUParamNumValueFromStr=procedure(GPUName,pName:String;pValue:String) of object;
 TSetGPUParam2DNumValue=procedure(GPUName,pName:String;pValue:T2DNumArray) of object;
+TSetGPUParam2DNumValueFromStr=procedure(GPUName,pName:String;pValue:String) of object;
 TSetGPUConstIntValue=procedure(GPUName,pName:String;pValue:integer) of object;
 TStartMain=procedure(e:TEventStatus) of object;
 TShowBusy=procedure(e:TEventStatus) of object;
@@ -102,7 +104,9 @@ GetGPUParamNumValue:TGetGPUParamNumValue;
 GetGPUParam2DNumValue:TGetGPUParam2DNumValue;
 GetGPUConstIntValue:TGetGPUConstIntValue;
 SetGPUParamNumValue:TSetGPUParamNumValue;
+SetGPUParamNumValueFromStr:TSetGPUParamNumValueFromStr;
 SetGPUParam2DNumValue:TSetGPUParam2DNumValue;
+SetGPUParam2DNumValueFromStr:TSetGPUParam2DNumValueFromStr;
 SetGPUConstIntValue:TSetGPUConstIntValue;
 ShowBusy:TShowBusy;
 HideBusy:THideBusy;
@@ -161,7 +165,9 @@ type TMethodsClass = class(TObject)
  function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;
  function mmiGetGPUConstIntValue(GPUName,pName:String):integer;
  procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
+ procedure mmiSetGPUParamNumValueFromStr(GPUName,pName:String;pValue:String);
  procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);
+ procedure mmiSetGPUParam2DNumValueFromStr(GPUName,pName:String;pValue:String);
  procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);
  procedure mmiStartMain(e:TEventStatus);
  procedure mmiShowBusy(e:TEventStatus);
@@ -227,7 +233,9 @@ begin
   getgpuparam2dnumvalue:=@appmethods.mmiGetGPUParam2DNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
+  setgpuparamnumvaluefromstr:=@appmethods.mmiSetGPUParamNumValueFromStr;
   setgpuparam2Dnumvalue:=@appmethods.mmiSetGPUParam2DNumValue;
+  setgpuparam2Dnumvaluefromstr:=@appmethods.mmiSetGPUParam2DNumValueFromStr;
   setgpuconstintvalue:=@appmethods.mmiSetGPUConstIntValue;
   showbusy:=@appmethods.mmiShowBusy;
   hidebusy:=@appmethods.mmiHideBusy;
@@ -506,21 +514,36 @@ end;
 procedure TMethodsClass.mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
 begin
   asm
-  //alert('mmiSetGPUParamNumValue '+GPUName+' '+pName);
     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
-      //alert('calling SetParamNumValue '+pName+' '+pValue);
       myNode.SetParamNumValue(pName,pValue,true);
+    }
+  end;
+end;
+procedure TMethodsClass.mmiSetGPUParamNumValueFromStr(GPUName,pName:String;pValue:String);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      myNode.SetParamNumValueFromStr(pName,pValue,true);
     }
   end;
 end;
 procedure TMethodsClass.mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);
 begin
   asm
-  //alert('mmiSetGPUParam2DNumValue '+GPUName+' '+pName);
     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       myNode.SetParam2DNumValue(pName,pValue,true);
+    }
+  end;
+end;
+procedure TMethodsClass.mmiSetGPUParam2DNumValueFromStr(GPUName,pName:String;pValue:String);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      myNode.SetParam2DNumValueFromStr(pName,pValue,true);
     }
   end;
 end;
