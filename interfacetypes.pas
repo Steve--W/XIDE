@@ -35,6 +35,7 @@ Tshowxform=procedure(XFormID:String; modal:Boolean) of object;
 Tclosexform=procedure(XFormID:String) of object;
 TCopyToClip=procedure(str:String) of object;
 TCopyFromClip=function(e:TEventStatus):String of object;
+TLaunchHTMLPage=procedure(DataString:String) of object;
 TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;
 TGetTableDataForExcel=function(TableName:String):String of object;
 TLoadTableFromNumArray=procedure(TableName:String;NumArray:T2DNumArray) of object;
@@ -90,6 +91,7 @@ SetPropertyValueIndexed:Tsetpropertyvalueindexed;
 GetPropertyValue:Tgetpropertyvalue;
 CopyToClip:TCopyToClip;
 CopyFromClip:TCopyFromClip;
+LaunchHTMLPage:TLaunchHTMLPage;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
 GetTableDataForExcel:TGetTableDataForExcel;
 LoadTableFromNumArray:TLoadTableFromNumArray;
@@ -151,6 +153,7 @@ type TMethodsClass = class(TObject)
  Function mmiprompt(TextMessage,promptString:string):string;
  procedure mmiCopyToClip(str:String);
  function mmiCopyFromClip(e:TEventStatus):String;
+ procedure mmiLaunchHTMLPage(DataString:String);
  procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
  function mmiGetTableDataForExcel(TableName:String):String;
  procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);
@@ -219,6 +222,7 @@ begin
   prompt:=@AppMethods.mmiprompt;
   copytoclip:=@AppMethods.mmiCopyToClip;
   copyfromclip:=@AppMethods.mmiCopyFromClip;
+  LaunchHTMLPage:=@AppMethods.mmiLaunchHTMLPage;
   LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
   GetTableDataForExcel:=@AppMethods.mmiGetTableDataForExcel;
   LoadTableFromNumArray:=@AppMethods.mmiLoadTableFromNumArray;
@@ -408,6 +412,14 @@ begin
     }
   end;
   result:=str;   // have to await user pressing ctrl-v to get pasted data
+end;
+procedure TMethodsClass.mmiLaunchHTMLPage(DataString:String);
+begin
+      asm
+        //alert('open window with name LaunchedHTML');
+        var win=window.open("LaunchedHTML");                  // third (blank) parameter makes a new window
+        win.document.write(DataString);
+      end;
 end;
 
 procedure TMethodsClass.mmiLoadTableFromExcelCopy(TableName,CopiedString:String);

@@ -306,6 +306,10 @@ begin
   begin
     v:=mmo.mmiCopyFromClip(e);
   end
+  else if fname='LaunchHTMLPage' then
+  begin
+    mmo.mmiLaunchHTMLPage(fnArgs[0]);
+  end
   else if fname='LoadTableFromExcelCopy' then
   begin
     mmo.mmiLoadTableFromExcelCopy(fnArgs[0], fnArgs[1]);
@@ -979,6 +983,8 @@ begin
   InitScript.add('  RunXIDEFunc(''CopyToClip'',(str,0))');
   InitScript.add('def CopyFromClip(e):');
   InitScript.add('  return RunXIDEFunc(''CopyFromClip'',(e,0))');
+  InitScript.add('def LaunchHTMLPage(DataString):');
+  InitScript.add('  RunXIDEFunc(''LaunchHTMLPage'',(DataString,))');
   InitScript.add('def LoadTableFromExcelCopy(TableName,CopiedString):');
   InitScript.add('  RunXIDEFunc(''LoadTableFromExcelCopy'',(TableName,CopiedString))');
   InitScript.add('def GetTableDataForExcel(TableName):');
@@ -1144,6 +1150,8 @@ end;
   InitScript.add('  pas.InterfaceTypes.CopyToClip(str)');
   InitScript.add('def CopyFromClip(e):');
   InitScript.add('  return pas.InterfaceTypes.CopyFromClip(e)');
+  InitScript.add('def LaunchHTMLPage(DataString):');
+  InitScript.add('  pas.InterfaceTypes.LaunchHTMLPage(DataString)');
   InitScript.add('def LoadTableFromExcelCopy(TableName,CopiedString):');
   InitScript.add('  pas.InterfaceTypes.LoadTableFromExcelCopy(TableName,CopiedString)');
   InitScript.add('def GetTableDataForExcel(TableName):');

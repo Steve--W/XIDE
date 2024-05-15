@@ -1216,7 +1216,7 @@ begin
    {$ifdef linux}
    PascalCode.Add('  cthreads,');
    {$endif}
-   PascalCode.Add('  Classes, SysUtils, strutils, Math, EventsInterface, InterfaceTypesDll ');
+   PascalCode.Add('  Classes, SysUtils, strutils, Math, EventsInterface, InterfaceTypesDll');
    FirstUnitName:=GatherUserUnits(RunMode,nil);
    ConstructNamespaceUnits(RunMode,'',nil,SystemNodeTree);
    ConstructDataModelUnits(RunMode);

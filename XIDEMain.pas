@@ -9,7 +9,6 @@
 
  **********************************************************************
  *)
-
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -1065,6 +1064,10 @@ begin
     ExtraDirectives.add('-dPython');
     ExtraHTML:=PyodideScript;
     {$endif}
+    {$ifdef TensorflowJS}
+    ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"> </script> '); //##### <!-- Import @tensorflow/tfjs -->
+    {$endif}
+
     //ExtraHTML.Add('<script src="http://asterius.netlify.app/demo/pandoc/pandoc.js"></script> ');  //###### pandoc test
     //ExtraHTML.Add('<script src="file:///C:/Laz19Projects/XIDE/pandoc/pandoc.js"></script> ');  //###### pandoc test
     //ExtraHTML.Add('<script src="file:///C:/Laz19Projects/XIDE/pandoc/tryserver.js"></script> ');  //###### pandoc test
@@ -1080,6 +1083,7 @@ begin
   ExtraDirectives.free;
   ExtraHTML.Free;
 end;
+
 
 procedure TXIDEForm.CompilerShowLogClick(Sender: TObject);
 begin

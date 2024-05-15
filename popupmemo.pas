@@ -120,7 +120,9 @@ begin
   '                            Functional in Browser execution only.  Loads the requested Pyodide/python package, so that it will be available for import.  '  + LineEnding +
   '                            Note this runs an asynchronous process. Check the console for progress.  '  + LineEnding +
   'function PyodidePackageLoaded(nm:String):Boolean; '  + LineEnding +
-  '                            Functional in Browser execution only.  Returns true if the named package has been loaded into the Pyodide environment.  '  + LineEnding;
+  '                            Functional in Browser execution only.  Returns true if the named package has been loaded into the Pyodide environment.  '  + LineEnding  +
+  'procedure LaunchHTMLPage(DataString:String); '  + LineEnding +
+  '                            Launches a browser page, populated with HTML given as DataString  '  + LineEnding;
 
   PopupHelpText.ItemValue:=PopupHelpText.ItemValue +
   ' ' + LineEnding +

@@ -37,6 +37,7 @@ IMyMethodInterface = interface(IInterface)
     Function mmiprompt(TextMessage,promptString:string):string;  stdcall;
     procedure mmiCopyToClip(str:String);  stdcall;
     function mmiCopyFromClip(e:TEventStatus):String;  stdcall;
+    procedure mmiLaunchHTMLPage(DataString:String);  stdcall;
     procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
     function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
     procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
@@ -92,6 +93,7 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       Function mmiprompt(TextMessage,promptString:string):string;   stdcall;
       procedure mmiCopyToClip(str:String);  stdcall;
       function mmiCopyFromClip(e:TEventStatus):String;    stdcall;
+      procedure mmiLaunchHTMLPage(DataString:String);  stdcall;
       procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
       function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
       procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
@@ -442,6 +444,21 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      result:=ok;
    end;
 *)
+   procedure TMyMethodObject.mmiLaunchHTMLPage(DataString:String);   stdcall;
+     var
+       filename:String;
+     begin
+         filename:=ProjectDirectory+MainUnitName+'LaunchHTML.html';
+         LazsUtils.WriteToFile(filename,DataString);
+         filename:='file://'+filename;
+         // open in the default browser.
+         {$if defined ( windows)}
+         WinLaunchBrowser(filename);
+         {$else}
+         OpenDocument(filename);
+         {$endif}
+     end;
+
    procedure TMyMethodObject.mmiLoadTableFromExcelCopy(TableName,CopiedString:String);   stdcall;
    var
     myNode:TDataNode;
