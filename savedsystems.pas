@@ -29,7 +29,7 @@ uses
   {$endif}
   XScrollBox, XVBox, XHBox, XTree, XMemo, XTabControl, XButton, XLabel,
   XEditBox, XCheckBox, XHyperLink, XRadioBtns, XForm, XComboBox,
-  EventsInterface, XObjectInsp, XDataModel ;
+  EventsInterface, XObjectInsp;
 
 type
 
@@ -130,8 +130,8 @@ begin
       SysPath:='SavedSystems/'+SysName;
       {$endif}
       ClearLocalStore( SysPath+'.xide');
-      if SysName <> UIRootNode.GetAttribute('SystemName',false).AttribValue then
-        DeleteLocalDB(SysName,true);
+      //if SysName <> UIRootNode.GetAttribute('SystemName',false).AttribValue then
+      //  DeleteLocalDB(SysName,true);
       Initialise;
     end;
   end;

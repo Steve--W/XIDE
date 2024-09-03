@@ -95,7 +95,7 @@ var
   OIEditBox, CodeFormRoot:TDataNode;
 
 implementation
-uses XObjectInsp, XDataModel;
+uses XObjectInsp;
 
 {$R *.lfm}
 
@@ -435,24 +435,24 @@ begin
               ShowGPUKernel(targetNode,FileName,StrToInt(linenum),CharPos);
               {$endif}
           end;
-        end
-        else if FStrings.Count=1 then
-        begin
-          self.TargetNodeName:=FStrings[0];
-          self.EventType:='';
-          TargetNode:=FindDataNodeById(DMRoot,self.TargetNodeName,'',false);
-          if TargetNode<>nil then
-            if TargetNode.NodeType='DMOp' then
-            begin
-              self.Mode:='DMOpCode';
-              Context:='DMOp Code';
-              CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
-              targetLine:=StrToInt(linenum)-1;    // -1 because there is no top line (function xxx;) in the source code
-            end
-            else
-              showmessage('Cannot find DMOp node '+self.TargetNodeName)
-          else
-            showmessage('Cannot find DMRoot node '+self.TargetNodeName);
+        //end
+        //else if FStrings.Count=1 then
+        //begin
+        //  self.TargetNodeName:=FStrings[0];
+        //  self.EventType:='';
+        //  TargetNode:=FindDataNodeById(DMRoot,self.TargetNodeName,'',false);
+        //  if TargetNode<>nil then
+        //    if TargetNode.NodeType='DMOp' then
+        //    begin
+        //      self.Mode:='DMOpCode';
+        //      Context:='DMOp Code';
+        //      CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
+        //      targetLine:=StrToInt(linenum)-1;    // -1 because there is no top line (function xxx;) in the source code
+        //    end
+        //    else
+        //      showmessage('Cannot find DMOp node '+self.TargetNodeName)
+        //  else
+        //    showmessage('Cannot find DMRoot node '+self.TargetNodeName);
         end;
 
         FreeAndNil(FStrings);
@@ -556,8 +556,8 @@ begin
        bits:=StringSplit(FStrings[0],'__');
        self.TargetNodeName:=bits[0];
        targetNode:=FindDataNodeByid(CodeRootNode,self.TargetNodeName,'',false);
-       if targetNode=nil then
-         targetNode:=FindDataNodeByid(DMRoot,self.TargetNodeName,'',false);
+       //if targetNode=nil then
+       //  targetNode:=FindDataNodeByid(DMRoot,self.TargetNodeName,'',false);
        if targetNode=nil then
          targetNode:=FindDataNodeByid(systemNodeTree,self.TargetNodeName,'',false);
        if targetNode<>nil then
@@ -593,9 +593,9 @@ begin
            if targetNode.NodeType='PasUnit' then
              self.Mode:='PasUnitCode'
            else if targetNode.NodeType='PythonScript' then
-             self.Mode:='PythonScriptCode'
-           else if targetNode.NodeType='DMOp' then
-             self.Mode:='DMOpCode';
+             self.Mode:='PythonScriptCode';
+           //else if targetNode.NodeType='DMOp' then
+           //  self.Mode:='DMOpCode';
            Context:=targetNode.NodeType;
            self.EventType:='';
            CodeEditInit.ItemValue:='';
@@ -739,18 +739,18 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
     for i:=0 to length(ThisNode.ChildNodes)-1 do
       SearchCodeNode(ThisNode.ChildNodes[i]);
   end;
-  procedure SearchDMOpsCode(ThisNode:TdataNode);
-  var
-    i:integer;
-  begin
-    if (ThisNode.NodeType='DMOp')
-    then
-    begin
-      SearchThisText(ThisNode.NodeName,ThisNode.NodeType,ThisNode.GetAttribute('Code',true).AttribValue);
-    end;
-    for i:=0 to length(ThisNode.ChildNodes)-1 do
-      SearchDMOpsCode(ThisNode.ChildNodes[i]);
-  end;
+//  procedure SearchDMOpsCode(ThisNode:TdataNode);
+//  var
+//    i:integer;
+//  begin
+//    if (ThisNode.NodeType='DMOp')
+//    then
+//    begin
+//      SearchThisText(ThisNode.NodeName,ThisNode.NodeType,ThisNode.GetAttribute('Code',true).AttribValue);
+//    end;
+//    for i:=0 to length(ThisNode.ChildNodes)-1 do
+//      SearchDMOpsCode(ThisNode.ChildNodes[i]);
+//  end;
 
 begin
   // text blocks to be searched....
@@ -772,7 +772,7 @@ begin
   self.CodeEdit.ItemValue:='';
   SearchCodeNode(CodeRootNode);
   SearchEventsCode(UIRootNode);
-  SearchDMOpsCode(DMRoot);
+  //SearchDMOpsCode(DMRoot);
 
 end;
 

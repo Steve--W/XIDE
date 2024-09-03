@@ -20,8 +20,8 @@ interface
 
 uses
   Classes, SysUtils, StringUtils, ExtCtrls, Dialogs, Clipbrd, Forms, Controls,
-  NodeUtils, LazsUtils, EventsInterface, Events, XForm, XBitMap, XObjectInsp, XGPUCanvas, XTable,
-  XComposite, XIframe, XDataModel, XTree,
+  NodeUtils, LazsUtils, EventsInterface, Events, XForm, XBitMap, XObjectInsp, XGPUCanvas, XTable, X3DTable,
+  XComposite, XIframe, XTree,
   MouseAndKeyInput, LCLType, TypInfo;
 
 type
@@ -41,8 +41,10 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
     function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
     procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
+    procedure mmiLoad3DTableFromNumArray(TableName:String;NumArray:T3DNumArray);  stdcall;
     procedure mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);  stdcall;
     function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
+    function mmiGet3DTableNumArray(TableName:String):T3DNumArray;  stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
@@ -73,10 +75,10 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiWobbleCEF(nm:String);                  stdcall;
     procedure mmiPyodideLoadPackage(nm:String);  stdcall;
     function mmiPyodidePackageLoaded(nm:String):Boolean; stdcall;
-    function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
-    function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
-    function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
-    function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
+    //function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
+    //function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
+    //function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
+    //function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
 //    function mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
 end;
 
@@ -97,8 +99,10 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);  stdcall;
       function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
       procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);  stdcall;
+      procedure mmiLoad3DTableFromNumArray(TableName:String;NumArray:T3DNumArray);  stdcall;
       procedure mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);  stdcall;
       function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;  stdcall;
+      function mmiGet3DTableNumArray(TableName:String):T3DNumArray;  stdcall;
       procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
       procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
       procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
@@ -129,10 +133,10 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiWobbleCEF(nm:String);       stdcall;
       procedure mmiPyodideLoadPackage(nm:String);  stdcall;
       function mmiPyodidePackageLoaded(nm:String):Boolean;  stdcall;
-      function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
-      function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
-      function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
-      function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
+      //function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
+      //function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
+      //function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
+      //function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
 //      function mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
 
   end;
@@ -322,7 +326,7 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
        result:='';
      end;
    end;
-
+(*
    function KeyValuesToVarArray(DSName,DSKeyValues:String;var keynames:String;var keys:TVarArray):Boolean;
    var
      keyvalues:TStringList;
@@ -360,8 +364,8 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      end;
      result:=ok;
    end;
-
-   function TMyMethodObject.mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
+*)
+(*   function TMyMethodObject.mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
    // DSFetchRow is an async function (required for browser use), so it must be coded in the
    // 'Init' section of an event handler. The result here is a boolean.
    // The fetched data object is held in e.AsyncReturnObject, which cn be picked up in the
@@ -432,7 +436,7 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      ok:=DSEmptyDataset(e,DSName,'DSDeleteAllRows');
      result:=ok;
    end;
-
+*)
 (*   function TMyMethodObject.mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
    var
      ok:Boolean;
@@ -493,6 +497,17 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      end;
    end;
 
+   procedure TMyMethodObject.mmiLoad3DTableFromNumArray(TableName:String; NumArray:T3DNumArray);   stdcall;
+   var
+    myNode:TDataNode;
+   begin
+     myNode:=FindDataNodeById(UIRootNode,TableName,StrPas(EventsNameSpace),true);   //SystemNodeTree?
+     if (mynode<>nil) and (myNode.NodeType='TX3DTable') then
+     begin
+       TX3DTable(myNode.ScreenObject).LoadTableFrom3DNumArray(NumArray);
+     end;
+   end;
+
    procedure TMyMethodObject.mmiLoadTableFromStringArray(TableName:String; StrArray:T2DStringArray);   stdcall;
    var
     myNode:TDataNode;
@@ -513,6 +528,19 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      if (mynode<>nil) and (myNode.NodeType='TXTable') then
      begin
        arr:=TXTable(myNode.ScreenObject).GetCellsAsArray(SkipHeader);
+     end;
+     result:=arr;
+   end;
+
+   function TMyMethodObject.mmiGet3DTableNumArray(TableName:String):T3DNumArray;   stdcall;
+   var
+    myNode:TDataNode;
+    arr:T3DNumArray;
+   begin
+     myNode:=FindDataNodeById(UIRootNode,TableName,StrPas(EventsNameSpace),true);  //SystemNodeTree?
+     if (mynode<>nil) and (myNode.NodeType='TX3DTable') then
+     begin
+       arr:=TX3DTable(myNode.ScreenObject).Get3DNumArray(0);
      end;
      result:=arr;
    end;

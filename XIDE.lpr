@@ -21,7 +21,7 @@ uses
   PyXUtils,PythonEngine,
   {$endif}
   CEFXUtils, FrameViewer09, XGPUEditor, XIDESettings, intfparamunit,
-  IntfEventUnit, XDataModel;
+  IntfEventUnit;
 
 {$R *.res}
 {$ifdef Chromium}

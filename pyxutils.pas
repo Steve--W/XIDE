@@ -30,7 +30,6 @@ function PyodideScript:TStringList;
 procedure SetupPyEngine(PyLibDir,PyVersion:String);
 procedure DoPy_InitEngine;
 {$endif}
-procedure BuildXarray(XArrName:String;dims,mults:TStringArray;dflt:String);
 procedure PyExeString(cmds: string);
 procedure RunInitialScript;
 procedure RedirectPyLog(MemoName:String);
@@ -77,7 +76,7 @@ var
   pyUnitFuncs:TPyUnitFuncs;
 
 implementation
-uses XIDEMain,XDataModel,XObjectInsp;
+uses XIDEMain,XObjectInsp;
 
 function BuildPackageList:TStringArray;
 var
@@ -233,6 +232,20 @@ begin
   end;
   result:=arr;
 end;
+function ConvertArrayOfVariantTo3DNumArray(varr:TArgs):T3dNumArray;
+var
+  arr:T3DNumArray;
+  row:T2DNumArray;
+  i:integer;
+begin
+  setlength(arr,length(varr));
+  for i:=0 to length(arr)-1 do
+  begin
+    row := ConvertArrayOfVariantTo2DNumArray(varr[i]);
+    arr[i] := row;
+  end;
+  result:=arr;
+end;
 function ConvertArrayOfVariantTo2DStringArray(varr:TArgs):T2dStringArray;
 var
   arr:T2DStringArray;
@@ -266,7 +279,7 @@ end;
 function RunInterfaceFunc(e:TEventStatus;fname:String;fnArgs:TArgs):Variant;
 var
   v:Variant;
-//  str:string;
+  str:string;
   bool:Boolean;
   arr2ds:T2DStringArray;
   arr2dn:T2DNumArray;
@@ -320,13 +333,19 @@ begin
   end
   else if fname='LoadTableFromNumArray' then
   begin
-    //fnargs[1] is an array of variant, but needs to be a T2DNumArray???? !!!!
+    //fnargs[1] is an array of variant, but needs to be a T2DNumArray
     arr2dn:=ConvertArrayOfVariantTo2DNumArray(fnargs[1]);
     mmo.mmiLoadTableFromNumArray(fnArgs[0], arr2dn);
   end
+  else if fname='Load3DTableFromNumArray' then
+  begin
+    //fnargs[1] is an array of variant, but needs to be a T3DNumArray
+    arr3dn:=ConvertArrayOfVariantTo3DNumArray(fnargs[1]);
+    mmo.mmiLoad3DTableFromNumArray(fnArgs[0], arr3dn);
+  end
   else if fname='LoadTableFromStringArray' then
   begin
-    //fnargs[1] is an array of variant, but needs to be a T2DNumArray???? !!!!
+    //fnargs[1] is an array of variant, but needs to be a T2DNumArray
     arr2ds:=ConvertArrayOfVariantTo2DStringArray(fnargs[1]);
     mmo.mmiLoadTableFromStringArray(fnArgs[0], arr2ds);
   end
@@ -334,6 +353,16 @@ begin
   begin
     arr2ds:=mmo.mmiGetTableDataArray(fnArgs[0], fnargs[1]);
     v:=Arr2dstoVarArray(arr2ds);
+  end
+  else if fname='Get3DTableNumArray' then
+  begin
+    arr3dn:=mmo.mmiGet3DTableNumArray(fnArgs[0]);
+    {$ifdef JScript}
+    asm console.log('PyXUtils Get3DTableNumArray done');
+    console.log(arr3dn);
+  end;
+    {$endif}
+    v:=Arr3dntoVarArray(arr3dn);
   end
   else if fname='DoEvent' then
     mmo.mmiDoEvent(fnArgs[0], fnArgs[1], fnArgs[2])
@@ -414,8 +443,6 @@ begin
     v:=mmo.mmiGetGPUStageArrayAsString(fnArgs[0])
   else if fname='RedirectPyLog' then
     RedirectPyLog(fnArgs[0])
-  else if fname='BuildXArrays' then
-    BuildXArrays(fnArgs[0])
   else if fname='DebugStart' then
     mmo.mmiDebugStart
   else if fname='UpdatepyLoadedFuncs' then
@@ -991,10 +1018,14 @@ begin
   InitScript.add('  return RunXIDEFunc(''GetTableDataForExcel'',(TableName,0)).decode(''utf-8'')');
   InitScript.add('def LoadTableFromNumArray(TableName,NumArray):');
   InitScript.add('  RunXIDEFunc(''LoadTableFromNumArray'',(TableName,NumArray))');
+  InitScript.add('def Load3DTableFromNumArray(TableName,NumArray):');
+  InitScript.add('  RunXIDEFunc(''Load3DTableFromNumArray'',(TableName,NumArray))');
   InitScript.add('def LoadTableFromStringArray(TableName,StrArray):');
   InitScript.add('  RunXIDEFunc(''LoadTableFromStringArray'',(TableName,StrArray))');
   InitScript.add('def GetTableDataArray(TableName,SkipHeader):');
   InitScript.add('  return RunXIDEFunc(''GetTableDataArray'',(TableName,SkipHeader))');
+  InitScript.add('def Get3DTableNumArray(TableName):');
+  InitScript.add('  return RunXIDEFunc(''Get3DTableNumArray'',(TableName))');
   InitScript.add('def DoEvent(EventType,NodeId,myValue):');
   InitScript.add('  RunXIDEFunc(''DoEvent'',(EventType,NodeId,myValue))');
   InitScript.add('def MoveComponent(NodeId,NewParentId):');
@@ -1050,11 +1081,15 @@ begin
   InitScript.add('  return json.dumps(npArray.tolist())');
   InitScript.add('def SetPyConsole(nm):');
   InitScript.add('  RunXIDEFunc(''RedirectPyLog'',(nm,))');
-  InitScript.add('def ResetXArrays(DefaultDims):');
-  InitScript.add('  RunXIDEFunc(''BuildXArrays'',(DefaultDims,))');
+//  InitScript.add('def ResetXArrays(DefaultDims):');
+//  InitScript.add('  RunXIDEFunc(''BuildXArrays'',(DefaultDims,))');
 
   InitScript.add('def UpdatepyLoadedFuncs(sss):');
   InitScript.add('  RunXIDEFunc(''UpdatepyLoadedFuncs'',(sss,))');
+//  InitScript.add('def CreateNumpyArrayFrom2DNumArray(ArrayName,numArray):');
+//  InitScript.add('  print("CreateNumpyArrayFrom2DNumArray")');
+//  InitScript.add('  npTbl = np.array(numArray)');
+//  InitScript.add('  vars()[ArrayName] = npTbl');
 
   InitScript.add('print(''Python Engine Initialised'')');
 
@@ -1130,7 +1165,7 @@ end;
   InitScript.add('    f = open("pystdout.txt","r")');
   InitScript.add('    contents = f.read()');
   //InitScript.add('    SetPropertyValue(nm,"ItemValue","kkkkkk")');
-  InitScript.add('    ConsoleLog(">"+contents+"<")');
+  //InitScript.add('    ConsoleLog(">"+contents+"<")');
   InitScript.add('    SetPropertyValue(nm,"ItemValue",str(contents))');
   InitScript.add('  except FileNotFoundError:');
   InitScript.add('    print("no stdout file for "+nm)');
@@ -1158,6 +1193,8 @@ end;
   InitScript.add('  return pas.InterfaceTypes.GetTableDataForExcel(TableName)');
   InitScript.add('def LoadTableFromNumArray(TableName,NumArray):');
   InitScript.add('  pas.InterfaceTypes.LoadTableFromNumArray(TableName,NumArray)');
+  InitScript.add('def Load3DTableFromNumArray(TableName,NumArray):');
+  InitScript.add('  pas.InterfaceTypes.Load3DTableFromNumArray(TableName,NumArray)');
   InitScript.add('def LoadTableFromStringArray(TableName,StrArray):');
   InitScript.add('  sss = ConvertNumpyArrayToJSON(np.asarray(StrArray))');
   InitScript.add('  SetPropertyValue(TableName,"TableData",sss)');
@@ -1167,6 +1204,10 @@ end;
   InitScript.add('  if ((len(arr)>0) and (SkipHeader==True)):');
   InitScript.add('    hdr = arr.pop(0)');
   InitScript.add('  return arr');
+  InitScript.add('def Get3DTableNumArray(TableName):');
+  InitScript.add('  arr = eval(pas.InterfaceTypes.GetPropertyValue(TableName,''Table3DData''))');
+  InitScript.add('  return arr');
+  //InitScript.add('  return pas.InterfaceTypes.Get3DTableNumArray(TableName)');   #########################
   InitScript.add('def DoEvent(EventType,NodeId,myValue):');
   InitScript.add('  pas.InterfaceTypes.DoEvent(EventType,NodeId,myValue)');
   InitScript.add('def MoveComponent(NodeId,NewParentId):');
@@ -1232,8 +1273,8 @@ end;
   InitScript.add('  return pas.InterfaceTypes.PyodidePackageLoaded(nm)');
   InitScript.add('def SetPyConsole(nm):');
   InitScript.add('  pas.PyXUtils.RedirectPyLog(nm)');
-  InitScript.add('def ResetXArrays(DefaultDims):');
-  InitScript.add('  pas.XDataModel.BuildXArrays(DefaultDims)');
+  //InitScript.add('def ResetXArrays(DefaultDims):');
+  //InitScript.add('  pas.XDataModel.BuildXArrays(DefaultDims)');
   InitScript.add('def UpdatepyLoadedFuncs(sss):');
   InitScript.add('  pas.PyXUtils.UpdatepyLoadedFuncs(sss)');
 
@@ -1298,7 +1339,9 @@ begin
   {$ifndef JScript}
   if (MemoNode<>nil)
   and (MemoNode.ScreenObject is TXMemo) then
-    PyMemoComponent:=TXMemo(MemoNode.ScreenObject);
+    PyMemoComponent:=TXMemo(MemoNode.ScreenObject)
+  else
+     ResetPyConsole;
   {$else}
   if (MemoNode<>nil)
   and (MemoNode.NodeType='TXMemo') then
@@ -1306,12 +1349,13 @@ begin
     PyMemoComponent:=TXMemo(MemoNode);
     asm
       console.log('redirecting Python output to '+MemoNode.NodeName);
-      pyodide.runPython('sys.stdout.close()');
+//      pyodide.runPython('sys.stdout.close()');
       pyodide.runPython('sys.stdout = open("pystdout.txt", "w")');
     end;
   end
   else
   begin
+    ResetPyConsole;
     asm
       console.log('reverting Python output to standard');
       pyodide.runPython('sys.stdout.close()');
@@ -1321,37 +1365,6 @@ begin
   {$endif}
 end;
 
-procedure BuildXarray(XArrName:String;dims,mults:TStringArray;dflt:String);
-var
-  s: TStringList;
-  i,m:integer;
-  smults:String;
-begin
-//#Example = xr.DataArray(np.empty((X1_Num,X2_Num,Y_Num,1,NumXVars,)),  dims={"X1_Num":X1_Num,"X2_Num":X2_Num,"Y_Num":Y_Num,"one":1,"NumXVars":NumXVars})
-
-  s := TStringList.create;
-  s.Add('import numpy as np');
-  s.Add('import xarray as xr');
-  s.Add('dimsdict={}');
-
-  // build the dimensions dictionary for this XArray
-  smults:='';
-  for i:=0 to length(dims)-1 do
-  begin
-    //dimsdict[dimname] =  nnn
-    s.Add('dimsdict["'+dims[i]+'"]='+mults[i]);
-    smults:=smults+mults[i]+',';
-  end;
-  //  build the XArray
-  s.Add('print('''+XArrName+' = xr.DataArray(np.empty(('+smults+')), dims='',dimsdict,'')'+''')');
-  s.add(XArrName+' = xr.DataArray(np.empty(('+smults+')), dims=dimsdict)');
-  if dflt<>'' then
-    s.add(XArrName+' = xr.full_like('+XArrName+','+dflt+')');
-  s.Add('print('+XArrName+')');
-
-  PyExeString( s.text);
-  s.free;
-end;
 
 procedure UpdatepyLoadedFuncs(sss:String);
 // sss is a JSON string....load into a stringlist

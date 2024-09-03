@@ -39,8 +39,10 @@ TLaunchHTMLPage=procedure(DataString:String) of object;
 TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;
 TGetTableDataForExcel=function(TableName:String):String of object;
 TLoadTableFromNumArray=procedure(TableName:String;NumArray:T2DNumArray) of object;
+TLoad3DTableFromNumArray=procedure(TableName:String;NumArray:T3DNumArray) of object;
 TLoadTableFromStringArray=procedure(TableName:String;StrArray:T2DStringArray) of object;
 TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray of object;
+TGet3DTableNumArray=function(TableName:String):T3DNumArray of object;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;
@@ -73,10 +75,10 @@ TSetImageSource=procedure(nm,str:String) of object;
 TWobbleCEF=procedure(nm:String) of object;
 TPyodideLoadPackage=procedure(nm:String) of object;
 TPyodidePackageLoaded=function(nm:String):Boolean of object;
-TDSFetchRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;
-TDSAppendRow=function(e:TEventStatus;DSName:String;recObject:TObject):Boolean of object;
-TDSDeleteRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;
-TDSDeleteAllRows=function(e:TEventStatus;DSName:String):Boolean of object;
+//TDSFetchRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;
+//TDSAppendRow=function(e:TEventStatus;DSName:String;recObject:TObject):Boolean of object;
+//TDSDeleteRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;
+//TDSDeleteAllRows=function(e:TEventStatus;DSName:String):Boolean of object;
 
 
 {$ifdef JScript}
@@ -95,8 +97,10 @@ LaunchHTMLPage:TLaunchHTMLPage;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
 GetTableDataForExcel:TGetTableDataForExcel;
 LoadTableFromNumArray:TLoadTableFromNumArray;
+Load3DTableFromNumArray:TLoad3DTableFromNumArray;
 LoadTableFromStringArray:TLoadTableFromStringArray;
 GetTableDataArray:TGetTableDataArray;
+Get3DTableNumArray:TGet3DTableNumArray;
 DoEvent:TDoEvent;
 MoveComponent:TMoveComponent;
 CopyComponent:TCopyComponent;
@@ -128,10 +132,10 @@ SetImageSource:TSetImageSource;
 WobbleCEF:TWobbleCEF;
 PyodideLoadPackage:TPyodideLoadPackage;
 PyodidePackageLoaded:TPyodidePackageLoaded;
-DSFetchRow:TDSFetchRow;
-DSAppendRow:TDSAppendRow;
-DSDeleteRow:TDSDeleteRow;
-DSDeleteAllRows:TDSDeleteAllRows;
+//DSFetchRow:TDSFetchRow;
+//DSAppendRow:TDSAppendRow;
+//DSDeleteRow:TDSDeleteRow;
+//DSDeleteAllRows:TDSDeleteAllRows;
 
 //DSDatasetToString:TDSDatasetToString;
 
@@ -157,8 +161,10 @@ type TMethodsClass = class(TObject)
  procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
  function mmiGetTableDataForExcel(TableName:String):String;
  procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);
+ procedure mmiLoad3DTableFromNumArray(TableName:String;NumArray:T3DNumArray);
  procedure mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);
  function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray;
+ function mmiGet3DTableNumArray(TableName:String):T3DNumArray;
  procedure mmiDoEvent(EventType,NodeId,myValue:String);
  procedure mmiMoveComponent(nodeId:string;NewParentId:string);
  procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);
@@ -190,10 +196,10 @@ type TMethodsClass = class(TObject)
  procedure mmiSetImageSource(nm,str:String);
  procedure mmiPyodideLoadPackage(nm:String);
  function mmiPyodidePackageLoaded(nm:String):Boolean;
- function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
- function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean;
- function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
- function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;
+ //function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+ //function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean;
+ //function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+ //function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;
  //function mmiDSDatasetToString(e:TEventStatus;DSName:String):Boolean;
 end;
 
@@ -226,8 +232,10 @@ begin
   LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
   GetTableDataForExcel:=@AppMethods.mmiGetTableDataForExcel;
   LoadTableFromNumArray:=@AppMethods.mmiLoadTableFromNumArray;
+  Load3DTableFromNumArray:=@AppMethods.mmiLoad3DTableFromNumArray;
   LoadTableFromStringArray:=@AppMethods.mmiLoadTableFromStringArray;
   GetTableDataArray:=@AppMethods.mmiGetTableDataArray;
+  Get3DTableNumArray:=@AppMethods.mmiGet3DTableNumArray;
   doevent:=@appmethods.mmiDoEvent;
   movecomponent:=@appmethods.mmiMoveComponent;
   copycomponent:=@appmethods.mmiCopyComponent;
@@ -258,10 +266,10 @@ begin
   SetImageSource:=@appmethods.mmiSetImageSource;
   PyodideLoadPackage:=@appmethods.mmiPyodideLoadPackage;
   PyodidePackageLoaded:=@appmethods.mmiPyodidePackageLoaded;
-  DSFetchRow:=@appmethods.mmiDSFetchRow;
-  DSAppendRow:=@appmethods.mmiDSAppendRow;
-  DSDeleteRow:=@appmethods.mmiDSDeleteRow;
-  DSDeleteAllRows:=@appmethods.mmiDSDeleteAllRows;
+  //DSFetchRow:=@appmethods.mmiDSFetchRow;
+  //DSAppendRow:=@appmethods.mmiDSAppendRow;
+  //DSDeleteRow:=@appmethods.mmiDSDeleteRow;
+  //DSDeleteAllRows:=@appmethods.mmiDSDeleteAllRows;
   //DSDatasetToString:=@appmethods.mmiDSDatasetToString;
 end;
 
@@ -458,6 +466,18 @@ begin
   end;
 end;
 
+procedure TMethodsClass.mmiLoad3DTableFromNumArray(TableName:String;NumArray:T3DNumArray);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TX3DTable'))
+    {
+      myNode.LoadTableFrom3DNumArray(NumArray);
+      //myNode.Construct3DTableStringFromArray  ########## use NumArray, or JSON string,  or string array?????????????????
+    }
+  end;
+end;
+
 procedure TMethodsClass.mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);
 begin
   asm
@@ -479,6 +499,22 @@ begin
     if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
     {
       arr = myNode.GetCellsAsArray(SkipHeader);
+    }
+  end;
+  result:=arr;
+end;
+function TMethodsClass.mmiGet3DTableNumArray(TableName:String):T3DNumArray;
+var
+  arr:T3DNumArray;
+begin
+  setlength(arr,0);
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TX3DTable'))
+    {
+      arr = myNode.Get3DNumArray(0);
+      console.log('mmiGet3DTableNumArray done');
+      console.log(arr);
     }
   end;
   result:=arr;
@@ -632,18 +668,16 @@ begin
   // 'Init' section of an event handler.
   asm
     {
-      console.log('ShowBusy');
       if (e!=null)
       {
-        console.log('  e not null');
         if (e.InitRunning==false) {
           alert('Warning: ShowBusy must be called from the "Init" section of an event handler');
           }
-        console.log('  adding async proc');
+        //console.log('  adding async proc');
         e.AsyncProcsRunning.Add('ShowBusy');
         var ob=document.getElementById('Grey99');
         if (ob==null) {
-          console.log('  creating Grey99');
+          //console.log('  creating Grey99');
           pas.HTMLUtils.ShowGreyOverlay('UIRoot','Grey99','Please Wait...');
         }
         else  console.log('  Grey99 already exists');
@@ -816,72 +850,73 @@ begin
   result:=found;
 end;
 
-function TMethodsClass.mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
-var
-  ok:Boolean;
-begin
-  e.AsyncProcsRunning.Add('DSFetchRow');
-  asm
-    // DSKeyValues is a string delimited by ';' - one value per key field
-    var keyvalues = DSKeyValues.split(';');
-    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
-    if (keyvalues.length == keynodes.length) {
-      //console.log('mmiDSFetchRow. keyvalues=');
-      //console.log(keyvalues);
-      if (keyvalues.length>0) {
-        ok=pas.XDataModel.DSGetIndexedRecordAsObject(DSName,'DSFetchRow',keyvalues,e);
-        }
-    }
-    else ok=false;
-  end;
-  result:=ok;
-end;
 
-function TMethodsClass.mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean;
-var
-  ok:Boolean;
-begin
-  ok:=true;
-  e.AsyncProcsRunning.Add('DSAppendRow');
-  asm
-    ok=pas.XDataModel.DSAppendRecordFromObject(DSName,'DSAppendRow',recObject,e);
-  end;
-  result:=ok;
-end;
+//function TMethodsClass.mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+//var
+//  ok:Boolean;
+//begin
+//  e.AsyncProcsRunning.Add('DSFetchRow');
+//  asm
+//    // DSKeyValues is a string delimited by ';' - one value per key field
+//    var keyvalues = DSKeyValues.split(';');
+//    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
+//    if (keyvalues.length == keynodes.length) {
+//      //console.log('mmiDSFetchRow. keyvalues=');
+//      //console.log(keyvalues);
+//      if (keyvalues.length>0) {
+//        ok=pas.XDataModel.DSGetIndexedRecordAsObject(DSName,'DSFetchRow',keyvalues,e);
+//        }
+//    }
+//    else ok=false;
+//  end;
+//  result:=ok;
+//end;
 
-function TMethodsClass.mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
-var
-  ok:Boolean;
-begin
-  e.AsyncProcsRunning.Add('DSDeleteRow');
-  asm
-    // DSKeyValues is a string delimited by ';' - one value per key field
-    var keyvalues = DSKeyValues.split(';');
-    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
-    if (keyvalues.length == keynodes.length) {
-      console.log('mmiDSDeleteRow. keyvalues=');
-      console.log(keyvalues);
-      if (keyvalues.length>0) {
-        ok=pas.XDataModel.DSDeleteARow(e,DSName,'DSDeleteRow',keyvalues);
-        }
-    }
-    else ok=false;
-  end;
-  result:=ok;
-end;
+//function TMethodsClass.mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean;
+//var
+//  ok:Boolean;
+//begin
+//  ok:=true;
+//  e.AsyncProcsRunning.Add('DSAppendRow');
+//  asm
+//    ok=pas.XDataModel.DSAppendRecordFromObject(DSName,'DSAppendRow',recObject,e);
+//  end;
+//  result:=ok;
+//end;
 
-function TMethodsClass.mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;
-var
-  ok:Boolean;
-begin
-  ok:=true;
-  e.AsyncProcsRunning.Add('DSDeleteAllRows');
-  asm
-    console.log('mmiDSDeleteAllRows. ');
-    ok=pas.XDataModel.DSEmptyDataset(e,DSName,'DSDeleteAllRows');
-  end;
-  result:=ok;
-end;
+//function TMethodsClass.mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
+//var
+//  ok:Boolean;
+//begin
+//  e.AsyncProcsRunning.Add('DSDeleteRow');
+//  asm
+//    // DSKeyValues is a string delimited by ';' - one value per key field
+//    var keyvalues = DSKeyValues.split(';');
+//    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
+//    if (keyvalues.length == keynodes.length) {
+//      console.log('mmiDSDeleteRow. keyvalues=');
+//      console.log(keyvalues);
+//      if (keyvalues.length>0) {
+//        ok=pas.XDataModel.DSDeleteARow(e,DSName,'DSDeleteRow',keyvalues);
+//        }
+//    }
+//    else ok=false;
+//  end;
+//  result:=ok;
+//end;
+
+//function TMethodsClass.mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;
+//var
+//  ok:Boolean;
+//begin
+//  ok:=true;
+//  e.AsyncProcsRunning.Add('DSDeleteAllRows');
+//  asm
+//    console.log('mmiDSDeleteAllRows. ');
+//    ok=pas.XDataModel.DSEmptyDataset(e,DSName,'DSDeleteAllRows');
+//  end;
+//  result:=ok;
+//end;
 
 
 

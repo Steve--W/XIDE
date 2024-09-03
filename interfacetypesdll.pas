@@ -39,8 +39,10 @@ TLaunchHTMLPage=procedure(DataString:String) of object;                         
 TLoadTableFromExcelCopy=procedure(TableName,CopiedString:String) of object;                         stdcall;
 TGetTableDataForExcel=function(TableName:String):String of object                                   stdcall;
 TLoadTableFromNumArray=procedure(TableName:String;NumArray:T2DNumArray) of object;                  stdcall;
+TLoad3DTableFromNumArray=procedure(TableName:String;NumArray:T3DNumArray) of object;                  stdcall;
 TLoadTableFromStringArray=procedure(TableName:String;StrArray:T2DStringArray) of object;                  stdcall;
 TGetTableDataArray=function(TableName:String;SkipHeader:Boolean):T2DStringArray of object;       stdcall;
+TGet3DTableNumArray=function(TableName:String):T3DNumArray of object;       stdcall;
 TDoEvent=procedure(EventType,NodeId,myValue:String) of object;                                      stdcall;
 TMoveComponent=procedure(nodeId:string;NewParentId:string) of object;                                stdcall;
 TCopyComponent=procedure(nodeId,NewParentId,NewName:string) of object;                                stdcall;
@@ -71,10 +73,10 @@ TSetImageSource=procedure(nm,str:String) of object; stdcall;
 TWobbleCEF=procedure(nm:String)of object;    stdcall;
 TPyodideLoadPackage=procedure(nm:String) of object;  stdcall;
 TPyodidePackageLoaded=function(nm:String):Boolean of object;  stdcall;
-TDSFetchRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;  stdcall;
-TDSAppendRow=function(e:TEventStatus;DSName:String;recObject:TObject):Boolean of object; stdcall;
-TDSDeleteRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object; stdcall;
-TDSDeleteAllRows=function(e:TEventStatus;DSName:String):Boolean of object; stdcall;
+//TDSFetchRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;  stdcall;
+//TDSAppendRow=function(e:TEventStatus;DSName:String;recObject:TObject):Boolean of object; stdcall;
+//TDSDeleteRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object; stdcall;
+//TDSDeleteAllRows=function(e:TEventStatus;DSName:String):Boolean of object; stdcall;
 
 //TDSDatasetToString=function(e:TEventStatus;dsName:String):Boolean of object; stdcall;
 
@@ -95,8 +97,10 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiLoadTableFromExcelCopy(TableName,CopiedString:String); stdcall;
     function mmiGetTableDataForExcel(TableName:String):String;  stdcall;
     procedure mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray); stdcall;
+    procedure mmiLoad3DTableFromNumArray(TableName:String;NumArray:T3DNumArray); stdcall;
     procedure mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray); stdcall;
     function mmiGetTableDataArray(TableName:String;SkipHeader:Boolean):T2DStringArray; stdcall;
+    function mmiGet3DTableNumArray(TableName:String):T3DNumArray; stdcall;
     procedure mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
     procedure mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
     procedure mmiCopyComponent(nodeId,NewParentId,NewName:string);  stdcall;
@@ -127,10 +131,10 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiWobbleCEF(nm:String);    stdcall;
     procedure mmiPyodideLoadPackage(nm:String);  stdcall;
     function mmiPyodidePackageLoaded(nm:String):Boolean; stdcall;
-    function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
-    function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
-    function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
-    function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
+    //function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
+    //function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
+    //function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
+    //function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
 //    function mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
 end;
 
@@ -152,8 +156,10 @@ LaunchHTMLPage:TLaunchHTMLPage;
 LoadTableFromExcelCopy:TLoadTableFromExcelCopy;
 GetTableDataForExcel:TGetTableDataForExcel;
 LoadTableFromNumArray:TLoadTableFromNumArray;
+Load3DTableFromNumArray:TLoad3DTableFromNumArray;
 LoadTableFromStringArray:TLoadTableFromStringArray;
 GetTableDataArray:TGetTableDataArray;
+Get3DTableNumArray:TGet3DTableNumArray;
 doevent:TDoEvent;
 movecomponent:TMoveComponent;
 copycomponent:TCopyComponent;
@@ -184,10 +190,10 @@ SetImageSource:TSetImageSource;
 WobbleCEF:TWobbleCEF;
 PyodideLoadPackage:TPyodideLoadPackage;
 PyodidePackageLoaded:TPyodidePackageLoaded;
-DSFetchRow:TDSFetchRow;
-DSAppendRow:TDSAppendRow;
-DSDeleteRow:TDSDeleteRow;
-DSDeleteAllRows:TDSDeleteAllRows;
+//DSFetchRow:TDSFetchRow;
+//DSAppendRow:TDSAppendRow;
+//DSDeleteRow:TDSDeleteRow;
+//DSDeleteAllRows:TDSDeleteAllRows;
 
 //DSDatasetToString:TDSDatasetToString;
 
@@ -220,8 +226,10 @@ begin
   LoadTableFromExcelCopy:=@AppMethods.mmiLoadTableFromExcelCopy;
   GetTableDataForExcel:=@AppMethods.mmiGetTableDataForExcel;
   LoadTableFromNumArray:=@AppMethods.mmiLoadTableFromNumArray;
+  Load3DTableFromNumArray:=@AppMethods.mmiLoad3DTableFromNumArray;
   LoadTableFromStringArray:=@AppMethods.mmiLoadTableFromStringArray;
   GetTableDataArray:=@AppMethods.mmiGetTableDataArray;
+  Get3DTableNumArray:=@AppMethods.mmiGet3DTableNumArray;
   doevent:=@appmethods.mmiDoEvent;
   movecomponent:=@appmethods.mmiMoveComponent;
   copycomponent:=@appmethods.mmiCopyComponent;
@@ -252,10 +260,10 @@ begin
   WobbleCEF:=@appmethods.mmiWobbleCEF;
   PyodideLoadPackage:=@appmethods.mmiPyodideLoadPackage;
   PyodidePackageLoaded:=@appmethods.mmiPyodidePackageLoaded;
-  DSFetchRow:=@appmethods.mmiDSFetchRow;
-  DSAppendRow:=@appmethods.mmiDSAppendRow;
-  DSDeleteRow:=@appmethods.mmiDSDeleteRow;
-  DSDeleteAllRows:=@appmethods.mmiDSDeleteAllRows;
+  //DSFetchRow:=@appmethods.mmiDSFetchRow;
+  //DSAppendRow:=@appmethods.mmiDSAppendRow;
+  //DSDeleteRow:=@appmethods.mmiDSDeleteRow;
+  //DSDeleteAllRows:=@appmethods.mmiDSDeleteAllRows;
 //  DSDatasetToString:=@appmethods.mmiDSDatasetToString;
 
 end;

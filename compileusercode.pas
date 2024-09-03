@@ -116,7 +116,7 @@ var
 
 
 implementation
-uses  XObjectInsp, PyXUtils, XDataModel;
+uses  XObjectInsp, PyXUtils;
 
 {$ifndef JScript}
 type
@@ -917,11 +917,6 @@ begin
 
 end;
 
-procedure ConstructDataModelUnits(RunMode:String);
-begin
-  ConstructPascalDM(RunMode,PascalCode);
-end;
-
 function ConstructGPUUnits(RunMode:String; Compiler:TObject):Boolean;
 // Each XGPUCanvas widget contains a set of 'animation code' kernels, written in pascal.
 // Build a separate pascal unit for each GPU widget, which can be called at runtime to
@@ -1182,7 +1177,6 @@ begin
 
    FirstUnitName:=GatherUserUnits(RunMode,Compiler);
    ConstructNamespaceUnits(RunMode,'',Compiler,MainFormProjectRoot);
-   ConstructDataModelUnits(RunMode);
    ok:=ConstructGPUUnits(RunMode,Compiler);
    if not ok then
    begin
@@ -1219,7 +1213,6 @@ begin
    PascalCode.Add('  Classes, SysUtils, strutils, Math, EventsInterface, InterfaceTypesDll');
    FirstUnitName:=GatherUserUnits(RunMode,nil);
    ConstructNamespaceUnits(RunMode,'',nil,SystemNodeTree);
-   ConstructDataModelUnits(RunMode);
    ok:=ConstructGPUUnits(RunMode,Compiler);
    if not ok then
    begin
@@ -1694,9 +1687,9 @@ begin
         pas[pas.Events.DllName+'Threads']=null;
 
         // and the DataModel unit ....
-        var DMRoot=pas.XDataModel.DMRoot;
+        //var DMRoot=pas.XDataModel.DMRoot;
         //console.log('removing unit DMRoot');
-        pas['DMRoot']=null;
+        //pas['DMRoot']=null;
 
         }
       } catch(err) { alert(err.message + ' in CompileEventCode (units de-registration) ');     div.innerHTML=''; ok=false;}

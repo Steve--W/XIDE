@@ -9,7 +9,6 @@ interface
 uses
     Classes, SysUtils, TypInfo, StringUtils, NodeUtils, XIFrame,
     UtilsJSCompile, XForm, XButton, XVBox, XTabControl, XEditBox, XNumberSpinner,XComboBox, EventsInterface,
-    PasteDialogUnit,
   {$ifndef JScript}
     fpjson  , jsonparser,
     LResources, Forms, Controls, StdCtrls, Graphics, Dialogs, ExtCtrls, Propedits, RTTICtrls,
@@ -49,6 +48,7 @@ type
     procedure ReBuild3DTableData;
     procedure SetNew3DTableData;
     function Construct3DTableStringFromArray(arr:T3DStringArray):String;
+    function Construct3DTableStringFromNumArray(arr:T3DNumArray):String;
     procedure Resize3DData;
 
     {$ifndef JScript}
@@ -60,7 +60,6 @@ type
     procedure XEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure YEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure ZEditBoxChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
-    procedure PasteData(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     function BuildZeds:String;
 
   protected
@@ -68,7 +67,6 @@ type
   public
     { Public declarations }
     myTableView:TXTable;
-    PasteBtn:TXButton;
     ZSelector:TXComboBox;
     XDimEdit:TXEditBox;
     YDimEdit:TXEditBox;
@@ -81,6 +79,8 @@ type
     {$else}
     constructor Create(MyForm:TForm;NodeName,NameSpace:String);  virtual;
     {$endif}
+    procedure LoadTableFrom3DNumArray(NumArray:T3DNumArray);
+    function Get3DNumArray(dummy:integer):T3DNumArray;
 
 published
     { Published declarations }
@@ -161,13 +161,6 @@ begin
   myTableView.IsNumeric:=true;
   TblNode.registerEvent('Change',@self.TableChange);
 
-  BtnNode:=AddDynamicWidget('TXButton',self.myNode.MyForm,VBNode,'PasteBtn',self.myNode.NodeName,'Left',-1);
-  PasteBtn:=TXButton(BtnNode.ScreenObject);
-  PasteBtn.Caption:='Paste Grid';
-  PasteBtn.Hint:='Paste grid data from clipboard (eg. as copied from Excel)';
-  PasteBtn.myNode.registerEvent('ButtonClick',@self.PasteData);
-  BtnNode.IsDynamic:=false;
-
   XEditNode:=AddDynamicWidget('TXEditBox',self.myNode.MyForm,VBNode,'XNum',self.myNode.NodeName,'Left',-1);
   XDimEdit:=TXEditBox(XEditNode.ScreenObject);
   XDimEdit.LabelPos:='Left';
@@ -194,7 +187,7 @@ begin
 
   {$ifndef JScript}
   //AddLabel(myControl);
-  TXVBox(VBNode.ScreenObject).IsVisible:=false;  // !!fudge (problem with auto-resizing on display)
+  //TXVBox(VBNode.ScreenObject).IsVisible:=false;  // !!fudge (problem with auto-resizing on display)
   {$endif}
 
   IsBuilt:=true;
@@ -205,12 +198,10 @@ procedure TX3DTable.ResequenceComponents;
 begin      // fix for Lazarus 'feature'....
   TXVBox(myControl).RemoveControl(ZSelector);
   TXVBox(myControl).RemoveControl(myTableView);
-  TXVBox(myControl).RemoveControl(PasteBtn);
   TXVBox(myControl).RemoveControl(XDimEdit);
   TXVBox(myControl).RemoveControl(YDimEdit);
   TXVBox(myControl).InsertControl(YDimEdit,0);
   TXVBox(myControl).InsertControl(XDimEdit,0);
-  TXVBox(myControl).InsertControl(PasteBtn,0);
   TXVBox(myControl).InsertControl(myTableView,0);
   TXVBox(myControl).InsertControl(ZSelector,0);
   TXVBox(myControl).IsVisible:=true;
@@ -409,6 +400,39 @@ begin
   end;
   result:='['+str+']';
 end;
+function TX3DTable.Construct3DTableStringFromNumArray(arr:T3DNumArray):String;
+var
+    str:String;
+begin
+  str:=Num3DArrayToJsonString(arr);
+  result:=str;
+end;
+
+procedure TX3DTable.LoadTableFrom3DNumArray(NumArray:T3DNumArray);
+var
+  tdata:String;
+begin
+  tdata:=Construct3DTableStringFromNumArray(NumArray);
+  self.Table3DData:=tdata;
+end;
+
+function TX3DTable.Get3DNumArray(dummy:integer):T3DNumArray;
+var
+  arr:T3DNumArray;
+begin
+  {$ifdef JScript}
+  asm
+    console.log('Get3DNumArray');
+  end;
+  {$endif}
+  arr:=JsonStringTo3DNumArray(self.Table3DData);
+{$ifdef JScript}
+asm
+  console.log(arr);
+end;
+{$endif}
+  result := arr;
+end;
 
 procedure TX3DTable.SetNew3DTableData;
 var
@@ -548,7 +572,7 @@ begin
   self.ZSelector.OptionList:=zeds;
   self.ReSize3DData;
 end;
-procedure TX3DTable.PasteData(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
+(*procedure TX3DTable.PasteData(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 var
     str:String;
 begin
@@ -609,7 +633,7 @@ begin
        showmessage('Nothing on clipboard to paste');
    end;
  end;
-
+*)
 
 function TX3DTable.GetZIndex:integer;
 begin

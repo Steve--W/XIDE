@@ -31,7 +31,7 @@ uses
   XHBox, XVBox, XCode,XColorPicker,
   XTree,  XButton, XScrollBox, XEditBox, XCheckBox, XComboBox, XTabControl,
   XForm, XTable, XMemo, XMenu, CodeEditor, PropertyEditUnit, EventsInterface,
-  XGPUCanvas, XGPUEditor, XCompositeIntf, XDBTable, StylesUtils,IntfParamUnit,IntfEventUnit;
+  XGPUCanvas, XGPUEditor, XCompositeIntf, StylesUtils,IntfParamUnit,IntfEventUnit;
 
 {$ifdef JScript}
 function CheckForSavedSystemOnLoad:Boolean;
@@ -169,7 +169,7 @@ const
 var
   MainFormProjectRoot:TDataNode;
   DesignMode:Boolean;
-  NavTreeComponent,DataTreeComponent,ResourcesNodeTree, ResourceTreeComponent, CodeTreeComponent:TDataNode;
+  NavTreeComponent,ResourcesNodeTree, ResourceTreeComponent, CodeTreeComponent:TDataNode;
   OIEventWrapper:TOIEventWrapper;
   LastLazUserInterfaceItemSelected,LastHTMLUserInterfaceItemSelected:String;
   LastHTMLUserInterfaceItemHadBorder:Boolean;
@@ -179,7 +179,7 @@ var
   RunModeAttempts:integer;
 
   PropertiesNode, InterfacePropsNode, InterfaceTabNode, EventsNode,
-    AddInterfacePropsButtonNode, OITabs, DMAttribsNode : TDataNode;
+    AddInterfacePropsButtonNode, OITabs : TDataNode;
 
   {$ifndef JScript}
   UITopControl:TWinControl;
@@ -192,7 +192,7 @@ const
   AttributeEditorNameDelimiter:string = '__';
 
 implementation
-uses SavedSystems, PasteDialogUnit, PyXUtils, XDataModel, XIDEMain;
+uses SavedSystems, PasteDialogUnit, PyXUtils, XIDEMain;
 
 
   //SandraMode:Boolean = true;
@@ -278,7 +278,7 @@ begin
     or ((CurrentItem.NodeClass='UI') and (CurrentItem.NodeType='TXForm') and (CurrentItem.NodeName = MainForm.Name))
     or ((CurrentItem.NodeClass='UI') and (CurrentItem.NodeType='TXMainMenu'))
     or ((CurrentItem.NodeClass='NV') and (CurrentItem.IsDynamic=true))
-    or (CurrentItem.NodeClass='DM')
+    //or (CurrentItem.NodeClass='DM')
     or (CurrentItem=SystemNodeTree)
     or (CurrentItem=ResourcesNodeTree)
     or (CurrentItem=CodeRootNode)
@@ -300,7 +300,7 @@ begin
         if level = 0 then ArrayString:=' ';
 
         if (IncludeProperties)
-        and ((CurrentItem.NodeClass='UI') or (CurrentItem.NodeClass='NV') or (CurrentItem.NodeClass='DM'))
+        and ((CurrentItem.NodeClass='UI') or (CurrentItem.NodeClass='NV') {or (CurrentItem.NodeClass='DM')})
         and (length(CurrentItem.NodeAttributes)>0) then
           InsertingAttributes:=true
         else
@@ -663,7 +663,7 @@ begin
     {$else}
     BrowserSaveData(TheData);
     {$endif}
-    SaveLocalDB;
+//    SaveLocalDB;
 
     ObjectInspectorSelectedNavTreeNode:=NavSelected;
     ObjectInspectorSelectedNavTreeNode:=CodeSelected;
@@ -688,7 +688,7 @@ begin
   //OITabs:=FindDataNodeById(SystemNodeTree,'OITabs','',true);
   OITabs:=FindDataNodeById(UIRootNode,'OITabs','',true);
   PropertiesNode:=FindDataNodeById(OITabs,PropertyEditorScrollboxName,'',true);
-  DMAttribsNode:=FindDataNodeById(UIRootNode,DMAttribsScrollboxName,'',true);
+  //DMAttribsNode:=FindDataNodeById(UIRootNode,DMAttribsScrollboxName,'',true);
   InterfacePropsNode:=FindDataNodeById(OITabs,CompositePropsScrollboxName,'',true);
   EventsNode:=FindDataNodeById(OITabs,EventsEditorScrollboxName,'',true);
   InterfaceTabNode:=FindDataNodeById(OITabs,CompositePropsTabName,'',true);
@@ -699,7 +699,7 @@ begin
   // Populate navigator and code tree from SystemNodeTree
   RebuildNavigatorTree;
   RebuildCodeTree;
-  RebuildDMTree;
+  //RebuildDMTree;
 
   {$ifndef JScript}
   ConsoleNode:=FindDataNodeById(UIRootNode,'XMemo1','',true);
@@ -958,7 +958,7 @@ begin
   RegisterResource('RUI','TXEditBox','TXEditBox','Text','Editable text box');
   RegisterResource('RUI','TXMemo','TXMemo','Text','Editable multi-line text box');
   RegisterResource('RUI','TXTable','TXTable','Text','2D Tabular data display');
-  RegisterResource('RUI','TXDBTable','TXDBTable','Text','2D Tabular dataset display');
+  RegisterResource('RUI','TX3DTable','TX3DTable','Text','3D Tabular data display');
 
   //{$ifdef Python}
   ////AddAttrib(AttrParams,'Language','String','Python',false);
@@ -1323,9 +1323,9 @@ begin
 
   if (CurrentNode<>nil)  then
   begin
-      if CurrentNode.NodeClass='DM' then
-        Prefix1:='DM'
-      else
+      //if CurrentNode.NodeClass='DM' then
+      //  Prefix1:='DM'
+      //else
         Prefix1:='OI';
       AttributePrefix:=Prefix1+AttributeEditorNameDelimiter+CurrentNode.NodeName;
       myAttribs:=CurrentNode.NodeAttributes;
@@ -1431,7 +1431,7 @@ begin
   //showmessage('DoSelectNavTreeNode '+CurrentNode.NodeClass+' '+CurrentNode.NodeType+' '+CurrentNode.NodeName+' ');
   if (DesignMode) and (okToContinue) then
   begin
-    XDBTable.SetDSNameOptions(DMRoot);
+    //XDBTable.SetDSNameOptions(DMRoot);
 
     {$ifdef Chromium}
      {$ifndef JScript}
@@ -2073,14 +2073,14 @@ begin
     ShowMessage('Only XForm and Non-Visual items can be added to the UI Root Node - please select another container')
   else if (SourceNode.NodeClass='UI') and (ParentNode.NodeType='TXForm') and (ParentNode.NodeName=MainForm.Name) then
     ShowMessage('In the main form, UI items can only be added within the UI Root Node')
-  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType='DMRoot') and (SourceNode.NodeType<>'DMClass') then
-    ShowMessage('Only a DMClass can be inserted under a DMRoot element')
-  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMContains') then
-    ShowMessage('A DMContains can only be inserted under a DMClass element')
-  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMOp') then
-    ShowMessage('A DMOp can only be inserted under a DMClass element')
-  else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMRef') then
-    ShowMessage('A DMRef can only be inserted under a DMClass element')
+  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType='DMRoot') and (SourceNode.NodeType<>'DMClass') then
+  //  ShowMessage('Only a DMClass can be inserted under a DMRoot element')
+  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMContains') then
+  //  ShowMessage('A DMContains can only be inserted under a DMClass element')
+  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMOp') then
+  //  ShowMessage('A DMOp can only be inserted under a DMClass element')
+  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMRef') then
+  //  ShowMessage('A DMRef can only be inserted under a DMClass element')
   else
     // all ok - go ahead and paste
     result:=true;
@@ -2385,7 +2385,7 @@ begin
     PopulateObjectInspector(nil);
     ClearResourceInspector;
     ObjectInspectorSelectedNavTreeNode:=nil;
-    DMClearSelection;
+    //DMClearSelection;
 
     TXTree(CodeTreeComponent.ScreenObject).DeSelectNode;
     ObjectInspectorSelectedCodeTreeNode:=nil;
@@ -2538,16 +2538,16 @@ begin
   end;
 
   // and add any data model elements
-  StartNode:=DMRoot;
-  if StartNode=nil then
-  begin
-    showmessage('oops. cannot find node DMRoot in BuildSystemString');
-    EXIT;
-  end;
-  for i:=0 to length(StartNode.ChildNodes)-1 do
-  begin
-    systemstring:=systemstring+NodeTreeToXML(StartNode.ChildNodes[i],DMRoot,true,false);
-  end;
+  //StartNode:=DMRoot;
+  //if StartNode=nil then
+  //begin
+  //  showmessage('oops. cannot find node DMRoot in BuildSystemString');
+  //  EXIT;
+  //end;
+  //for i:=0 to length(StartNode.ChildNodes)-1 do
+  //begin
+  //  systemstring:=systemstring+NodeTreeToXML(StartNode.ChildNodes[i],DMRoot,true,false);
+  //end;
 
   if not Encapsulate then
   begin
@@ -2587,13 +2587,13 @@ begin
   WriteToLocalStore(storename,fullstring);
   RebuildResourcesTree;
 
-  if sysname<>oldname then
-  begin
-    // copy any existing stored datasets
-    // (desktop)...create new directory, and copy contents
-    // (browser)...copy local database to new name (NB. Async function)
-    DBSaveAs(oldname,sysname);
-  end;
+  //if sysname<>oldname then
+  //begin
+  //  // copy any existing stored datasets
+  //  // (desktop)...create new directory, and copy contents
+  //  // (browser)...copy local database to new name (NB. Async function)
+  //  DBSaveAs(oldname,sysname);
+  //end;
 end;
 
 function isValidSystemData(SystemDescription:string):boolean;
@@ -2692,10 +2692,10 @@ begin
   myTag:=TLoadTimerTag(myTimer.Tag);
   XMLToNodeTree(myTag.systemstring,UIRootNode);
 
-  {$ifdef JScript}
-  i:=length(DMRoot.ChildNodes);
-  asm console.log('DoXMLToNodeTree 1. DMRoot numchildnodes=',i); end;
-  {$endif}
+  //{$ifdef JScript}
+  //i:=length(DMRoot.ChildNodes);
+  //asm console.log('DoXMLToNodeTree 1. DMRoot numchildnodes=',i); end;
+  //{$endif}
 
   if myTag.SysName<>'' then
   begin
@@ -2704,22 +2704,8 @@ begin
 
   RebuildResourcesTree;
   RedisplayResourceTree;
-{$ifdef JScript}
-i:=length(DMRoot.ChildNodes);
-asm console.log('DoXMLToNodeTree 2. DMRoot numchildnodes=',i); end;
-{$endif}
-
   RebuildNavigatorTree;
-{$ifdef JScript}
-i:=length(DMRoot.ChildNodes);
-asm console.log('DoXMLToNodeTree 3. DMRoot numchildnodes=',i); end;
-{$endif}
   RebuildCodeTree;
-{$ifdef JScript}
-i:=length(DMRoot.ChildNodes);
-asm console.log('DoXMLToNodeTree 4. DMRoot numchildnodes=',i); end;
-{$endif}
-  RebuildDMTree;
   SelectNavTreeNode(MainFormProjectRoot,true);
 
   //make sure UIRoot width attribute is still at 60% (design mode)
@@ -3354,9 +3340,9 @@ begin
     RebuildResourcesTree;
     InitialiseStyleDesigner;
 
-    InitDMTree;
-    DMChanged:=false;
-    RebuildDMTree;
+    //InitDMTree;
+    //DMChanged:=false;
+    //RebuildDMTree;
  end;
 
 
@@ -3592,14 +3578,12 @@ begin
     hbox.RemoveControl(ob2);
     hbox.RemoveControl(ob3);
 
-    //if ShowResourceTree='Left' then
     if lr='Left' then
     begin
       ob1.Parent:=hbox;
       ob2.Parent:=hbox;
       ob3.Parent:=hbox;
     end
-    //else if ShowResourceTree='Right' then
     else
     begin
       ob2.Parent:=hbox;
@@ -3702,10 +3686,10 @@ begin
     waitForNewPackages();
     function doAfterPyPaksLoaded() {
       console.log("doAfterPyPaksLoaded");
-      testPyPkLoaded('xarray');
+      //testPyPkLoaded('xarray');
     end;
-    if (PyXUtils.PyPkTest=1) then
-       BuildXArrays(true);
+    //if (PyXUtils.PyPkTest=1) then
+    //   BuildXArrays(true);
     //exec all defined python scripts
     GatherAndRunPythonScriptsLater;
     {$endif}
@@ -3762,7 +3746,7 @@ begin
     GatherSourcedAttributes(UIRootNode);
     PushAllSourcesToAttributes;
 
-    ok:=BuildLocalDB(StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue));
+    //ok:=BuildLocalDB(StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue));
 
     SuppressUserEvents:=false;
 
@@ -3771,18 +3755,19 @@ begin
     //Clear the python engine and re-initialise
     DoPy_InitEngine;
     RunInitialScript;
-    BuildXArrays(true);
+    //BuildXArrays(true);
     //do later .... exec all defined python scripts
     GatherAndRunPythonScriptsLater;
     {$endif}
     {$else}
     GatherSourcedAttributes(UIRootNode);
     PushAllSourcesToAttributes;
-    v:=StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue);
-    asm
-      ok=pas.XDataModel.BuildLocalDB(v,pas.XObjectInsp.CompleteToggleToRunMode);
-    end;
-
+    asm console.log('ToggleToRunModeAfterCompile 1'); end;
+    //v:=StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue);
+    //asm
+    //  ok=pas.XDataModel.BuildLocalDB(v,pas.XObjectInsp.CompleteToggleToRunMode);
+    //end;
+    CompleteToggleToRunMode(ok);
     {$endif}
   end
   else
@@ -3817,8 +3802,9 @@ begin
     // Compile the user-created event code, using embedded pas2js compiler
     // and generate js
     ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
-    //asm console.log('calling ToggleToRunModeAfterCompile'); end;
+    asm console.log('calling ToggleToRunModeAfterCompile'); end;
     ToggleToRunModeAfterCompile(ok);
+    asm console.log('ToggleToRunModeAfterCompile done'); end;
     {$ifndef Python}
     DeleteGreyOverlay('Grey1');
     {$endif}
@@ -3942,8 +3928,8 @@ begin
 
     HandleEvent(nil,'OnExitRunMode',SystemRootName,'','');
 
-    SaveLocalDB;
-    CloseLocalDB;
+    //SaveLocalDB;
+    //CloseLocalDB;
 
     SetScreenToDesignMode;
   end;
@@ -4005,24 +3991,25 @@ begin
   bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
   if bits.Count = 4 then
   begin
-    if (bits[0]='OI') or (bits[0]='RI') or (bits[0]='DM') then       // OI, Editboxname, NodeName, suffix
+    if (bits[0]='OI') or (bits[0]='RI') {or (bits[0]='DM')} then       // OI, Editboxname, NodeName, suffix
     begin
       NodeNameToEdit:=bits[1];
       PropertyToEdit:=bits[2];
     end;
   end;
 
-  if  (bits[0]<>'DM') then
-    targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true)
-  else
-    targetNode:=FindDataNodeById(DMRoot,NodeNameToEdit,'',true);
+  //if  (bits[0]<>'DM') then
+    targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
+  //else
+  //  targetNode:=FindDataNodeById(DMRoot,NodeNameToEdit,'',true);
   if targetNode=nil then
     EXIT;
   targetAttribute:= targetNode.GetAttribute(PropertyToEdit,false);
 
   if ((targetNode.NodeType<>'TXGPUCanvas')
   or ((targetAttribute.AttribName<>'AnimationCode') and (targetAttribute.AttribName<>'InitStageData')))
-  and ((targetNode.NodeType<>'DMOp') or (targetAttribute.AttribName<>'Code')) then
+  //and ((targetNode.NodeType<>'DMOp') or (targetAttribute.AttribName<>'Code')) then
+  and (targetAttribute.AttribName<>'Code') then
   begin
     // pop up the property editor.
     PropertyEditForm.TargetNode:=targetNode;
@@ -4064,12 +4051,12 @@ begin
     ShowXForm('PropertyEditForm',true);
   end
   else
-  if (targetNode.NodeType='DMOp')
-  and (targetAttribute.AttribName='Code') then
-  begin
-    ShowDMOpCodeEditor(targetNode,nodeId);
-  end
-  else
+  //if (targetNode.NodeType='DMOp')
+  //and (targetAttribute.AttribName='Code') then
+  //begin
+  //  ShowDMOpCodeEditor(targetNode,nodeId);
+  //end
+  //else
   // Special Case - edit the AnimationCode in a TXGPUCanvas component using the dedicated popup editor...
   // Special Case - edit the InitStageData in a TXGPUCanvas component using the dedicated popup editor...
   begin
@@ -4170,7 +4157,7 @@ begin
   bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
   if bits.Count = 4 then
   begin
-    if (bits[0]='OI') or (bits[0]='RI') or (bits[0]='DM') then       // OI, Editboxname, NodeName, Attrname, suffix
+    if (bits[0]='OI') or (bits[0]='RI') {or (bits[0]='DM')} then       // OI, Editboxname, NodeName, Attrname, suffix
     begin
       NodeNameToEdit:=bits[1];
       AttrNameToEdit:=bits[2];
@@ -4180,14 +4167,14 @@ begin
         EditAttributeValue(NodeNameToEdit,'',AttrNameToEdit,myValue);
         RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
       end
-      else if bits[0]='DM' then
-      begin
-        EditAttributeValue(NodeNameToEdit,'',AttrNameToEdit,myValue,false,DMRoot);
-        DMAttribsCrosscheck(NodeNameToEdit);
-        RebuildDMTreeLater;         //!!!! must do 'later' because may be processing eg. combobox event
+//      else if bits[0]='DM' then
+//      begin
+//        EditAttributeValue(NodeNameToEdit,'',AttrNameToEdit,myValue,false,DMRoot);
+        //DMAttribsCrosscheck(NodeNameToEdit);
+        //RebuildDMTreeLater;         //!!!! must do 'later' because may be processing eg. combobox event
         //RefreshObjectInspector(DMSelectedDataTreeNode);
-        DMChanged:=true;
-      end
+        //DMChanged:=true;
+//      end
       else
         EditResourceAttributeValue(NodeNameToEdit,AttrNameToEdit,myValue);
     end;
@@ -4247,14 +4234,14 @@ begin
     else if (CodeEditForm.Mode='UnitCode')
       or (CodeEditForm.Mode='PasUnitCode')
       or (CodeEditForm.Mode='PythonScriptCode')
-      or (CodeEditForm.Mode='DMOpCode')
+      //or (CodeEditForm.Mode='DMOpCode')
     then
     begin
       tmp:=CodeEditForm.TargetNodeName;
       // name of unit is in TargetNodeName
-      if (CodeEditForm.Mode='DMOpCode') then
-        CodeNode:=FindDataNodeById(DMRoot,CodeEditForm.TargetNodeName,'',true)
-      else
+      //if (CodeEditForm.Mode='DMOpCode') then
+      //  CodeNode:=FindDataNodeById(DMRoot,CodeEditForm.TargetNodeName,'',true)
+      //else
         CodeNode:=FindDataNodeById(CodeRootNode,CodeEditForm.TargetNodeName,'',true);
       tmp:=CodeEditForm.CodeEdit.ItemValue;
       CodeNode.SetAttributeValue('Code',tmp,'String');
@@ -4583,7 +4570,7 @@ begin
   NewHBox:=AddPropertyContainer(PropertiesNode,BoxName,VBoxNode,HBoxNode);
   NewCheckBox:=TXCheckBox(AddDynamicWidget('TXCheckBox',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  if (TargetNode.NodeClass<>'DM') then
+  //if (TargetNode.NodeClass<>'DM') then
     AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewCheckBox.Checked:=myStrToBool(ItmValue);
@@ -4611,8 +4598,8 @@ begin
   if CanDelete then
     CannotEdit:=false;
 
-  if (TargetNode.NodeClass<>'DM')
-  or ((TargetNode.NodeType='DMOp') and (LblText='Code')) then
+  //if (TargetNode.NodeClass<>'DM')
+  //or ((TargetNode.NodeType='DMOp') and (LblText='Code')) then
     AddPropertyEditButton(BoxName,HBoxNode,CannotEdit);
   if CanDelete then
     AddPropertyDelButton(BoxName,HBoxNode);
@@ -4650,7 +4637,8 @@ begin
   NewColorPicker:=TXColorPicker(AddDynamicWidget('TXColorPicker',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
   if (not IsResource)
-  and (TargetNode.NodeClass<>'DM') then
+  //and (TargetNode.NodeClass<>'DM')
+  then
     AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewColorPicker.ItemValue:=ItmValue;
@@ -4731,7 +4719,7 @@ begin
   NewHBox.ContainerHeight:='';
   NewComboBox:=TXComboBox(AddDynamicWidget('TXComboBox',MainForm,HBoxNode,BoxName,'','Top',-1).ScreenObject);
 
-  if (TargetNode.NodeClass<>'DM') then
+  //if (TargetNode.NodeClass<>'DM') then
     AddPropertyEditButton(BoxName,HBoxNode,ro);
 
   NewComboBox.LabelText:=LblText;
@@ -4771,8 +4759,8 @@ begin
   DeleteNodeChildren(InterfacePropsNode);
   EditAttributeValue(EventsNode,'IsVisible','false');
   DeleteNodeChildren(EventsNode);
-  EditAttributeValue(DMAttribsNode,'IsVisible','false');
-  DeleteNodeChildren(DMAttribsNode);
+  //EditAttributeValue(DMAttribsNode,'IsVisible','false');
+  //DeleteNodeChildren(DMAttribsNode);
   MainPanel:=PropertiesNode;
   Prefix1:='OI';
 
@@ -4790,12 +4778,12 @@ begin
         DisplayType:='UIEvents'
       else if tabIndex = '2' then
         DisplayType:='Intf';
-    end
-    else if CurrentNode.NodeClass = 'DM' then
-    begin
-      DisplayType:='DM';
-      MainPanel:=DMAttribsNode;
-      Prefix1:='DM';
+    //end
+    //else if CurrentNode.NodeClass = 'DM' then
+    //begin
+    //  DisplayType:='DM';
+    //  MainPanel:=DMAttribsNode;
+    //  Prefix1:='DM';
     end;
 
     if CurrentNode.NodeType='TXComposite' then
@@ -4808,7 +4796,7 @@ begin
 
     if (DisplayType='UIProps')
     or (DisplayType='Intf')
-    or (DisplayType='DM')
+    //or (DisplayType='DM')
     then
     begin
       if CurrentNode<>nil then
@@ -4829,13 +4817,13 @@ begin
           //exclude Suppressed properties that user shouldn't see
           if (FindSuppressedProperty(CurrentNode.NodeType,CurrentNode.NodeAttributes[i].AttribName)<0)
           and (CurrentNode.NodeAttributes[i].AttribName<>'ParentName')
-          and ((DisplayType<>'DM')
-               or (CurrentNode.NodeAttributes[i].AttribName<>'MakeXArrays')
-               or (CurrentNode.NodeName<>'Dimensions'))
-          and ((DisplayType<>'DM')
-               or (CurrentNode.NodeAttributes[i].AttribName<>'Multiplicity')
-               or (CurrentNode.NodeType<>'DMAttrib')
-               or ((CurrentNode.NodeType='DMAttrib') and (CurrentNode.NodeParent.GetAttribute('MakeXArrays',false).AttribValue='False')))
+          //and ((DisplayType<>'DM')
+          //     or (CurrentNode.NodeAttributes[i].AttribName<>'MakeXArrays')
+          //     or (CurrentNode.NodeName<>'Dimensions'))
+          //and ((DisplayType<>'DM')
+          //     or (CurrentNode.NodeAttributes[i].AttribName<>'Multiplicity')
+          //     or (CurrentNode.NodeType<>'DMAttrib')
+          //     or ((CurrentNode.NodeType='DMAttrib') and (CurrentNode.NodeParent.GetAttribute('MakeXArrays',false).AttribValue='False')))
           then
           begin
             if (CurrentNode.NodeType<>'TXComposite')
