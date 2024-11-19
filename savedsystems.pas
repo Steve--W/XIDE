@@ -58,12 +58,13 @@ type
       myValue: AnsiString);
 
   public
-    procedure Initialise;
+    procedure Initialise(suffix:String; ShowLoad:Boolean);
 
   end;
 
 var
   SavedSystemsForm: TSavedSystemsForm;
+  CurrentSuffix:String;
 //  TopComponent:TControl;
 
 implementation
@@ -71,16 +72,6 @@ implementation
 {$R *.lfm}
 
 {$ifndef JScript}
-//procedure TSavedSystemsForm.FormCreate(Sender: TObject);
-//begin
-//  myNode:=DoXFormCreated(self);
-//end;
-//
-//procedure TSavedSystemsForm.FormResize(Sender: TObject);
-//begin
-//  DoFormResize(self, SavedSystemsVBox);
-//end;
-//
 
 procedure TSavedSystemsForm.FormCreate(Sender: TObject);
 begin
@@ -129,10 +120,11 @@ begin
       {$ifndef JScript}
       SysPath:='SavedSystems/'+SysName;
       {$endif}
-      ClearLocalStore( SysPath+'.xide');
-      //if SysName <> UIRootNode.GetAttribute('SystemName',false).AttribValue then
-      //  DeleteLocalDB(SysName,true);
-      Initialise;
+      if CurrentSuffix='' then
+        ClearLocalStore( SysPath)
+      else
+        ClearLocalStore( SysPath+'.'+CurrentSuffix);
+      Initialise(CurrentSuffix,(self.SavedSystemsLoad.IsVisible));
     end;
   end;
 end;
@@ -160,13 +152,15 @@ begin
   if SavedSystemsSortBtn.Caption = 'Sort by Name' then
   begin
     // sort by name
-    DiscoverSavedFiles('xide',NamesList, 'Name');
+    //DiscoverSavedFiles('xide',NamesList, 'Name');
+    DiscoverSavedFiles(CurrentSuffix,NamesList, 'Name');
     SavedSystemsSortBtn.Caption := 'Sort by Date';
   end
   else
   begin
     // sort by date
-    DiscoverSavedFiles('xide',NamesList, 'Time');
+    //DiscoverSavedFiles('xide',NamesList, 'Time');
+    DiscoverSavedFiles(CurrentSuffix,NamesList, 'Time');
     SavedSystemsSortBtn.Caption := 'Sort by Name';
   end;
   PopulateFilesList(NamesList);
@@ -189,19 +183,31 @@ begin
     SavedSystemsList.TreeData:=TreeString;
 end;
 
-procedure TSavedSystemsForm.Initialise;
+procedure TSavedSystemsForm.Initialise(suffix:String; ShowLoad:Boolean);
 var
   NamesList:TStringList;
 begin
+  {$ifdef JScript}
+  if ShowLoad then
+  begin
+    self.SavedSystemsLoad.IsVisible:=true;
+    self.SavedSystemsList.LabelText:='Saved Systems';
+  end
+  else
+  begin
+    self.SavedSystemsLoad.IsVisible:=false;
+    self.SavedSystemsList.LabelText:='Auto-Saved Systems';
+  end;
+  {$else}
+  SavedSystemsLoad.IsVisible:=true;
+  {$endif}
   // populate SavedSystemsList from stored data
   NamesList:=TStringList.Create;
   NamesList.Clear;
-  DiscoverSavedSystems(NamesList);
+  CurrentSuffix:=suffix;
+  DiscoverSavedSystems(suffix,NamesList);
   PopulateFilesList(NamesList);
-
-
   NamesList.Free;
 end;
-
 end.
 

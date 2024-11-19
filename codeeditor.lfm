@@ -14,7 +14,7 @@ object CodeEditForm: TCodeEditForm
   LCLVersion = '2.1.0.0'
   object CodeEditFormXVBox1: TXVBox
     Name = 'CodeEditFormXVBox1'
-    Tag = 534177272
+    Tag = 471005048
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 1
@@ -61,7 +61,7 @@ object CodeEditForm: TCodeEditForm
     end
     object CodeEditMainTabs: TXTabControl
       Name = 'CodeEditMainTabs'
-      Tag = 464066040
+      Tag = 471003944
       Left = 2
       Height = 526
       Top = 17
@@ -92,7 +92,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEdit: TXCode
           Name = 'CodeEdit'
-          Tag = 464066152
+          Tag = 471003832
           Left = 0
           Height = 479
           Top = 0
@@ -100,6 +100,7 @@ object CodeEditForm: TCodeEditForm
           Align = alTop
           AutoSize = True
           myControl.Tag = 401948048
+          myControl.AnchorSideTop.Side = asrBottom
           myControl.Left = 2
           myControl.Height = 478
           myControl.Top = 2
@@ -141,7 +142,7 @@ object CodeEditForm: TCodeEditForm
         BgColor = clWhite
         object CodeEditInit: TXCode
           Name = 'CodeEditInit'
-          Tag = 534177256
+          Tag = 471005032
           Left = 0
           Height = 506
           Top = 0
@@ -150,14 +151,12 @@ object CodeEditForm: TCodeEditForm
           AutoSize = True
           myControl.Tag = -1
           myControl.AnchorSideLeft.Control = CodeEditInit
-          myControl.AnchorSideLeft.Side = asrCenter
-          myControl.AnchorSideTop.Side = asrCenter
+          myControl.AnchorSideTop.Side = asrBottom
           myControl.Left = 2
           myControl.Height = 475
           myControl.Top = 2
           myControl.Width = 877
           myControl.Align = alClient
-          myControl.Anchors = []
           myControl.ClientHeight = 475
           myControl.ClientWidth = 877
           myControl.TabOrder = 0
@@ -293,18 +292,16 @@ object CodeEditForm: TCodeEditForm
         Left = 167
         Height = 25
         Top = 0
-        Width = 4
+        Width = 305
         Align = alLeft
         AutoSize = True
         myControl.Tag = -1
         myControl.AnchorSideLeft.Side = asrCenter
         myControl.AnchorSideTop.Control = CodeEditFindTxt
-        myControl.AnchorSideTop.Side = asrCenter
-        myControl.Left = -148
+        myControl.Left = 0
         myControl.Height = 23
         myControl.Top = 0
         myControl.Width = 301
-        myControl.Anchors = []
         myControl.Constraints.MaxWidth = 301
         myControl.Constraints.MinWidth = 301
         myControl.TabOrder = 0
@@ -324,7 +321,7 @@ object CodeEditForm: TCodeEditForm
       object CodeEditFindBtn: TXButton
         Name = 'CodeEditFindBtn'
         Tag = -1
-        Left = 171
+        Left = 472
         Height = 25
         Top = 0
         Width = 49
@@ -354,7 +351,7 @@ object CodeEditForm: TCodeEditForm
       object CodeEditFindNextBtn: TXButton
         Name = 'CodeEditFindNextBtn'
         Tag = -1
-        Left = 220
+        Left = 521
         Height = 25
         Top = 0
         Width = 51
@@ -384,20 +381,18 @@ object CodeEditForm: TCodeEditForm
       object CodeEditFindCase: TXCheckBox
         Name = 'CodeEditFindCase'
         Tag = -1
-        Left = 271
+        Left = 572
         Height = 25
         Top = 0
-        Width = 65
+        Width = 85
         Align = alLeft
         AutoSize = True
         myControl.AnchorSideLeft.Side = asrCenter
         myControl.AnchorSideTop.Control = CodeEditFindCase
-        myControl.AnchorSideTop.Side = asrCenter
-        myControl.Left = -2
+        myControl.Left = 0
         myControl.Height = 19
         myControl.Top = 0
         myControl.Width = 20
-        myControl.Anchors = []
         myControl.Constraints.MaxHeight = 20
         myControl.Constraints.MaxWidth = 20
         myControl.TabOrder = 0
@@ -416,21 +411,19 @@ object CodeEditForm: TCodeEditForm
       object CodeEditFindGlobal: TXCheckBox
         Name = 'CodeEditFindGlobal'
         Tag = -1
-        Left = 336
+        Left = 657
         Height = 25
         Hint = 'Search all code elements'
         Top = 0
-        Width = 75
+        Width = 95
         Align = alLeft
         AutoSize = True
         myControl.AnchorSideLeft.Side = asrCenter
         myControl.AnchorSideTop.Control = CodeEditFindGlobal
-        myControl.AnchorSideTop.Side = asrCenter
-        myControl.Left = -2
+        myControl.Left = 0
         myControl.Height = 19
         myControl.Top = 0
         myControl.Width = 20
-        myControl.Anchors = []
         myControl.Constraints.MaxHeight = 20
         myControl.Constraints.MaxWidth = 20
         myControl.TabOrder = 0

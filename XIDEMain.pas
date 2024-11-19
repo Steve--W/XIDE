@@ -9,7 +9,6 @@
 
  **********************************************************************
  *)
-
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -286,7 +285,7 @@ begin
       if ((EventNode.NodeType<>'TXMenuItem') or (EventNode.IsDynamic=true))  then
       begin
         ResourceInspectorTabs.TabIndex:=0;
-        ObjectInspectorTabs.TabIndex:=0;
+        ObjectInspectorTabs.TabIndex:=0;  //(UIDesigner)
         if EventNode.NameSpace<>'' then
         begin
           CompositeNode := FindCompositeContainer(EventNode);
@@ -431,13 +430,13 @@ end;
 procedure TXIDEForm.ObjectInspectorTabsHandleChange(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
 begin
   {$ifdef JScript}
-  if ObjectInspectorTabs.TabIndex=3 then
+  if ObjectInspectorTabs.TabIndex=2 then    //(StyleDesigner)
   begin
      SetStyleOptions;
-     ResourceInspectorTabs.TabIndex:=1;
+     ResourceInspectorTabs.TabIndex:=1;     //(StyleResourcesPage)
   end
-  else if ObjectInspectorTabs.TabIndex=0 then
-    ResourceInspectorTabs.TabIndex:=0;
+  else if ObjectInspectorTabs.TabIndex=0 then   //(UIDesigner)
+    ResourceInspectorTabs.TabIndex:=0;          //(Resources)
   {$endif}
 end;
 
@@ -618,7 +617,7 @@ begin
     ShowMessage('Please switch to Design Mode first')
   else
   begin
-    SavedSystemsForm.Initialise;
+    SavedSystemsForm.Initialise('xide',true);
     XForm.ShowXForm('SavedSystemsForm',true);
   end;
 end;
@@ -669,13 +668,21 @@ begin
   SaveSystemToFile;
 end;
 
-
 procedure TXIDEForm.ToggleDesignRunModeHandleClick(e:TEventStatus;nodeID: AnsiString;
   myValue: AnsiString);
+var
+  ShowFiles:Boolean;
 begin
   if DesignMode then
-      SaveSystemData;
-
+     ShowFiles:=SaveSystemData;
+  {$ifdef JScript}
+  if ShowFiles = true then
+  begin
+    SavedSystemsForm.Initialise('',false);
+    XForm.ShowXForm('SavedSystemsForm',true);
+  end
+  else
+{$endif}
   DoToggleDesignRunMode(ToggleDesignRunMode);
 end;
 
@@ -781,12 +788,12 @@ procedure TXIDEForm.ResourceInspectorTabsHandleChange(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
   {$ifdef JScript}
-  if ResourceInspectorTabs.TabIndex=1 then
+  if ResourceInspectorTabs.TabIndex=1 then  //(StyleResourcesPage)
   begin
-     ObjectInspectorTabs.TabIndex:=3;
+     ObjectInspectorTabs.TabIndex:=2;       //(StyleDesigner)
   end
-  else if ResourceInspectorTabs.TabIndex=0 then
-    ObjectInspectorTabs.TabIndex:=0;
+  else if ResourceInspectorTabs.TabIndex=0 then   //(Resources)
+    ObjectInspectorTabs.TabIndex:=0;              //(UIDesigner)
   {$endif}
 end;
 
@@ -903,8 +910,8 @@ begin
   InitialiseStyleDesigner;
 
   StyleResourcesPage.IsVisible:=false;      // this is browser/HTML only
-  ObjectInspectorTabs.TabIndex:=0;
-  ResourceInspectorTabs.TabIndex:=0;
+  ObjectInspectorTabs.TabIndex:=0;          //(UIDesigner)
+  ResourceInspectorTabs.TabIndex:=0;        //(Resources)
 
   // is there a saved system from a previous session?
   SystemDescription:=trim(ReadFromLocalStore('XIDESavedData.txt'));
@@ -988,6 +995,7 @@ begin
     {$endif}
     {$ifdef TensorflowJS}
     ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"> </script> '); //##### <!-- Import @tensorflow/tfjs -->
+    //ExtraHTML.Add('<script src="file:///C:/Laz19Projects/XIDE/tf.min.js"> </script> '); //##### <!-- Import @tensorflow/tfjs -->
     {$endif}
 
     //ExtraHTML.Add('<script src="http://asterius.netlify.app/demo/pandoc/pandoc.js"></script> ');  //###### pandoc test

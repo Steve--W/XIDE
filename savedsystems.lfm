@@ -1,7 +1,7 @@
 object SavedSystemsForm: TSavedSystemsForm
-  Left = 274
+  Left = 625
   Height = 400
-  Top = 122
+  Top = 169
   Width = 400
   Caption = 'XIDE Saved Systems'
   ClientHeight = 400
@@ -11,7 +11,7 @@ object SavedSystemsForm: TSavedSystemsForm
   LCLVersion = '2.1.0.0'
   object SavedSystemsVBox: TXVBox
     Name = 'SavedSystemsVBox'
-    Tag = 486976888
+    Tag = 468627536
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -33,20 +33,18 @@ object SavedSystemsForm: TSavedSystemsForm
       Name = 'SavedSystemsList'
       Tag = -1
       Left = 2
-      Height = 15
+      Height = 330
       Top = 2
       Width = 396
       Align = alTop
       AutoSize = True
-      myControl.Tag = 486976952
+      myControl.Tag = 468627600
       myControl.AnchorSideLeft.Control = SavedSystemsList
-      myControl.AnchorSideLeft.Side = asrCenter
-      myControl.AnchorSideTop.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrBottom
       myControl.Left = 0
       myControl.Height = 312
-      myControl.Top = -148
+      myControl.Top = 18
       myControl.Width = 398
-      myControl.Anchors = []
       myControl.Constraints.MaxHeight = 312
       myControl.Constraints.MaxWidth = 398
       myControl.Constraints.MinHeight = 312
@@ -93,7 +91,7 @@ object SavedSystemsForm: TSavedSystemsForm
       Tag = -1
       Left = 0
       Height = 40
-      Top = 19
+      Top = 334
       Width = 400
       Align = alTop
       AutoSize = True

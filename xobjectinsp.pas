@@ -37,7 +37,7 @@ uses
 function CheckForSavedSystemOnLoad:Boolean;
 procedure ShowXFormForDesign(XFormName:String);
 procedure ToggleToRunModeAfterCompile(ok:boolean);
-procedure BrowserSaveData(TheData:String);
+function BrowserSaveData(TheData:String):Boolean;
 procedure ContinueToggleToRunMode;
 procedure CompleteDeployFromBrowser(deployname:String);
 procedure InitialiseComposites;
@@ -80,7 +80,7 @@ procedure RebuildNavigatorTree;
 procedure RebuildCodeTree;
 procedure RebuildResourcesTree;
 procedure BuildSkeletonResourceTree;
-procedure SaveSystemData;
+function SaveSystemData:Boolean;
 procedure OINavTreeNodeChange(e:TEventStatus;nodeId,NameSpace:string;myValue:string);
 procedure OICodeTreeNodeChange(nodeId:string;myValue:string);
 procedure OIResourceTreeNodeChange(nodeId:string;myValue:string);
@@ -143,7 +143,7 @@ procedure OIEncapsulate;
 procedure OIDeleteResource;
 procedure OILoadResource;
 procedure OIAddInterfaceElement;
-procedure DiscoverSavedSystems(var NamesList:TStringList);
+procedure DiscoverSavedSystems(suffix:String;var NamesList:TStringList);
 procedure OICodeSearch;
 function NameStringIsValid(nm:String):Boolean;
 function CanAddChildToParent(ParentNode,SourceNode:TDataNode):Boolean;
@@ -643,15 +643,16 @@ var
 begin
   setLength(emptyAttribs,0);
   ResourcesNodeTree:=AddChildToDataNode(SystemNodeTree,'ResourceRoot',ResourceDataRootName,'','',emptyAttribs,-1);
-  //ResourcesNodeTree.AddAttribute('ParentName','String', SystemRootName,true);
   RegisterResource('RUI','','Composites','ResourceRoot','');
 end;
 
-procedure SaveSystemData;
+function SaveSystemData:Boolean;
 var
+  ok:Boolean;
   TheData:String;
   NavSelected,CodeSelected:TDataNode;
 begin
+  ok:=true;
   if not StartingUp then
   begin
     NavSelected:=ObjectInspectorSelectedNavTreeNode;
@@ -661,25 +662,27 @@ begin
     {$ifndef JScript}
     WriteToLocalStore('XIDESavedData.txt',TheData);
     {$else}
-    BrowserSaveData(TheData);
+    ok:=BrowserSaveData(TheData);
     {$endif}
-//    SaveLocalDB;
 
     ObjectInspectorSelectedNavTreeNode:=NavSelected;
     ObjectInspectorSelectedNavTreeNode:=CodeSelected;
   end;
+  result:=ok;
 end;
 
 {$ifdef JScript}
-procedure BrowserSaveData(TheData:String);
+function BrowserSaveData(TheData:String):Boolean;
 var
   sysname:string;
+  ShowFiles:Boolean;
 begin
   sysname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
   asm
    //console.log('saving local XIDESavedData'+sysname);
-   pas.HTMLUtils.WriteToLocalStore("XIDESavedData"+sysname,TheData);
+   ShowFiles = pas.HTMLUtils.WriteToLocalStore("XIDESavedData"+sysname,TheData,true);
   end;
+  result:=ShowFiles;
 end;
 {$endif}
 
@@ -901,6 +904,26 @@ begin
       }
       end;
       NamesList.Add(nm+ts);
+    end
+    else if (bits.count=1)
+    and (suffix = '')
+    and (pos(bits[0],'XIDESavedData')=0) then
+    begin
+      nm:=bits[0];
+      asm
+      // find the timestamp...
+      try {
+        var object = JSON.parse(localStorage.getItem(namesArray[n]));
+        ts = '';
+        if (object!=null) {
+          if ( object.hasOwnProperty('timestamp') ) {
+            var tsd = new Date(object.timestamp);
+            ts = '      '+tsd.toLocaleDateString()+' '+tsd.toLocaleTimeString();
+          }
+        }
+      }  catch(err) {ts=''; }  // skip the un-parseable item.
+      end;
+      NamesList.Add(nm+ts);
     end;
   end;
 {$endif}
@@ -915,10 +938,10 @@ namesArray.sort(function(a,b){
 });
 *)
 
-procedure DiscoverSavedSystems(var NamesList:TStringList);
+procedure DiscoverSavedSystems(suffix:String;var NamesList:TStringList);
 begin
   //SavedSystemsForm.SavedSystemsSortBtn.IsVisible:=true;
-  DiscoverSavedFiles('xide',NamesList,'Name');
+  DiscoverSavedFiles(suffix,NamesList,'Name');
 end;
 procedure DiscoverSavedComposites(var NamesList:TStringList);
 begin
@@ -1720,7 +1743,7 @@ end;
 
 procedure HandleCodeTreeClickEvent(TreeNodeId,TreeNodeText,FirstBit:String);
 var
-  CurrentNode :TDataNode;
+  CurrentNode,ParentNode :TDataNode;
   ParentText, ParentId, p1:String;
   {$ifndef JScript}
   myTreeNode:TTreeNode;
@@ -1730,44 +1753,45 @@ var
 begin
 //ShowMessage('HandleCodeTreeClickEvent. node='+TreeNodeId+' text='+TreeNodeText);
   OISelectedCodeProcName:='';
-  if (TreeNodeText<>CodeRootName)
+  if (TreeNodeText<>'Root('+CodeRootName+')')
   and (TreeNodeText<>'Root')
   and (TreeNodeText<>'Root(Events)')
   and (TreeNodeText<>'Root(GPUCode)') then
   begin
     CurrentNode:=FindDataNodeById(CodeRootNode,TreeNodeId,'',false);
-    if CurrentNode = nil then
-      CurrentNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',false); // might be an event handler or GPU code
+
+    {$ifndef JScript}
+    myTreeNode:=TMyTreeView(TXTree(CodeTreeComponent.ScreenObject).myControl).Selected;
+    ParentText:=myTreeNode.Parent.Text;
+    {$else}
+    selectedNodeId:=TXTree(CodeTreeComponent).SelectedNodeId;
+    ParentText:=TXTree(CodeTreeComponent).getParentOfNode(selectedNodeId);
+    //showmessage('ParentText1='+ParentText);
+    ParentText:=TXTree(CodeTreeComponent).TextOfNode(ParentText);
+    //showmessage('ParentText2='+ParentText);
+    {$endif}
+    ParentId:=TreeLabelToID(ParentText,'CodeTree',p1);
+    ParentNode:=FindDataNodeById(CodeRootNode,ParentId,'',false);
+
+    if (CurrentNode = nil)
+    and (ParentNode = nil) then
+      CurrentNode:=FindDataNodeById(SystemNodeTree,TreeNodeId,'',false); // might be an event handler (UI) or GPU code
     if CurrentNode<>nil then
     begin
       SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
     end
-    else
+    else if ParentNode<>nil then
     begin
-      // TreeNodeId might be the name of a function within a pascal unit (if compiler has been run),
-      // in which case the relevant data node is the parent pasunit.
-      {$ifndef JScript}
-      myTreeNode:=TMyTreeView(TXTree(CodeTreeComponent.ScreenObject).myControl).Selected;
-      ParentText:=myTreeNode.Parent.Text;
-      {$else}
-      selectedNodeId:=TXTree(CodeTreeComponent).SelectedNodeId;
-      ParentText:=TXTree(CodeTreeComponent).getParentOfNode(selectedNodeId);
-      //showmessage('ParentText1='+ParentText);
-      ParentText:=TXTree(CodeTreeComponent).TextOfNode(ParentText);
-      //showmessage('ParentText2='+ParentText);
-      {$endif}
-
-      ParentId:=TreeLabelToID(ParentText,'CodeTree',p1);
-      CurrentNode:=FindDataNodeById(SystemNodeTree,ParentId,'',true);
-      if (CurrentNode<>nil)
-      and (CurrentNode.NodeType='PasUnit') then
+      // TreeNodeId might be the name of a function within a pascal unit, or a python function (if compiler has been run),
+      // in which case the relevant data node is the parent unit.
+      CurrentNode:=ParentNode;
+      if (CurrentNode.NodeType='PasUnit') then
       begin
          SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
          OISelectedCodeProcName:=TreeNodeId;
          OISelectedCodeLineNum:=FindLineNumForProc(OISelectedCodeProcName);
       end
-      else if (CurrentNode<>nil)
-      and (CurrentNode.NodeType='PythonScript') then
+      else if (CurrentNode.NodeType='PythonScript') then
       begin
          SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
          OISelectedCodeProcName:=TreeNodeId;
@@ -1778,7 +1802,9 @@ begin
         showmessage('Cannot find system node '+TreeNodeId);
         ObjectInspectorSelectedCodeTreeNode:=nil;
       end;
-    end;
+    end
+    else
+      ObjectInspectorSelectedCodeTreeNode:=nil;
   end
   else
     ObjectInspectorSelectedCodeTreeNode:=nil;
@@ -2572,28 +2598,30 @@ end;
 Procedure SaveSystemToFile;
 var
   fullstring,oldname,sysname,storename:String;
+  ShowFiles:Boolean;
 begin
   oldname:=UIRootNode.GetAttribute('SystemName',false).AttribValue;
   sysname:=GetValidItemName('Enter System Name',oldname);
   if sysname='' then
     EXIT;
 
+  fullstring:=BuildSystemString(false);
   SetSystemName(sysname);
   storename:=sysname+'.xide';
   {$ifndef JScript}
   storename:='SavedSystems/'+storename;
-  {$endif}
-  fullstring:=BuildSystemString(false);
   WriteToLocalStore(storename,fullstring);
+  {$else}
+  ShowFiles := WriteToLocalStore(storename,fullstring,true);
+  if ShowFiles = true then
+  begin
+    SavedSystemsForm.Initialise('xide',false);
+    XForm.ShowXForm('SavedSystemsForm',true);
+  end
+  else
+  {$endif}
   RebuildResourcesTree;
 
-  //if sysname<>oldname then
-  //begin
-  //  // copy any existing stored datasets
-  //  // (desktop)...create new directory, and copy contents
-  //  // (browser)...copy local database to new name (NB. Async function)
-  //  DBSaveAs(oldname,sysname);
-  //end;
 end;
 
 function isValidSystemData(SystemDescription:string):boolean;
@@ -3331,9 +3359,9 @@ begin
     ClearAllDynamicNodes(SystemNodeTree); // clear any existing dynamic screen components under Root
 
     // open the properties tab in the object inspector
-    XIDEForm.ObjectInspectorTabs.TabIndex:=0;
+    XIDEForm.ObjectInspectorTabs.TabIndex:=0;    //(UIDesigner)
     XIDEForm.OITabs.TabIndex:=0;
-    XIDEForm.ResourceInspectorTabs.TabIndex:=0;
+    XIDEForm.ResourceInspectorTabs.TabIndex:=0;  //(Resources)
 
     RebuildNavigatorTree;
     RebuildCodeTree;
@@ -3687,20 +3715,14 @@ begin
     function doAfterPyPaksLoaded() {
       console.log("doAfterPyPaksLoaded");
       //testPyPkLoaded('xarray');
+      }
     end;
-    //if (PyXUtils.PyPkTest=1) then
-    //   BuildXArrays(true);
     //exec all defined python scripts
     GatherAndRunPythonScriptsLater;
     {$endif}
     asm
     myTimeout(pas.Events.handleEvent,5,'handleEvent',0,null,'OnEnterRunMode',pas.NodeUtils.SystemRootName,'','');
     end;
-    {$ifdef Python}
-    asm
-    }
-    end;
-    {$endif}
   end
   else
   begin

@@ -125,12 +125,12 @@ begin
       CodeEdit.MessagesHeight:='1'
     else
       CodeEdit.MessagesHeight:='30%';
-    CodeEdit.ContainerHeight:='95%';           // CodeEdit is % of the parent component (tabpage)
+    CodeEdit.ContainerHeight:='98%';           // CodeEdit is % of the parent component (tabpage)
 
     if FoundString(EventType,'Thread')<>1 then
     begin
       CodeEditInitTab.IsVisible:=true;
-      CodeEditInit.ContainerHeight:='95%';
+      CodeEditInit.ContainerHeight:='98%';
       CodeEditInit.MessagesHeight:='1';
      end
     else
@@ -157,7 +157,7 @@ begin
   end
   else
   begin
-    CodeEdit.ContainerHeight:='95%';            // CodeEdit is % of the parent component (tabpage)
+    CodeEdit.ContainerHeight:='98%';            // CodeEdit is % of the parent component (tabpage)
     CodeEditInitTab.IsVisible:=false;
     if CodeEdit.MessageLines='' then
       CodeEdit.MessagesHeight:='1'
@@ -435,24 +435,6 @@ begin
               ShowGPUKernel(targetNode,FileName,StrToInt(linenum),CharPos);
               {$endif}
           end;
-        //end
-        //else if FStrings.Count=1 then
-        //begin
-        //  self.TargetNodeName:=FStrings[0];
-        //  self.EventType:='';
-        //  TargetNode:=FindDataNodeById(DMRoot,self.TargetNodeName,'',false);
-        //  if TargetNode<>nil then
-        //    if TargetNode.NodeType='DMOp' then
-        //    begin
-        //      self.Mode:='DMOpCode';
-        //      Context:='DMOp Code';
-        //      CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
-        //      targetLine:=StrToInt(linenum)-1;    // -1 because there is no top line (function xxx;) in the source code
-        //    end
-        //    else
-        //      showmessage('Cannot find DMOp node '+self.TargetNodeName)
-        //  else
-        //    showmessage('Cannot find DMRoot node '+self.TargetNodeName);
         end;
 
         FreeAndNil(FStrings);
@@ -651,7 +633,10 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
     lineNumber: integer;
     TempMemo:TMemo;
     atPos:integer;
+    CollectLines:TStringList;
   begin
+     CollectLines:=TStringList.Create;
+     CollectLines.SkipLastLineBreak:=true;
      TempMemo:=TMemo.Create(nil);
      TempMemo.Lines.Text:=TheText;
       for lineNumber := 0 to TempMemo.lines.count-1 do
@@ -661,9 +646,13 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
         else
           atPos:=Pos( TextToFind, TempMemo.lines[lineNumber] );
         if atPos > 0 then
-          //ShowMessage( 'Found in line ' + IntToStr(lineNumber) );
-          //self.CodeEdit.TheMessages.Append(TheName+' : '+TheType+' : '+TempMemo.lines[lineNumber]);
-          self.CodeEdit.AddMessage(TheName+'.'+TheType+'('+inttostr(lineNumber)+','+inttostr(atPos)+') '+TempMemo.lines[lineNumber]);
+          //self.CodeEdit.AddMessage(TheName+'.'+TheType+'('+inttostr(lineNumber)+','+inttostr(atPos)+') '+TempMemo.lines[lineNumber]);
+          CollectLines.Add(TheName+'.'+TheType+'('+inttostr(lineNumber)+','+inttostr(atPos)+') '+TempMemo.lines[lineNumber]);
+      end;
+      if CollectLines.Count>0 then
+      begin
+        self.CodeEdit.TheMessages.Append(CollectLines.Text);
+        self.CodeEdit.MessageLines := self.CodeEdit.TheMessages.Lines.Text;
       end;
   end;
   {$else}
@@ -739,18 +728,6 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
     for i:=0 to length(ThisNode.ChildNodes)-1 do
       SearchCodeNode(ThisNode.ChildNodes[i]);
   end;
-//  procedure SearchDMOpsCode(ThisNode:TdataNode);
-//  var
-//    i:integer;
-//  begin
-//    if (ThisNode.NodeType='DMOp')
-//    then
-//    begin
-//      SearchThisText(ThisNode.NodeName,ThisNode.NodeType,ThisNode.GetAttribute('Code',true).AttribValue);
-//    end;
-//    for i:=0 to length(ThisNode.ChildNodes)-1 do
-//      SearchDMOpsCode(ThisNode.ChildNodes[i]);
-//  end;
 
 begin
   // text blocks to be searched....
@@ -772,7 +749,6 @@ begin
   self.CodeEdit.ItemValue:='';
   SearchCodeNode(CodeRootNode);
   SearchEventsCode(UIRootNode);
-  //SearchDMOpsCode(DMRoot);
 
 end;
 
