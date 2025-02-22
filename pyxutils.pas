@@ -13,14 +13,13 @@ end.
 uses
   Classes, SysUtils, StringUtils,
   {$ifndef JScript}
-  Math, Dialogs, Forms, StdCtrls, variants,
+  Math, Dialogs, variants,
   PythonEngine, PythonGUIInputOutput,
   DllInterface,
   {$endif}
   NodeUtils, XMemo, EventsInterface;
 
 var
-  //PythonLibDir,
   PythonVersion:String;
   PythonCodeExists:Boolean;
   PyScriptsExecuted:Boolean;
@@ -37,11 +36,6 @@ function BuildPackageList:TStringArray;
 procedure UpdateMemo(Data:String);
 procedure UpdatepyLoadedFuncs(sss:String);
 
-//const
-//  cPyLibraryWindows = 'C:\Python-for-Lazarus-master\python4lazarus\Runtime\python38.dll';
-//  cPyLibraryLinux = 'libpython3.8m.so.1.0';
-//  cPyLibraryMac = '/Library/Frameworks/Python.framework/Versions/3.8/lib/libpython3.8.dylib';
-//  cPyZipWindows = 'python38.zip';
 {$ifndef JScript}
 type
   TMyPyEvents = class(TObject)
@@ -59,6 +53,8 @@ var
   PyInterfaceVar:TPythonDelphiVar;
   PyInterfaceE:TPythonDelphiVar;
   PyEvents:TMyPyEvents;
+  glbPyObj,glbPyObjE:PPyObject;
+
 {$else}
 var
   PyPkTest:integer;
@@ -74,6 +70,7 @@ var
   PyMemoComponent:TXmemo;
   pyLoadedFuncs:TStringList;
   pyUnitFuncs:TPyUnitFuncs;
+
 
 implementation
 uses XIDEMain,XObjectInsp;
@@ -120,7 +117,7 @@ begin
     if (nm<>'') and (nm<>'XMemo1') then
     begin
     asm
-      console.log('file to memo '+nm);
+      //console.log('file to memo '+nm);
       pyodide.runPython('FileToMemo("'+nm+'")');
     end;
     end;
@@ -129,8 +126,6 @@ begin
 end;
 
 {$ifndef JScript}
-var
-  glbPyObj,glbPyObjE:PPyObject;
 
 
 function Arr2dstoVarArray(arr2ds:T2DStringArray):Variant;
@@ -291,7 +286,7 @@ begin
   if fname='ShowMessage' then
     mmo.mmiShowMessage(fnArgs[0])
   else if fname='ShowXForm' then
-    mmo.mmiShowXForm(fnArgs[0], myStrToBool(fnArgs[1]))
+    mmo.mmiShowXForm(fnArgs[0], StrToBool(fnArgs[1]))         //myStrToBool(fnArgs[1]))
   else if fname='CloseXForm' then
     mmo.mmiCloseXForm(fnArgs[0])
   else if fname='GetPropertyValue' then
@@ -358,9 +353,9 @@ begin
   begin
     arr3dn:=mmo.mmiGet3DTableNumArray(fnArgs[0]);
     {$ifdef JScript}
-    asm console.log('PyXUtils Get3DTableNumArray done');
-    console.log(arr3dn);
-  end;
+    //asm console.log('PyXUtils Get3DTableNumArray done');
+    //console.log(arr3dn);
+    //end;
     {$endif}
     v:=Arr3dntoVarArray(arr3dn);
   end
@@ -464,18 +459,20 @@ var
   PKeyObj,PArgsObj,PRsltObj,POb:PPyObject;
   fname:string;
   fnArgs:Array of Variant;
- // myargs:TStringList;
   i:integer;
   v:Variant;
   t:TVarType;
   e:TeventStatus;
+  ss:String;
 begin
+// Triggered when PYEval_EvalCode is executed.  BUT...
+// this is triggered when Python script being executed contains function calls eg. to the interface functions
+// defined in PyXUtils.  If the Python script to be executed has no such calls, this is not triggered.
 with PythonEngine1 do
  begin
   Py_XDecRef(glbPyObj); // This is very important
   glbPyObj := Data;
   Py_XIncRef(glbPyObj); // This is very important
-  //showmessage('ExtSetData done');
 
   // glbPyObj acts as a message from python....instruction to execute a pascal function
   // extract the fields from the message
@@ -504,17 +501,15 @@ with PythonEngine1 do
   and (v='xxx') then    // avoid re-triggering when return value has been set
   begin
     //showmessage('from python. fname='+fname);
+
     // run the requested function
     v:=RunInterfaceFunc(e,fname,fnArgs);
-    // pass the current e values to Python
-    if (e<>nil) then
-    begin
-      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'EventType',PythonEngine1.VariantAsPyObject(UTF8Decode(e.EventType)));
-      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NodeId',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NodeId)));
-      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NameSpace',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NameSpace)));
-      PythonEngine1.PyObject_SetAttrString(glbPyObjE,'ReturnString',PythonEngine1.VariantAsPyObject(UTF8Decode(e.ReturnString)));
-      PyInterfaceE.ValueObject:=glbPyObjE;
-    end;
+    if e<>nil then
+      e.ReturnString:=GetEFromPythonFunc();
+      //e.ReturnString:=PythonEngine1.PyObjectAsString(PythonEngine1.PyObject_GetAttrString(glbPyObjE,'ReturnString'));
+
+    // pass the current e values onward to Python
+    PassEToPythonFunc(e);
     // send the function result back to Python
     //PRsltObj:=PythonEngine1.PyString_FromString(PChar(str));
     PRsltObj:=PythonEngine1.VariantAsPyObject(v);
@@ -553,6 +548,12 @@ begin
   UpdateMemo(UTF8Decode(Data));
 end;
 
+//function Py_s0(Self, Args : PPyObject): PPyObject; cdecl;
+//begin
+//  with GetPythonEngine do
+//    Result:= PyUnicode_FromString('1.0.0');
+//end;
+
 procedure DoPy_InitEngine;
 var
   ok:boolean;
@@ -574,7 +575,7 @@ begin
 
     PythonEngine1:=TPythonEngine.Create(nil);
     PythonEngine1.Name:='PythonEngine1';
-    PythonEngine1.PyFlags:=[pfUseClassExceptionsFlag];
+//??v3.8??    PythonEngine1.PyFlags:=[pfUseClassExceptionsFlag];
     PythonEngine1.RedirectIO:=true;
     PythonEngine1.IO:=PythonIO;
 
@@ -612,14 +613,16 @@ begin
       PyInterfaceE.OnExtGetData:=@PyEvents.PyVarEExtGetData;
       PyInterfaceE.OnExtSetData:=@PyEvents.PyVarEExtSetData;
       PyInterfaceE.Initialize;
+
+//      TPythonModule(PythonEngine1.GetMainModule).AddMethod('s0', @Py_s0, '');
+
+
     end;
   end;
 end;
 
 procedure SetupPyEngine(PyLibDir,PyVersion:String);
 begin
-  //PythonLibDir:=PyLibDir;
-  //PythonVersion:=PyVersion;
   PythonIO:=TPythonGUIInputOutput.Create(nil);
   PyEvents:=TMyPyEvents.Create;
   PythonIO.OnSendData:=@PyEvents.PyIOSent;
@@ -636,7 +639,7 @@ var
   i,j,numpakstoload:integer;
   mystr:String;
 begin
-  CheckForPythonCode;
+  PythonCodeExists:=CheckForPythonCode;
 
   pknames:=BuildPackageList;
   numpakstoload:=2+length(pknames);
@@ -984,6 +987,10 @@ begin
   InitScript.add('  EventType = ''''');
   InitScript.add('  NodeId = ''''');
   InitScript.add('  NameSpace = ''''');
+  InitScript.add('  InitRunning = False');
+  InitScript.add('  SourceName = ''''');
+  InitScript.add('  SrcText = ''''');
+  InitScript.add('  DstText = ''''');
   InitScript.add('  ReturnString = ''''');
   InitScript.add('e = eClass()');
   InitScript.add('PyInterfaceE.Value = e');
@@ -1148,17 +1155,21 @@ end;
 
   InitScript.add('print("Initialising Pyodide Python environment...")');
 
-  InitScript.add('class eClass:');
-  InitScript.add('  EventType = ''''');
-  InitScript.add('  NodeId = ''''');
-  InitScript.add('  NameSpace = ''''');
-  InitScript.add('  ReturnString = ''''');
-  InitScript.add('e = eClass()');
+  //InitScript.add('class eClass:');
+  //InitScript.add('  EventType = ''''');
+  //InitScript.add('  NodeId = ''''');
+  //InitScript.add('  NameSpace = ''''');
+  //InitScript.add('  InitRunning = False');
+  //InitScript.add('  ReturnString = ''''');
+  //InitScript.add('  AsyncProcsRunning = []');
+  //InitScript.add('e = eClass()');
   InitScript.add('');
   InitScript.add('from js import pas');
   InitScript.add('import io');
   InitScript.add('import base64');
   InitScript.add('import json');
+  InitScript.add('import js');
+  InitScript.add('e = pas.EventsInterface.glbEvent');
   InitScript.add('def FileToMemo(nm):');
   InitScript.add('  try:');
   InitScript.add('    sys.stdout.flush()');
@@ -1365,6 +1376,24 @@ begin
   {$endif}
 end;
 
+(*function JSONStringToList(s:String):TStringList;
+var
+  Parser:TJSONParser;
+  Arr:TJSONArray;
+  i:integer;
+  ss:String;
+  bits:TStringList;
+begin
+  Parser:=TJSONParser.Create(s);
+  Arr := Parser.Parse as TJSONArray;
+  bits:=TStringList.Create;
+  for i := 0 to Arr.Count - 1 do
+    begin
+      ss := Arr.Objects[i].AsString;
+      //WriteLn(i+1, ': ', SubObj.Strings['NAME'], ', ', SubObj.Strings['SEX'], ', ', SubObj.Strings['COUNTRY']);
+      bits.add(ss);
+    end;
+end;  *)
 
 procedure UpdatepyLoadedFuncs(sss:String);
 // sss is a JSON string....load into a stringlist
@@ -1388,6 +1417,8 @@ begin
   RebuildCodeTree;
 
 end;
+
+
 
 //var.decode('utf-8') ... might be of use
 

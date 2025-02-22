@@ -59,7 +59,7 @@ Var
   StyleRootNode:TDataNode;
 
   // these procedures are called from the button event handlers
-  Function PasteSelectedStyleResources(AllowDrop:Boolean;HoverOver:String;mute:Boolean;ValueObject:TNodeEventValue):boolean;// this paste the selected style rescource to the style instance tree
+  Function PasteSelectedStyleResources(AllowDrop:Boolean;HoverOver:String;mute:Boolean;myNode:TObject):boolean;// this paste the selected style rescource to the style instance tree
   Procedure ValidateStyleTree;
   Procedure DeleteStyleNode;
   Procedure PopulateStyleEditor(editInsteadOfDropDown:boolean);
@@ -489,7 +489,8 @@ end;
 
 
 
-  Function PasteSelectedStyleResources(AllowDrop:Boolean;HoverOver:String;mute:Boolean;ValueObject:TNodeEventValue):boolean;
+//Function PasteSelectedStyleResources(AllowDrop:Boolean;HoverOver:String;mute:Boolean;ValueObject:TNodeEventValue):boolean;
+Function PasteSelectedStyleResources(AllowDrop:Boolean;HoverOver:String;mute:Boolean;myNode:TObject):boolean;
   //if mute=true then nodes are not added or alerts sent to the user it just tests if it is ok to drop on this node
   var
     SelectedStyleSheetNodeText,SelectedStyleSheetNodeId:string;
@@ -501,9 +502,9 @@ end;
       RNodeType:=GetTypeFromString(trim(getPropertyValue('StyleResources','SelectedNodeText')));
       //if AllowDrop then showmessage('RNodeType='+RNodeType);
       asm
-        SelectedStyleSheetNodeId=ValueObject.myNode.id;
+        SelectedStyleSheetNodeId=myNode.id;
         //if (AllowDrop==true) {alert('SelectedStyleSheetNodeId='+SelectedStyleSheetNodeId);}
-        var ob=document.getElementById(ValueObject.myNode.id);
+        var ob=document.getElementById(myNode.id);
         if (ob!=null) {
           // make sure the nodeid is the 'DETAILS' element
           if (ob.tagName=='SUMMARY') {
@@ -1055,12 +1056,10 @@ end;
       //GenerateStyleRule generates the text in  InlineCSSText and  ExternalCSSText
     end;
 
-//asm console.log('CSSi: '+pas.StylesUtils.InlineCSSText); end;
-//asm console.log('CSSe: '+pas.StylesUtils.ExternalCSSText); end;
     setPropertyValue('GeneratedStyleSheetText','ItemValue',InlineCSSText + LineEnding + ExternalCSSText);
  //   setPropertyValue('ExternalCssText','ItemValue',ExternalCSSText);
     RefreshStyleSheet(InlineCSSText,ExternalCSSText);
-  end;
+end;
 
 procedure InitialiseStyleResources;
 begin

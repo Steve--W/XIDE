@@ -198,17 +198,18 @@ PyodidePackageLoaded:TPyodidePackageLoaded;
 //DSDatasetToString:TDSDatasetToString;
 
 
-procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
+procedure SetDllContext(mmi : IMyMethodInterface;evh:TExEvHandler); stdcall;
 {$endif}
-
 
 implementation
 
 {$ifdef Dll}
-procedure SetDllContext(mmi : IMyMethodInterface); stdcall;
+procedure SetDllContext(mmi : IMyMethodInterface;evh:TExEvHandler); stdcall;
 var
   dummy:String;
 begin
+  ExecuteEventHandlerFunc:=evh;
+
   // Map Appmethods onto the interface object passed in
   AppMethods := mmi;
 

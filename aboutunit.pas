@@ -98,7 +98,7 @@ begin
      +'public facing web sites.' + LineEnding
      +' ' + LineEnding
      +'        Version <<<XIDE>>> for Chrome' + LineEnding
-     +'        Date 13/04/2020' + LineEnding
+     +'        Date Feb 2025' + LineEnding
      +'        Created with' + LineEnding
      +'            ..............Lazarus    <<<LAZ>>>' + LineEnding
      +'            ..............FPC        <<<FPC>>>' + LineEnding
@@ -141,9 +141,9 @@ begin
 
 
   str:=AboutText;
-  str:=myStringReplace(str,'<<<XIDE>>>','0.2.beta',1,-1);
-  str:=myStringReplace(str,'<<<LAZ>>>','2.1.0',1,-1);
-  str:=myStringReplace(str,'<<<FPC>>>','3.3.1',1,-1);
+  str:=myStringReplace(str,'<<<XIDE>>>','0.3.beta',1,-1);
+  str:=myStringReplace(str,'<<<LAZ>>>','3.4',1,-1);
+  str:=myStringReplace(str,'<<<FPC>>>','3.2.2',1,-1);
 
   {$ifndef JScript}
   // get version of pas2js

@@ -20,7 +20,7 @@ uses
     X3DTable, EventsInterface,
     //WebTranspilerUtils,
   {$ifndef JScript}
-    LResources, Forms, Controls, StdCtrls, Graphics, Dialogs, ExtCtrls, Propedits, RTTICtrls,
+    LResources, Forms, Controls, StdCtrls, Graphics, Dialogs, ExtCtrls, SynEdit, Propedits, RTTICtrls,
     LazsUtils, LCLIntf,
     LCLType, gettext,
 //    {$ifdef Chromium}
@@ -197,7 +197,7 @@ begin
 
     HBTopNode:=AddDynamicWidget('TXHBox',GPUEditorForm,VBNode,'XGPUHBox','','Left',-1);
     HB:=TXHBox(HBTopNode.ScreenObject);
-    HB.ContainerHeight:='';
+    HB.ContainerHeight:='50';
     HB.Border:=false;
     HBTopNode.IsDynamic:=false;
 
@@ -238,7 +238,8 @@ begin
     GPUCodeEditor:=TXCode(EditorNode.ScreenObject);
     GPUCodeEditor.ContainerHeight:='90%';
     GPUCodeEditor.ContainerWidth:='100%';
-    GPUCodeEditor.MessagesHeight:='30%';
+    //GPUCodeEditor.MessagesHeight:='30%';
+    GPUCodeEditor.MessagesHeight:='1';
     GPUCodeEditor.LabelText:='';
     GPUCodeEditor.myNode.registerEvent('ClickMessage',@GPUEvents.GPUCodeEditHandleClickMessage);
     EditorNode.IsDynamic:=false;
@@ -549,6 +550,11 @@ end;
 procedure ShowGPUEditor(GPUNode:TDataNode;TabPage:integer);
 var
   AllKernels:TAnimCodeArray;
+  {$ifndef JScript}
+  ed:TSynEdit;
+  edp:TWinControl;
+  {$endif}
+  h:integer;
 begin
   // Edit the AnimationCode in a TXGPUCanvas component using the dedicated popup editor...
   // the animation code may consist of several kernel procedures.
@@ -583,6 +589,11 @@ begin
   GPUTableEditor.Table3DData:=EditingGPUNode.GetAttribute('InitStageData',true).AttribValue;
   {$ifndef JScript}
   GPUTableEditor.ResequenceComponents;
+
+  ed:=GPUCodeEditor.TheEditor;
+  ed.Align:=alClient;
+  edp:=ed.Parent;
+  edp.Align:=alClient;
   {$endif}
 
   GPUEditorForm.Showing:='Modal';

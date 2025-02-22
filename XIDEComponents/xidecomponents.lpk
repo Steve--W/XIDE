@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
-  <Package Version="4">
+  <Package Version="5">
     <PathDelim Value="\"/>
     <Name Value="XIDEComponents"/>
     <Type Value="RunAndDesignTime"/>
@@ -26,36 +26,33 @@ if ((TargetOS=&apos;win32&apos;) or (TargetOS=&apos;win64&apos;)) then
         <CustomOptions Value="//-dChromium"/>
       </Other>
     </CompilerOptions>
-    <Files Count="7">
+    <Files Count="6">
       <Item1>
         <Filename Value="xgpucanvas.pas"/>
         <UnitName Value="XGPUCanvas"/>
       </Item1>
       <Item2>
-        <Filename Value="xthreads.pas"/>
-        <UnitName Value="XThreads"/>
-      </Item2>
-      <Item3>
         <Filename Value="webtranspilerutils.pas"/>
         <UnitName Value="WebTranspilerUtils"/>
-      </Item3>
-      <Item4>
+      </Item2>
+      <Item3>
         <Filename Value="xcomposite.pas"/>
         <UnitName Value="XComposite"/>
-      </Item4>
-      <Item5>
+      </Item3>
+      <Item4>
         <Filename Value="xcompositeintf.pas"/>
         <UnitName Value="XCompositeIntf"/>
-      </Item5>
-      <Item6>
+      </Item4>
+      <Item5>
         <Filename Value="xgpueditor.pas"/>
         <UnitName Value="XGPUEditor"/>
-      </Item6>
-      <Item7>
+      </Item5>
+      <Item6>
         <Filename Value="x3dtable.pas"/>
         <UnitName Value="X3DTable"/>
-      </Item7>
+      </Item6>
     </Files>
+    <CompatibilityMode Value="True"/>
     <RequiredPkgs Count="2">
       <Item1>
         <PackageName Value="XComponents"/>

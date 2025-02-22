@@ -31,7 +31,7 @@ uses
 {$ENDIF}
 {$endif}
 const
-  CEFLibDir:String = 'C:\cef4Master\FrameworkDir';
+  CEFLibDir:String = 'C:\cef4Master\';
 
 begin
   {$ifdef Python}

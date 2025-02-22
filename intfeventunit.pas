@@ -78,7 +78,7 @@ begin
         if (InterfaceElement.EventNameIsUnique(NewName)) then
         begin
           IsReadOnly:=(self.IntfEventType.ItemValue='Read-Only');
-          InterfaceElement.myNode.AddEvent(NewName,'','',IsReadOnly,IntfEventHint.ItemValue);
+          InterfaceElement.myNode.AddEvent(NewName,'','','',IsReadOnly,IntfEventHint.ItemValue);
           TXForm(self).Showing:='No';
           RefreshObjectInspectorLater(ObjectInspectorSelectedNavTreeNode);
         end

@@ -27,7 +27,7 @@ interface
 
 uses
   Classes, SysUtils, StringUtils, StrUtils, NodeUtils,  UtilsJSCompile,
-  webTranspilerUtils,
+  EventsInterface, webTranspilerUtils,
   XComposite,XGPUCanvas,
 {$ifndef JScript}
   {$if defined ( windows)}
@@ -36,7 +36,7 @@ uses
   //CompilerLogUnit,
   LazsUtils, Controls, URIParser,
   PropEdits,TypInfo, Dialogs, Dynlibs,Process,
-  XCode, Forms, Events, xpparser;
+  XCode, Forms, Events,xpparser;
 {$else}
   HTMLUtils,XCode,XIFrame,Events,
   webfilecache, pas2jswebcompiler, pparser,
@@ -62,17 +62,16 @@ var
 
 function CompileEventCode(MyCodeEditor:TXCode;RunMode:String):Boolean;
 function   DfltUnitCode(UnitName,UnitType:String):string;
-function   DfltEventCode:string;
-function   DfltOpCode:string;
-function   DfltThreadEventCode(NodeName:String):string;
-function   DfltTreeNodeEventCode:string;
+function   DfltEventCode(Language:String):string;
+//function   DfltOpCode:string;
+//function   DfltThreadEventCode(NodeName:String):string;
+function   DfltTreeNodeEventCode(Language:String):string;
 function   DfltPythonCode:string;
 procedure GatherSourcedAttributes(StartNode:TDataNode);
 {$ifdef Python}
 {$ifdef JScript}
 procedure GatherAndRunPythonScriptsFromJS;
 {$endif}
-function RunPyScript(PyScriptCode:TStringList;nm:String):Boolean;
 procedure GatherAndRunPythonScriptsLater;
 {$endif}
 
@@ -89,6 +88,7 @@ Var
 var
     ConfigfpcPath:String;
     AllUserPyCode:String;
+    PascalCodeExists:Boolean;
 
 {$ifndef JScript}
 {$else}
@@ -345,6 +345,7 @@ procedure GatherEventHeaders(RunMode,NameSpace:String;StartNode:TDataNode;UnitCo
 var
     i:integer;
     tmp,Dflt:string;
+    Event:TEventHandlerRec;
 begin
   if StartNode.NameSpace= NameSpace then
   begin
@@ -352,155 +353,30 @@ begin
     if (StartNode.IsDynamic) or (StartNode=UIRootNode) then
       for i:=0 to length(StartNode.myEventHandlers)-1 do
       begin
-        // (exclude events for worker threads...)
-        if (StartNode.NodeType<>'TXThreads')
-        or (FoundString(StartNode.myEventTypes[i],'Thread')<>1) then
+        Event:=StartNode.myEventHandlers[i];
+        if Event.EventLanguage = 'Pascal' then
         begin
-          tmp:=StartNode.myEventHandlers[i].TheCode;
-          dflt:=DfltEventCode;
-          if (trim(StartNode.myEventHandlers[i].TheCode)<>'')
-          and (tmp<>Dflt) then
+//          // (exclude events for worker threads...)
+//          if (StartNode.NodeType<>'TXThreads')
+//          or (FoundString(StartNode.myEventTypes[i],'Thread')<>1) then
           begin
-            n:=n+1;
-            tmp:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
-            UnitCode.Add(tmp);
+            tmp:=Event.TheCode;
+            dflt:=DfltEventCode(Event.EventLanguage);
+            if (trim(Event.TheCode)<>'')
+            and (tmp<>Dflt) then
+            begin
+              n:=n+1;
+              tmp:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
+              UnitCode.Add(tmp);
+            end;
           end;
         end;
       end;
   end;
 
-    for i:=0 to length(StartNode.ChildNodes)-1 do
-      GatherEventHeaders(RunMode,NameSpace,StartNode.ChildNodes[i],UnitCode,n);
-
-end;
-
-procedure GatherEventHeadersForWorkerThreads(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
-var
-    i:integer;
-    tmp,Dflt:string;
-begin
-
-  if (StartNode.IsDynamic)
-  and (StartNode.NodeType='TXThreads')  then
-  begin
-    for i:=0 to length(StartNode.myEventHandlers)-1 do
-    begin
-      if (FoundString(StartNode.myEventTypes[i],'Thread')=1)
-      and (FoundString(StartNode.myEventTypes[i],'ThreadVars')<>1) then
-      begin
-        tmp:=StartNode.myEventHandlers[i].TheCode;
-        dflt:=DfltThreadEventCode(StartNode.NodeName);
-        if (trim(StartNode.myEventHandlers[i].TheCode)<>'')
-        and (tmp<>Dflt) then
-        begin
-          tmp:=BuildEventHeader('',StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');  //!!!!namespace
-          CodeBlock.Add(tmp);
-        end;
-      end;
-    end;
-  end;
-
   for i:=0 to length(StartNode.ChildNodes)-1 do
-    GatherEventHeadersForWorkerThreads(RunMode,StartNode.ChildNodes[i],CodeBlock);
-end;
+    GatherEventHeaders(RunMode,NameSpace,StartNode.ChildNodes[i],UnitCode,n);
 
-procedure GatherVarsForWorkerThreads1(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
-var
-    i:integer;
-    VarNames:string;
-    VarNamesList:TStringList;
-begin
-
-  if (StartNode.IsDynamic)
-  and (StartNode.NodeType='TXThreads')  then
-  begin
-    VarNames := StartNode.GetAttribute('ThreadVarNums',true).AttribValue;
-    if VarNames<>'' then
-    begin
-      CodeBlock.Add('type TXVars'+StartNode.NodeName+' = class(TObject)');
-      CodeBlock.Add('private');
-      VarNamesList:=TStringList.Create;
-      VarNamesList.StrictDelimiter:=true;
-      VarNamesList.Delimiter:=',';
-      VarNamesList.LineBreak:=',';
-      VarNamesList.Text:=VarNames;
-      for i:=0 to VarNamesList.Count-1 do
-      begin
-          CodeBlock.Add('  f'+VarNamesList[i]+':float;');
-      end;
-      for i:=0 to VarNamesList.Count-1 do
-      begin
-          CodeBlock.Add('  procedure set'+VarNamesList[i]+'(AValue:float);');
-      end;
-      CodeBlock.Add('public');
-      for i:=0 to VarNamesList.Count-1 do
-      begin
-          CodeBlock.Add('  property '+VarNamesList[i]+':float read f'+VarNamesList[i]+' write set'+VarNamesList[i]+';');
-      end;
-      CodeBlock.Add('end;');
-      CodeBlock.Add('var XVars'+StartNode.NodeName+':TXVars'+StartNode.NodeName+';');
-
-      VarNamesList.Free;
-    end;
-  end
-  else
-    for i:=0 to length(StartNode.ChildNodes)-1 do
-      GatherVarsForWorkerThreads1(RunMode,StartNode.ChildNodes[i],CodeBlock);
-end;
-procedure GatherVarsForWorkerThreads2(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
-var
-    i:integer;
-    VarNames:string;
-    VarNamesList:TStringList;
-begin
-
-  if (StartNode.IsDynamic)
-  and (StartNode.NodeType='TXThreads')  then
-  begin
-    VarNames := StartNode.GetAttribute('ThreadVarNums',true).AttribValue;
-    if VarNames<>'' then
-    begin
-      VarNamesList:=TStringList.Create;
-      VarNamesList.StrictDelimiter:=true;
-      VarNamesList.Delimiter:=',';
-      VarNamesList.LineBreak:=',';
-      VarNamesList.Text:=VarNames;
-      for i:=0 to VarNamesList.Count-1 do
-      begin
-          CodeBlock.Add('procedure TXVars'+StartNode.NodeName+'.set'+VarNamesList[i]+'(AValue:float);');
-          CodeBlock.Add('begin');
-          CodeBlock.Add('{$if defined ( windows)}');
-          CodeBlock.Add('  if GetCurrentThreadID = MainThreadID  then ');         //!!!! and browser code????
-          CodeBlock.Add('{$endif}');
-          CodeBlock.Add('    f'+VarNamesList[i]+' := AValue;');                   //!!!! else... raise error?
-          CodeBlock.Add('end;');
-      end;
-
-      VarNamesList.Free;
-    end;
-  end
-  else
-    for i:=0 to length(StartNode.ChildNodes)-1 do
-      GatherVarsForWorkerThreads2(RunMode,StartNode.ChildNodes[i],CodeBlock);
-end;
-procedure GatherVarsForWorkerThreads3(RunMode:String;StartNode:TDataNode;CodeBlock:TStringList);
-var
-    i:integer;
-    VarNames:string;
-begin
-
-  if (StartNode.IsDynamic)
-  and (StartNode.NodeType='TXThreads')  then
-  begin
-    VarNames := StartNode.GetAttribute('ThreadVarNums',true).AttribValue;
-    if VarNames<>'' then
-    begin
-      CodeBlock.Add('  XVars'+StartNode.NodeName+':=TXVars'+StartNode.NodeName+'.Create;');
-    end;
-  end
-  else
-    for i:=0 to length(StartNode.ChildNodes)-1 do
-      GatherVarsForWorkerThreads3(RunMode,StartNode.ChildNodes[i],CodeBlock);
 end;
 
 procedure GatherEventCode(RunMode,NameSpace:String;Compiler:TObject;StartNode:TDataNode;UnitCode:TStringList);
@@ -508,62 +384,69 @@ var
     i:integer;
     hdr,tmp,Dflt,ns:string;
     IncCode,InitCode:TStringList;
+    Event:TEventHandlerRec;
 begin
+  // building the Pascal unit for the MainEvents runtime unit
   if StartNode.NameSpace=NameSpace then
   begin
     // user-created event code is held in the data nodes (node.myEventHandlers[i].TheCode)
     IncCode:=TStringList.Create;
     if (StartNode.IsDynamic) or (StartNode=UIRootNode) then
       for i:=0 to length(StartNode.myEventHandlers)-1 do
-      // (exclude events for worker threads...)
-      if (StartNode.NodeType<>'TXThreads')
-      or (FoundString(StartNode.myEventTypes[i],'Thread')<>1) then
+//      // (exclude events for worker threads...)
+//      if (StartNode.NodeType<>'TXThreads')
+//      or (FoundString(StartNode.myEventTypes[i],'Thread')<>1) then
       begin
-        tmp:=StartNode.myEventHandlers[i].TheCode;
-        Dflt:=DfltEventCode;
-        if (trim(tmp)<>'')
-        and (tmp<>Dflt) then
+        Event:=StartNode.GetEvent(StartNode.myEventTypes[i]);
+        if Event.EventLanguage = 'Pascal' then
         begin
-           // Insert a procedure containing the code for the event initialisation
-           hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],'','Init');
-           tmp:=trim(StartNode.myEventHandlers[i].InitCode);
-           if not PythonCodeExists then
-             PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
-           InitCode:=StringSplit(tmp,LineEnding);
-           InitCode.Insert(0,hdr);
-           if InitCode.Count=1 then
-             InitCode.Add('begin end;');
-           if Namespace='' then
-             ns:=''
-           else
-             ns:=Namespace+'__';
-           WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i]+'__Init','tempinc/', UnitCode, InitCode);
+          tmp:=Event.TheCode;
+          if (trim(tmp)<>'')
+          and (tmp<>Dflt) then
+          begin
+            Dflt:=DfltEventCode(Event.EventLanguage);
+            // Insert a procedure containing the code for the event initialisation
+            hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],'','Init');
+            tmp:=trim(Event.InitCode);
+            if not PythonCodeExists then
+              PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
+            InitCode:=StringSplit(tmp,LineEnding);
+            InitCode.Insert(0,hdr);
+            if InitCode.Count=1 then
+              InitCode.Add('begin end;');
+            if Namespace='' then
+              ns:=''
+            else
+              ns:=Namespace+'__';
+            WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i]+'__Init','tempinc/', UnitCode, InitCode);
 
-           // Insert a procedure containing the main code for the event
-           hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],'','Main');
-           tmp:=StartNode.myEventHandlers[i].TheCode;
-           if not PythonCodeExists then
-             PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
-           IncCode:=StringSplit(tmp,LineEnding);
-           IncCode.Insert(0,hdr);
-           WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i],'tempinc/', UnitCode, IncCode);
+            // Insert a procedure containing the main code for the event
+            hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],'','Main');
+            tmp:=Event.TheCode;
+            if not PythonCodeExists then
+              PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
+            IncCode:=StringSplit(tmp,LineEnding);
+            IncCode.Insert(0,hdr);
+            WriteIncFile(Compiler,ns+StartNode.NodeName, StartNode.myEventTypes[i],'tempinc/', UnitCode, IncCode);
 
-           // Insert a control procedure to run the init and main code for the event
-           tmp:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
-           UnitCode.Add(tmp);
+            // Insert a control procedure to run the init and main code for the event
+            tmp:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
+            UnitCode.Add(tmp);
 
-           UnitCode.Add('begin');
-           UnitCode.Add('  ExecuteEventHandler(e,nodeID,myValue,'
+            UnitCode.Add('begin');
+            UnitCode.Add('  ExecuteEventHandlerFunc(e,nodeID,myValue,'
+            //UnitCode.Add('  ExecuteEventHandler(e,nodeID,myValue,'
                         +'@'+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Init'+','
-                        +'@'+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Main'+');');
-           UnitCode.Add('end;');
+                        +'@'+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i] + 'Main'+','''','''');');
+
+            UnitCode.Add('end;');
 
 
-           {$ifndef JScript}
-           if RunMode='LazDll' then
-             ExportsList.Add('exports '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i]+';');
-           {$endif}
-
+            {$ifndef JScript}
+            if RunMode='LazDll' then
+              ExportsList.Add('exports '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i]+';');
+            {$endif}
+          end;
         end;
       end;
     FreeAndNil(IncCode);
@@ -575,104 +458,6 @@ begin
 
 end;
 
-procedure GatherEventCodeForWorkerThreads(RunMode,NameSpace:String;Compiler:TObject;StartNode:TDataNode;CodeBlock:TStringList);
-var
-    i:integer;
-    hdr,tmp,Dflt,et:string;
-    IncCode:TStringList;
-begin
-  // user-created event code is held in the data nodes (node.myEventHandlers[i].TheCode)
-  IncCode:=TStringList.Create;
-  if (StartNode.NodeType='TXThreads')
-  and (StartNode.IsDynamic) then
-    for i:=0 to length(StartNode.myEventHandlers)-1 do
-    if FoundString(StartNode.myEventTypes[i],'Thread')=1 then          // just the Thread<n> events
-    begin
-      et:=StartNode.myEventTypes[i];
-      tmp:=StartNode.myEventHandlers[i].TheCode;
-      Dflt:=DfltThreadEventCode(StartNode.NodeName);
-      if (trim(tmp)<>'')
-      and (tmp<>Dflt) then
-      begin
-
-         // Insert a procedure containing the main code for the event
-         hdr:=BuildEventHeader(NameSpace,StartNode.NodeName,StartNode.myEventTypes[i],RunMode,'');
-         IncCode:=StringSplit(StartNode.myEventHandlers[i].TheCode,LineEnding);
-         IncCode.Insert(0,hdr);
-         WriteIncFile(Compiler,StartNode.NodeName, StartNode.myEventTypes[i],'tempinc/', CodeBlock, IncCode);
-
-         {$ifndef JScript}
-         if RunMode='LazDll' then
-           CodeBlock.Add('exports '+NameSpace+StartNode.NodeName + 'Handle' + StartNode.myEventTypes[i]+';');
-         {$endif}
-
-      end;
-    end;
-  FreeAndNil(IncCode);
-
-  for i:=0 to length(StartNode.ChildNodes)-1 do
-    GatherEventCodeForWorkerThreads(RunMode,NameSpace,Compiler,StartNode.ChildNodes[i],CodeBlock);
-end;
-
-
-procedure BuildThreadEventsUnit(Compiler:TObject;RunMode:String);
-var
-  UnitCode:TStringList;
-    procedure AddUnitCodeLine(str:String);
-    begin
-      UnitCode.add(str);
-    end;
-begin
-  UnitCode:=TStringList.Create;
-  // Note: this unit does not contain the user-interface functions provided for main-thread events
-  // (units InterfaceTypes, or dllInterface).
-
-  AddUnitCodeLine('unit '+DllName+'Threads;');
-  AddUnitCodeLine('{$ifndef JScript}');
-  AddUnitCodeLine('{$mode objfpc}{$H+}');
-  AddUnitCodeLine('{$endif}');
-  AddUnitCodeLine('interface');
-  AddUnitCodeLine('uses Classes, SysUtils, Math, contnrs, dateutils,');
-  AddUnitCodeLine('{$if defined ( windows)}');
-  AddUnitCodeLine('  windows, ');
-  AddUnitCodeLine('{$endif}');
-  AddUnitCodeLine('  rtlconsts, strutils, types, typinfo, EventsInterface;');
-
-  AddUnitCodeLine('');
-  AddUnitCodeLine('type AnsiString=String;');
-
-  AddUnitCodeLine('');
-  GatherEventHeadersForWorkerThreads(RunMode,SystemNodeTree,UnitCode);
-
-  AddUnitCodeLine('');
-  GatherVarsForWorkerThreads1(RunMode,SystemNodeTree,UnitCode);
-
-  AddUnitCodeLine('');
-  AddUnitCodeLine('implementation' );
-  AddUnitCodeLine('');
-
-  GatherVarsForWorkerThreads2(RunMode,SystemNodeTree,UnitCode);
-  GatherEventCodeForWorkerThreads(RunMode,'',Compiler,SystemNodeTree,UnitCode);
-
-  AddUnitCodeLine('    ' );
-  AddUnitCodeLine('begin');
-  GatherVarsForWorkerThreads3(RunMode,SystemNodeTree,UnitCode);
-  AddUnitCodeLine('end.');
-
-  {$ifndef JScript}
-  // save the generated pas file
-  SysUtils.DeleteFile('tempinc/'+DllName+'Threads'+'.pas');
-  UnitCode.SaveToFile('tempinc/'+DllName+'Threads'+'.pas');
-  {$else}
-
-  TPas2JSWebCompiler(Compiler).WebFS.SetFileContent(DllName+'Threads'+'.pas',UnitCode.Text);
-  {$endif}
-
-  // add this unit to the uses list in the main module
-  PascalCode.Add(','+DllName+'Threads');
-
-  FreeAndNil(UnitCode);
-end;
 
 function AddPasUnit(UnitNode:TDataNode; MainUnitCode:TStringList;Compiler:TObject):String;
 var
@@ -727,7 +512,7 @@ begin
 end;
 
 
-procedure AddExecFunc(Namespace:String;UnitCode:TStringList);
+(*procedure AddExecFunc(Namespace:String;UnitCode:TStringList);
 begin
   UnitCode.Add('type THandler = procedure(e:TEventStatus;NodeId:AnsiString;myValue:AnsiString); ');
   UnitCode.Add('procedure ExecuteEventHandler(e:TEventStatus;NodeId: AnsiString; myValue: AnsiString; initfunc,mainfunc:THandler); ' );
@@ -771,7 +556,7 @@ begin
   UnitCode.Add('  end;' );
   UnitCode.Add('end;' );
 end;
-
+*)
 function GatherUserUnits(RunMode:String; Compiler:TObject):String;
 var
     i:integer;
@@ -794,11 +579,6 @@ begin
       if i=0 then FirstUnitName:=nm;
     end;
   end;
-
-  // Build a separate unit to hold 'event' code for worker threads (within TXThreads components)
-  // This code is in a separate unit from the main event code so that the scope of worker threads
-  // can be limited (they are self-contained, with no access to data/functions in the main thread).
-  BuildThreadEventsUnit(Compiler,RunMode);
 
   result:=FirstUnitName;
 
@@ -855,7 +635,7 @@ begin
   AddUnitCodeLine('  rtlconsts, strutils, types, typinfo, EventsInterface');
   GatherUserUnitsInComposites(RunMode,NameSpace,ThisNode,UnitCode,Compiler);
   if RunMode='LazDll' then
-   AddUnitCodeLine('  ,InterfaceTypesDll;')
+   AddUnitCodeLine('  ,InterfaceTypes,InterfaceTypesDll;')
   else
   begin
    AddUnitCodeLine('  ,InterfaceTypes;');
@@ -865,9 +645,6 @@ begin
 
   AddUnitCodeLine('implementation');
 
-  //GatherUserFuncs(RunMode,NameSpace,Compiler,CodeRootNode,UnitCode,n);
-
-  AddExecFunc(NameSpace,UnitCode);
   GatherEventCode(RunMode,NameSpace,Compiler,SystemNodeTree,UnitCode);
 
   AddUnitCodeLine('    ' );
@@ -930,7 +707,7 @@ begin
   AllGPUNodes := NodeUtils.FindNodesOfType(UIRootNode,'TXGPUCanvas');
   for i:=0 to length(AllGPUNodes)-1 do
   begin
-    {$ifdef JScript} asm console.log('RunMode',RunMode); end; {$endif}
+    //{$ifdef JScript} asm console.log('RunMode',RunMode); end; {$endif}
     ok:=TXGPUCanvas(AllGPUNodes[i].ScreenObject).BuildPascalAnimationUnit(Compiler,RunMode);
     if ok then
     begin
@@ -957,6 +734,7 @@ begin
   begin
   {$ifndef JScript}
     try
+    // prefix PyScriptCode to get e values into the Python environment
     PythonEngine1.ExecStrings( PyScriptCode );
     except
       on E: Exception do
@@ -1003,8 +781,8 @@ var
 begin
   {$ifndef JScript}
   Screen.Cursor := crHourglass;
-  {$else}
-  asm console.log('GatherAndRunPythonScripts'); end;
+  //{$else}
+  //asm console.log('GatherAndRunPythonScripts'); end;
   {$endif}
 
   ok:=true;
@@ -1087,9 +865,9 @@ begin
       // There may be other scripts held within composite components (already gathered into PyCodeFromComposites).
       ok:=RunPyScript(PyCodeFromComposites,'');
       ok:=RunPyScript(PyCode,'');
-      {$ifdef JScript}
-      asm console.log('done GatherAndRunPythonScripts'); end;
-      {$endif}
+      //{$ifdef JScript}
+      //asm console.log('done GatherAndRunPythonScripts'); end;
+      //{$endif}
     end;
     PyScriptsExecuted:=true;
 
@@ -1156,6 +934,8 @@ begin
  // delete old .inc and .pas files
   {$ifndef JScript}
  DeleteDynamicIncFiles;
+  SaveSystemToIncFile();  //?
+  SaveCompositesToIncFile; //?
   WriteRTLIncFiles;
   WriteProjectIncFiles;
   {$endif}
@@ -1186,13 +966,14 @@ begin
    PascalCode.Add(';');
    PascalCode.Add('');
 
+   ok:=true;
    GatherEventHeaders(RunMode,'',SystemNodeTree,PascalCode,n);
 
    PascalCode.Add('');
    PascalCode.Add('implementation' );
    PascalCode.Add('');
 
-   AddExecFunc('',PascalCode);
+   //AddExecFunc('',PascalCode);
    GatherEventCode(RunMode,'',Compiler,SystemNodeTree,PascalCode);
 
    PascalCode.Add('    ' );
@@ -1223,13 +1004,14 @@ begin
    PascalCode.Add('');
    PascalCode.Add('');
 
-   AddExecFunc('',PascalCode);
+   //AddExecFunc('',PascalCode);
    GatherEventCode(RunMode,'',nil,SystemNodeTree,PascalCode);
 
    PascalCode.Add( '    ' );
-   PascalCode.Add( 'procedure SetDllContext(mmi:IMyMethodInterface); stdcall;' );
+   PascalCode.Add( 'procedure SetDllContext(mmi:IMyMethodInterface;evh:TExEvHandler); stdcall;' );
    PascalCode.Add( 'begin' );
-   PascalCode.Add( '  InterfaceTypesDll.SetDllContext(mmi);  ' );
+   PascalCode.Add( '  InterfaceTypesDll.SetDllContext(mmi,evh);  ' );
+   PascalCode.Add( '  ExecuteEventHandlerFunc:=evh;  ' );
    PascalCode.Add( 'end;' );
    PascalCode.Add( 'exports SetDllContext;' );
    PascalCode.Add( '    ' );
@@ -1370,6 +1152,9 @@ begin
   AProcess.Parameters.Add('-Fi./tempinc');
   AProcess.Parameters.Add('-Fefpcerrors.txt');
   AProcess.Parameters.Add('-dDll');
+  {$ifdef Python}
+  AProcess.Parameters.Add('-dPython');
+  {$endif}
   AProcess.Parameters.Add('-gl');
   //AProcess.Parameters.Add('-debug-log=DllDebugLog.log');
   AProcess.Parameters.Add('-vewilv');              //verbose     //v: writes to fpcdebug.txt
@@ -1683,8 +1468,8 @@ begin
           pas[GPUUnits[i]]=null;
           pas['GPUCode'+GPUUnits[i]]=null;
         }
-        // and the worker threads unit ....
-        pas[pas.Events.DllName+'Threads']=null;
+//        // and the worker threads unit ....
+//        pas[pas.Events.DllName+'Threads']=null;
 
         // and the DataModel unit ....
         //var DMRoot=pas.XDataModel.DMRoot;
@@ -1752,6 +1537,7 @@ begin
     end;
 
     //EditAttributeValue('XMemo1','','ItemValue',JSOutput);        //!!!! temporary for debugging
+    WriteToLocalStore('JSOutput',JSOutput);            //!!!! temporary for debugging
 
     ok:=res;
     if res=true then
@@ -1800,6 +1586,7 @@ end;
 
 {$endif}
 
+
 function   DfltUnitCode(UnitName,UnitType:String):string;
 begin
   if UnitType='PasUnit' then
@@ -1809,7 +1596,7 @@ begin
           + 'interface '+ LineEnding
           + 'uses Classes, Sysutils,'+ LineEnding
           + '   Math, contnrs, dateutils, rtlconsts, strutils, types, typinfo,EventsInterface,'+ LineEnding
-          + '{$ifdef Dll} InterfaceTypesDll; {$else} InterfaceTypes; {$endif} ' + LineEnding
+          + '{$ifdef Dll} InterfaceTypesDll,InterfaceTypes; {$else} InterfaceTypes; {$endif} ' + LineEnding
           + LineEnding
           + 'implementation ' + LineEnding
           + ' ' + LineEnding
@@ -1822,51 +1609,94 @@ begin
     result:='#Python script';
 end;
 
-function   DfltEventCode:string;
+function   DfltEventCode(Language:String):string;
 begin
-  result:= 'begin' + LineEnding +
-            ' ' + LineEnding +
-            'end;' + LineEnding;
+  if Language='Python' then
+    result:= DfltPythonCode
+  else   //Pascal...
+    result:= 'begin' + LineEnding +
+             ' ' + LineEnding +
+             'end;' + LineEnding;
 end;
-function   DfltOpCode:string;
+//function   DfltThreadEventCode(NodeName:String):string;
+//begin
+//  result:= 'begin' + LineEnding +
+//           '  with XVars'+NodeName+' do ' + LineEnding +
+//           '  begin' + LineEnding +
+//           '  end;' + LineEnding +
+//           'end;' + LineEnding;
+//end;
+function   DfltTreeNodeEventCode(Language:String):string;
 begin
-  result:= 'begin' + LineEnding +
-            ' ' + LineEnding +
-            'end;' + LineEnding;
-end;
-function   DfltThreadEventCode(NodeName:String):string;
-begin
-  result:= 'begin' + LineEnding +
-           '  with XVars'+NodeName+' do ' + LineEnding +
-           '  begin' + LineEnding +
-           '  end;' + LineEnding +
-           'end;' + LineEnding;
-end;
-function   DfltTreeNodeEventCode:string;
-begin
-  result:= 'var' + LineEnding +
-          '  values:TNodeEventValue;' + LineEnding +
-          '  SourceName,SrcText,DstText:String;'  + LineEnding +
-          'begin' + LineEnding +
-          '  values:=TNodeEventValue(e.ValueObject);' + LineEnding +
-          '  SourceName:=values.SourceName;  // name of tree being dragged from' + LineEnding +
-          '  SrcText:=values.SrcText;        // text of treenode being dragged' + LineEnding +
-          '  DstText:=values.DstText;        // text of treenode being dragged over' + LineEnding +
-          '  // set e.ReturnString to "True" or "False" ' + LineEnding +
-          '  e.ReturnString:=''True'';' + LineEnding +
-          'end;' + LineEnding;
+  if Language = 'Pascal' then
+//  result:= 'var' + LineEnding +
+//          '  values:TNodeEventValue;' + LineEnding +
+//          '  SourceName,SrcText,DstText:String;'  + LineEnding +
+//          'begin' + LineEnding +
+//          '  values:=TNodeEventValue(e.ValueObject);' + LineEnding +
+//          '  SourceName:=values.SourceName;  // name of tree being dragged from' + LineEnding +
+//          '  SrcText:=values.SrcText;        // text of treenode being dragged' + LineEnding +
+//          '  DstText:=values.DstText;        // text of treenode being dragged over' + LineEnding +
+//          '  // set e.ReturnString to "True" or "False" ' + LineEnding +
+//          '  e.ReturnString:=''True'';' + LineEnding +
+//          'end;' + LineEnding
+   result:= 'var' + LineEnding +
+            '  SourceName,SrcText,DstText:String;'  + LineEnding +
+            'begin' + LineEnding +
+            '  SourceName:=e.SourceName;  // name of tree being dragged from' + LineEnding +
+            '  SrcText:=e.SrcText;        // text of treenode being dragged' + LineEnding +
+            '  DstText:=e.DstText;        // text of treenode being dragged over' + LineEnding +
+            '  // set e.ReturnString to "True" or "False" ' + LineEnding +
+            '  e.ReturnString:=''True'';' + LineEnding +
+            'end;' + LineEnding
+  else if Language='Python' then
+  result:= 'SourceName = e.SourceName  # name of tree being dragged from' + LineEnding +
+         'SrcText = e.SrcText        # text of treenode being dragged' + LineEnding +
+         'DstText = e.DstText        # text of treenode being dragged over' + LineEnding +
+         '# set e.ReturnString to "True" or "False"' + LineEnding +
+         'e.ReturnString = ''True''' + LineEnding;
+
 end;
 function   DfltPythonCode:string;
 begin
   result:= '# Python script' + LineEnding;
 end;
+{$ifndef JScript}
+{$ifdef Python}
+procedure PassEValuesToPython(e:TEventStatus);
+begin
+  if (e<>nil) then
+  begin
+    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'EventType',PythonEngine1.VariantAsPyObject(UTF8Decode(e.EventType)));
+    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NodeId',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NodeId)));
+    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'NameSpace',PythonEngine1.VariantAsPyObject(UTF8Decode(e.NameSpace)));
+    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'ReturnString',PythonEngine1.VariantAsPyObject(UTF8Decode(e.ReturnString)));
+    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'SrcText',PythonEngine1.VariantAsPyObject(UTF8Decode(e.SrcText)));
+    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'SourceName',PythonEngine1.VariantAsPyObject(UTF8Decode(e.SourceName)));
+    PythonEngine1.PyObject_SetAttrString(glbPyObjE,'DstText',PythonEngine1.VariantAsPyObject(UTF8Decode(e.DstText)));
+  end;
+end;
+function GetEFromPython():String;
+begin
+  result:=PythonEngine1.PyObjectAsString(PythonEngine1.PyObject_GetAttrString(glbPyObjE,'ReturnString'));
+end;
+{$endif}
+{$endif}
 
 begin
+  PascalCodeExists:=false;
   PascalCode:=TStringList.Create;
   ExportsList:=TStringList.Create;
   PyCodeFromComposites:=TStringList.Create;
   {$ifdef Python}
   PyProcs:=TPyProcs.Create;
+  EventsInterface.RunPyScriptFunc:=@RunPyScript;
+  {$ifndef JScript}
+  EventsInterface.PassEToPythonFunc:=@PassEValuesToPython;
+  EventsInterface.GetEFromPythonFunc:=@GetEFromPython;
+  {$endif}
+  {$else}
+  EventsInterface.RunPyScriptFunc:=nil;
   {$endif}
   {$ifndef JScript}
   MyLibC := dynlibs.NilHandle;

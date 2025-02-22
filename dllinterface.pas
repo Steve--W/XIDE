@@ -160,10 +160,6 @@ procedure DSReturnToEvent(ReturnEvent:TEventStatus;ProcName:String);
 implementation
 uses PyXUtils;
 
-var
-  EventsNameSpace:PChar;
-
-
 function CreateEventTimer:TTimer;
 var
   newTimer:TTimer;
@@ -179,6 +175,7 @@ procedure TTimerEventWrapper.DoEventTimer(Sender:TObject);
 var
   rtnval:PChar;
   myTag:TEventTimerTag;
+  ok:boolean;
 begin
   TTimer(Sender).Enabled:=false;
   myTag:=TEventTimerTag(TTimer(Sender).Tag);
@@ -188,7 +185,7 @@ begin
 
   // !! Must not pass Strings from dll to main, if they need to persist (when the dll is unloaded) - use PChar instead.
   rtnval:=PChar(myTag.e.ReturnString);
-  HandleEvent(myTag.e,myTag.e.EventType,myTag.e.NodeId,myTag.e.NameSpace,rtnval);
+  ok:=HandleEvent(myTag.e,myTag.e.EventType,myTag.e.NodeId,myTag.e.NameSpace,rtnval);
 end;
 
 procedure DSReturnToEvent(ReturnEvent:TEventStatus;ProcName:String);
@@ -228,7 +225,7 @@ end;
 
 procedure TMyMethodObject.mmiCloseXForm(XFormID:String);   stdcall;
 begin
-  XForm.CloseXForm(XFormID,StrPas(EventsNameSpace));
+  XForm.XFormClose(XFormID,StrPas(EventsNameSpace));
 end;
 
 procedure TMyMethodObject.mmiSetPropertyValue(nodeName:String;propName:String;newValue:String);  stdcall;
@@ -548,10 +545,11 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
    procedure TMyMethodObject.mmiDoEvent(EventType,NodeId,myValue:String);   stdcall;
    var
      mv:PChar;
+     ok:boolean;
    begin
      // !! Must not pass Strings from dll to main, if they need to persist (when the dll is unloaded) - use PChar instead.
      mv:=PChar(myValue);
-     handleEvent(nil,EventType,nodeId,StrPas(EventsNameSpace),mv);
+     ok:=handleEvent(nil,EventType,nodeId,StrPas(EventsNameSpace),mv);
    end;
 
    procedure TMyMethodObject.mmiMoveComponent(nodeId:string;NewParentId:string);  stdcall;
@@ -859,7 +857,6 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
    end;
 
 begin
-    EventsNameSpace:=PChar('');
     mmo := TMyMethodObject.Create();
     Events.mmi:=IInterface(mmo);
 

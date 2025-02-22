@@ -9,6 +9,7 @@
 
  **********************************************************************
  *)
+
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -16,7 +17,6 @@ unit XIDEMain;
 {$endif}
 
 interface
-
 uses
   Classes, SysUtils, strutils,
 {$ifndef JScript}
@@ -35,7 +35,7 @@ uses
   XBitMap, XTrapEvents, XIDEHelpUnit,
   XHTMLText, XHTMLEditor, EventsInterface,
   // XIDEComponents units...
-  XGPUCanvas, XGPUEditor, X3DTable, XThreads, XComposite,
+  XGPUCanvas, XGPUEditor, X3DTable, {XThreads,} XComposite,
   // XIDE project units...
   CompileUserCode, XObjectInsp,XIDESettings,
   CodeEditor, InputSelectUnit, PropertyEditUnit,
@@ -368,21 +368,21 @@ var
   DstNodeName,Part1:String;
   DstNode:TDataNode;
   ok:Boolean;
-  values:TNodeEventValue;
+//  values:TNodeEventValue;
 begin
   //showmessage('checking drop. Sourcename='+SourceName+' DstText='+dstText);
 
   // e.ValueObject is an object of type TNodeEventValue.
   // values.myNode is of type TTreeNode, and contains data with a unique id.
-  values:=TNodeEventValue(e.ValueObject);
+  //values:=TNodeEventValue(e.ValueObject);
 
   SourceIsNavigator:=false;
   SourceIsResourceTree:=false;
-  if (values.SourceName='ResourceTree') then
+  if (e.SourceName='ResourceTree') then
   begin
     SourceIsResourceTree:=true;
   end;
-  if (values.SourceName='NavTree') then SourceIsNavigator:=true;
+  if (e.SourceName='NavTree') then SourceIsNavigator:=true;
   ok:=(SourceIsNavigator )
           or (SourceIsResourceTree );
 
@@ -391,9 +391,9 @@ begin
   begin
     //showmessage('checking drop. DstText='+dstText);
     // additional node-level checks...
-    if (values.dstText<>'') then
+    if (e.dstText<>'') then
     begin
-      DstNodename:=TreeLabelToId(values.DstText,'NavTree',Part1);
+      DstNodename:=TreeLabelToId(e.DstText,'NavTree',Part1);
       DstNode:=FindDataNodeById(UIRootNode,DstNodeName,'',true);     //!!namespace - assuming top design level only
       if (DstNode<>nil) then
       begin
@@ -499,7 +499,7 @@ procedure TXIDEForm.StyleSheetHandleDrop(e: TEventStatus; nodeID: AnsiString;
   myValue: AnsiString);
 {$ifdef JScript}
 var
-  values:TNodeEventValue;
+//  values:TNodeEventValue;
   TreeNodeId:String;
 {$endif}
 begin
@@ -507,13 +507,13 @@ begin
   // values.myNode is of type TTreeNode, and contains data with a unique id.
 
   {$ifdef JScript}
-  values:=TNodeEventValue(e.ValueObject);
+//  values:=TNodeEventValue(e.ValueObject);
   asm
-    TreeNodeId=values.myNode.id;
+    TreeNodeId=e.myTreeNode.id;
   end;
   //showmessage('dropping on node '+TreeNodeId);
   StyleSheet.selectedNodeId:=TreeNodeId;
-  PasteSelectedStyleResources(true,DropTarget,false,TNodeEventValue(e.ValueObject));// the boolean means this does the paste and reports errors rather than just checking it
+  PasteSelectedStyleResources(true,DropTarget,false,e.myTreeNode);// the boolean means this does the paste and reports errors rather than just checking it
   {$endif}
 end;
 
@@ -521,16 +521,16 @@ procedure TXIDEForm.StyleSheetHandleDropAccepted(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 {$ifdef JScript}
 var
-  values:TNodeEventValue;
+//  values:TNodeEventValue;
   SourceName,SrcText,DstText,ReturnString:String;
   priorNodeText:string;
 {$endif}
 begin
   {$ifdef JScript}
-  values:=TNodeEventValue(e.ValueObject);
-  SourceName:=values.SourceName;  // name of tree being dragged from
-  SrcText:=values.SrcText;        // text of treenode being dragged
-  DstText:=values.DstText;        // text of treenode being dragged over
+//  values:=TNodeEventValue(e.ValueObject);
+  SourceName:=e.SourceName;  // name of tree being dragged from
+  SrcText:=e.SrcText;        // text of treenode being dragged
+  DstText:=e.DstText;        // text of treenode being dragged over
   if SourceName='StyleResources' then
   begin
     // set e.ReturnString to "True" or "False"
@@ -538,7 +538,7 @@ begin
     if SrcText <> priorNodeText then
       EditAttributeValue('StyleResources','','SelectedNodeText',SrcText);
     WatchBox.ItemValue:='StyleResources.SelectedNodeText='+StyleResources.SelectedNodeText;
-    if PasteSelectedStyleResources(false,DstText,true,TNodeEventValue(e.ValueObject))=true  then
+    if PasteSelectedStyleResources(false,DstText,true,e.myTreeNode)=true  then
       ReturnString:='True'
     else
       ReturnString:='False';
@@ -584,11 +584,11 @@ procedure TXIDEForm.ResourceTreeHandleDropAccepted(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 var
   SourceIsResourceTree:Boolean;
-  values:TNodeEventValue;
+  //values:TNodeEventValue;
 begin
-  values:=TNodeEventValue(e.ValueObject);
+  //values:=TNodeEventValue(e.ValueObject);
   SourceIsResourceTree:=false;
-  if (values.SourceName='ResourceTree') then SourceIsResourceTree:=true;
+  if (e.SourceName='ResourceTree') then SourceIsResourceTree:=true;
   e.ReturnString:=myBoolToStr(SourceIsResourceTree );
 end;
 
@@ -755,7 +755,6 @@ procedure XIDESetupUIRootNode;
 begin
   UIRootNode.SetAttributeValue('DeploymentMode','Design');
   UIRootNode.SetAttributeValue('SystemName','XIDESystem');
-  UIRootNode.SetAttributeValue('DBVersion','1','Integer',true);
   // Add root node attributes for 'settings' data...
   UIRootNode.SetAttributeValue('ShowResources','Right');     //Left,Right
   UIRootNode.SetAttributeValue('PythonPackages','');    //eg. numpy;matplotlib;scipy
@@ -815,7 +814,7 @@ begin
 
   // files needed for this project to be compiled by pas2js, to generate the project JS file...
   AddRequiredFile('webtranspilerutils','resources/project/webtranspilerutils.pas');
-  AddRequiredFile('xthreads','resources/project/xthreads.pas');
+  //AddRequiredFile('xthreads','resources/project/xthreads.pas');
   AddRequiredFile('xgpucanvas','resources/project/xgpucanvas.pas');
   AddRequiredFile('xgpueditor','resources/project/xgpueditor.pas');
   AddRequiredFile('x3dtable','resources/project/x3dtable.pas');
@@ -926,6 +925,8 @@ begin
   StartupPython;
   {$endif}
 
+  myNode.myEventTypes.Add('PythonEvent');   // generic handler for python scripted events
+  myNode.RegisterEvent('PythonEvent',@OIEventWrapper.RunPyEvent);
 end;
 
 procedure TXIDEForm.LoadIframes(dum:integer);
@@ -945,17 +946,27 @@ procedure TXIDEForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   SaveSystemData;
   SuppressEvents:=true;
-  inherited FormClose(Sender, CloseAction);
+  //// suggested fix from https://forum.lazarus.freepascal.org/index.php?topic=61029.0
+  //Application.Restore;
+  //if (not Self.Visible) then
+  //  Self.Show;
+  //Self.BringToFront;
+  CloseAction := caFree;
+  //// fix didn't make any difference
   {$ifdef Python}
   if Assigned(PythonEngine1) then
   begin
-    PythonEngine1.Finalize;  //!! to prevent crash when main form is closed  !!!! not working?.
-    PythonEngine1.UnloadDll;
+    //PythonEngine1.Finalize;  //!! to prevent crash when main form is closed  !!!! not working?. not available
+    //!! with this version (64bit, latest) as at 30/11/24, the form is left on the screen 'hanging' after close.  No error messages.
     PythonEngine1.Destroy;
   end;
   {$endif}
-end;
+  //inherited FormClose(Sender, CloseAction);
+  Application.ProcessMessages;
+  Application.Terminate;
+  halt;  // sledgehammer fix 30/11/24, to clear the mainform window and stop execution.
 
+end;
 
 procedure TXIDEForm.CompileToJSClick(Sender: TObject);
 var
@@ -971,7 +982,7 @@ begin
   // Close any open popups
   for i:=length(OpenXForms)-1 downto 0 do
   begin
-    CloseXForm(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
+    XFormClose(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
   end;
 
   // Delete object inspector dynamic property editor fields
@@ -981,21 +992,20 @@ begin
 
   ExtraDirectives:=TStringList.Create;
   // Compile the user-created event code into a unit, to check for pas2js compile errors.
-  ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS');
-
+  ok:=true;
+  if ConfigfpcPath<>'' then
+    ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS');
   ExtraHTML:=TStringList.Create;
   if ok then
   begin
     // additional inc file for composite resources
     SaveCompositesToIncFile;
-
     {$ifdef Python}
     ExtraDirectives.add('-dPython');
     ExtraHTML:=PyodideScript;
     {$endif}
     {$ifdef TensorflowJS}
     ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"> </script> '); //##### <!-- Import @tensorflow/tfjs -->
-    //ExtraHTML.Add('<script src="file:///C:/Laz19Projects/XIDE/tf.min.js"> </script> '); //##### <!-- Import @tensorflow/tfjs -->
     {$endif}
 
     //ExtraHTML.Add('<script src="http://asterius.netlify.app/demo/pandoc/pandoc.js"></script> ');  //###### pandoc test
@@ -1035,7 +1045,6 @@ var
   ok:Boolean;
 begin
   ok:=true;
-
   StartingUp:=true;// suppress event handlers while starting up
   CheckBrowser;
 
@@ -1070,7 +1079,6 @@ begin
   // It reflects the system as it was defined when the 'Run in Browser' button was last pressed in the Desktop environment.
   {$I systemnodetree.inc}
   XMLToNodeTree(LoadedSystemString,UIRootNode);   //! has been saved by the 'Run in Browser' menu button
-//  showmessage('after XMLToNodeTree. Node '+SystemRootName+' has '+inttostr(length(systemnodetree.childnodes))+' children');
   InitialiseXIDE;
 
   PopupMemoForm.InitialiseMemo;
@@ -1128,7 +1136,7 @@ begin
     InitialiseComposites;
   end;
 
-  //showmessage('dm='+dm);
+  asm console.log('dm='+dm); end;
   if dm<>'FromLaz' then
   begin
     if dm='Run' then
@@ -1175,9 +1183,9 @@ begin
         {$endif}
       end;
   end;
+
 end;
 {$endif}
-
 
 begin
   MainUnitName:='XIDEMain';

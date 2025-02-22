@@ -5,9 +5,9 @@ unit XIDESettings;
 interface
 
 uses
-  Classes, SysUtils, StringUtils, NodeUtils,
+  Classes, SysUtils, StringUtils, NodeUtils, Events,
   {$ifndef JScript}
-  LazsUtils,
+  Dialogs, LazsUtils,
   {$endif}
   CompileUserCode, XObjectInsp, XVBox, XMemo, XForm, XEditBox, XComboBox,
   XButton, EventsInterface, XCheckBox;
@@ -75,7 +75,7 @@ begin
 
   {$ifndef JScript}
   NewPath := FPCLocationEditBox.ItemValue;
-  if NewPath<>'' then
+  //if NewPath<>'' then
   begin
     ConfigFPCPath := NewPath;
     Lines:=TStringList.Create;
@@ -89,7 +89,7 @@ end;
 procedure TXIDESettingsForm.SettingsDoneButtonHandleButtonClick(
   e: TEventStatus; nodeID: AnsiString; myValue: AnsiString);
 begin
-  CloseXForm('XIDESettingsForm');
+  XFormClose('XIDESettingsForm');
   CloseSettings;
 end;
 

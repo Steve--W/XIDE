@@ -420,17 +420,7 @@ function TX3DTable.Get3DNumArray(dummy:integer):T3DNumArray;
 var
   arr:T3DNumArray;
 begin
-  {$ifdef JScript}
-  asm
-    console.log('Get3DNumArray');
-  end;
-  {$endif}
   arr:=JsonStringTo3DNumArray(self.Table3DData);
-{$ifdef JScript}
-asm
-  console.log(arr);
-end;
-{$endif}
   result := arr;
 end;
 

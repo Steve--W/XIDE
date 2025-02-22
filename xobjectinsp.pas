@@ -30,7 +30,7 @@ uses
   WrapperPanel,  CompileUserCode,
   XHBox, XVBox, XCode,XColorPicker,
   XTree,  XButton, XScrollBox, XEditBox, XCheckBox, XComboBox, XTabControl,
-  XForm, XTable, XMemo, XMenu, CodeEditor, PropertyEditUnit, EventsInterface,
+  XForm, XTable, XMemo, XMenu, CodeEditor, PropertyEditUnit,EventsInterface,
   XGPUCanvas, XGPUEditor, XCompositeIntf, StylesUtils,IntfParamUnit,IntfEventUnit;
 
 {$ifdef JScript}
@@ -65,6 +65,7 @@ type
     procedure OIDelPropertyButtonClick(e:TEventStatus;nodeId:string;myValue:string);
     procedure OIDelEventButtonClick(e:TEventStatus;nodeId:string;myValue:string);
     procedure CloseGPUEditor(e:TEventStatus;nodeId:string;myValue:string);
+    procedure RunPyEvent(e:TEventStatus;nodeId:string;myValue:string);
     {$ifdef JScript}
     procedure OIPasteTarget(e:TEventStatus;nodeId:string;myValue:string);
     {$endif}
@@ -115,7 +116,7 @@ function DoSystemLoad(SystemDescription,SysName:string):Boolean;
 procedure CodeEditorClosed(EditBoxNode:TdataNode);
 procedure PropertyEditorClosed(EditBoxNode:TdataNode);
 function isValidSystemData(SystemDescription:string):boolean;
-procedure EditEventCode(NodeNameToEdit,EventToEdit,MainCode,InitCode:String);
+procedure UpdateEventCode(NodeNameToEdit,EventToEdit,MainCode,InitCode:String);
 procedure OIAddCodeUnitNode(UnitType:String);
 procedure OIEditCodeUnit;
 procedure OIDeleteCodeUnit;
@@ -150,7 +151,8 @@ function CanAddChildToParent(ParentNode,SourceNode:TDataNode):Boolean;
 function GetValidItemName(PromptString,DefaultString:String):String;
 function ComponentNameIsUnique(ScreenObjectName,NameSpace:string):Boolean;
 procedure SetScreenToDesignMode;
-procedure CheckForPythonCode;
+function CheckForPythonCode:Boolean;
+function CheckForPascalCode:Boolean;
 
 
 const
@@ -192,7 +194,7 @@ const
   AttributeEditorNameDelimiter:string = '__';
 
 implementation
-uses SavedSystems, PasteDialogUnit, PyXUtils, XIDEMain;
+uses SavedSystems,PasteDialogUnit, PyXUtils, XIDEMain;
 
 
   //SandraMode:Boolean = true;
@@ -394,7 +396,7 @@ begin
         // This is a raw Pascal unit or a Python script.
         // Pascal: If the compiler has been run (pas2js), then there will be a list of defined procedures/functions
         // available for display in this tree.
-        i:=length(pyUnitFuncs);
+        //i:=length(pyUnitFuncs);
         for i:=0 to length(XIDEProcsList)-1 do
         begin
           if lowercase(XIDEProcsList[i].FileName) = lowercase(CurrentItem.NodeName)+'.pas' then
@@ -404,6 +406,7 @@ begin
             ProcsString:=ProcsString+',"'+XIDEProcsList[i].Name+'"';
           end;
         end;
+        {$ifdef Python}
         // Python:
         for i:=0 to length(pyUnitFuncs)-1 do
         begin
@@ -413,6 +416,7 @@ begin
             ProcsString:=ProcsString+',"'+pyUnitFuncs[i].PyFuncName+'"';
           end;
         end;
+        {$endif}
       end;
 
 
@@ -495,30 +499,35 @@ end;
 
 Function ConstructEventsTreeString(CurrentItem:TDataNode;var e:integer):String;
 // Recursive
-var ArrayString,dflt:String;
+var ArrayString,dflt,et:String;
     i,numchildren:integer;
+    Event:TEventHandlerRec;
 begin
-  dflt:=DfltEventCode;
   if CurrentItem<>nil then
   if CurrentItem.NameSpace='' then
   begin
 
-      numchildren:=length(CurrentItem.ChildNodes);
 
       if CurrentItem=MainFormProjectRoot then
         ArrayString:=',["Root(Events)"';
 
       for i:=0 to CurrentItem.myEventTypes.Count-1 do
       begin
-        if (CurrentItem.HasUserEventCode(CurrentItem.myEventTypes[i]))
-        and (CurrentItem.GetEventCode(CurrentItem.myEventTypes[i])<>dflt) then
+        et:=CurrentItem.myEventTypes[i];
+        if (CurrentItem.HasUserEventCode(CurrentItem.myEventTypes[i])) then
         begin
+          Event:=CurrentItem.GetEvent(CurrentItem.myEventTypes[i]);
+          dflt:=DfltEventCode(Event.EventLanguage);
+          if (CurrentItem.GetEventCode(CurrentItem.myEventTypes[i])<>dflt) then
+          begin
            e:=e+1;
            ArrayString:=ArrayString+',';
            ArrayString:=ArrayString+'"'+CurrentItem.NodeType+'('+CurrentItem.NodeName+') '+CurrentItem.myEventTypes[i]+'"'
+          end;
         end;
       end;
 
+      numchildren:=length(CurrentItem.ChildNodes);
  //     {$ifdef JScript} showmessage(CurrentItem.Nodename+' has '+inttostr(numchildren)+' children'); {$endif}
       for i:=0 to numchildren-1 do
       begin
@@ -688,10 +697,8 @@ end;
 
 procedure InitialiseXIDE;
 begin
-  //OITabs:=FindDataNodeById(SystemNodeTree,'OITabs','',true);
   OITabs:=FindDataNodeById(UIRootNode,'OITabs','',true);
   PropertiesNode:=FindDataNodeById(OITabs,PropertyEditorScrollboxName,'',true);
-  //DMAttribsNode:=FindDataNodeById(UIRootNode,DMAttribsScrollboxName,'',true);
   InterfacePropsNode:=FindDataNodeById(OITabs,CompositePropsScrollboxName,'',true);
   EventsNode:=FindDataNodeById(OITabs,EventsEditorScrollboxName,'',true);
   InterfaceTabNode:=FindDataNodeById(OITabs,CompositePropsTabName,'',true);
@@ -702,7 +709,6 @@ begin
   // Populate navigator and code tree from SystemNodeTree
   RebuildNavigatorTree;
   RebuildCodeTree;
-  //RebuildDMTree;
 
   {$ifndef JScript}
   ConsoleNode:=FindDataNodeById(UIRootNode,'XMemo1','',true);
@@ -711,6 +717,8 @@ begin
   PasteDialogUnit.SetupPasteDialogForm;
   PasteDialogUnit.PasteTarget.myNode.registerEvent('MemoPaste',@OIEventWrapper.OIPasteTarget);
   XGPUEditor.CreateGPUEditForm;
+  TDataNode(MainForm).myEventTypes.Add('PythonEvent');   // generic handler for python scripted events
+  TDataNode(MainForm).RegisterEvent('PythonEvent',@OIEventWrapper.RunPyEvent);
   {$endif}
 end;
 
@@ -1051,7 +1059,7 @@ begin
   RegisterResource('RNV','','Non-Visual Components',ResourceDataRootName,'');
   RegisterResource('RNV','TXStore','TXStore','Non-Visual Components','Data Store item (keyname, value pair)');
   RegisterResource('RNV','TXTrapEvents','TXTrapEvents','Non-Visual Components','Event handler to intercept system events');
-  RegisterResource('RNV','TXThreads','TXThreads','Non-Visual Components','To provide multi-thread process');
+//  RegisterResource('RNV','TXThreads','TXThreads','Non-Visual Components','To provide multi-thread process');
   RegisterResource('RNV','TXCompositeIntf','TXCompositeIntf','Non-Visual Components','Interface element for Composites');
 
   NamesList.Free;
@@ -1242,7 +1250,7 @@ begin
   for i:=length(OpenXForms)-1 downto 0 do
   begin
     if (OpenXForms[i].NodeName<>MainForm.Name) or (OpenXForms[i].NameSpace<>'') then
-      CloseXForm(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
+      XFormClose(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
   end;
   if CurrentNode.MyForm<>nil  then
     ShowXForm(CurrentNode.MyForm.Name,false,CurrentNode.NameSpace);
@@ -1612,7 +1620,6 @@ UIRootNode
 
   // set hints for the special attributes on UIRootNode
   UIRootNode.GetAttribute('DeploymentMode',false).AttribHint:='When the designed system is deployed to html (menu System>Deploy) it is set up to start in design mode or run mode ';
-  UIRootNode.GetAttribute('DBVersion',false).AttribHint:='Latest iteration number of the local database built from data description on entry to run mode ';
   UIRootNode.GetAttribute('PythonPackages',false).AttribHint:='Python packages to be loaded in the browser (pyodide) environment (; delimited, eg numpy;matplotlib). ';
 
 
@@ -1705,6 +1712,7 @@ begin
   result:=ln;
 end;
 
+{$ifdef Python}
 function FindLineNumForPyFunc(UnitNode:TDataNode;FuncName:String):integer;
 var
   i,j,ln:integer;
@@ -1740,6 +1748,7 @@ begin
   if ln<0 then ln:=0;
   result:=ln;
 end;
+{$endif}
 
 procedure HandleCodeTreeClickEvent(TreeNodeId,TreeNodeText,FirstBit:String);
 var
@@ -1791,12 +1800,14 @@ begin
          OISelectedCodeProcName:=TreeNodeId;
          OISelectedCodeLineNum:=FindLineNumForProc(OISelectedCodeProcName);
       end
+      {$ifdef Python}
       else if (CurrentNode.NodeType='PythonScript') then
       begin
          SelectCodeTreeNode(CurrentNode,false,TreeNodeText);
          OISelectedCodeProcName:=TreeNodeId;
          OISelectedCodeLineNum:=FindLineNumForPyFunc(CurrentNode,OISelectedCodeProcName);
       end
+      {$endif}
       else
       begin
         showmessage('Cannot find system node '+TreeNodeId);
@@ -2355,6 +2366,7 @@ begin
                 // in design mode, as it is defined within the encapsulated composite element.
                 evh := InterfaceNodes[i].GetEvent(evtyp);
                 NewNode.AddEvent(evtyp,
+                                 evh.EventLanguage,
                                  evh.TheCode,
                                  evh.InitCode,
                                  evh.ReadOnlyInterface,
@@ -2644,60 +2656,15 @@ begin
   result:=MatchFound;
 end;
 
-procedure CheckEventCode(StartNode:TDataNode);
-var
-  i:integer;
-  tmp:string;
-begin
-  if (StartNode.IsDynamic) or (StartNode=UIRootNode) then
-    for i:=0 to length(StartNode.myEventHandlers)-1 do
-    begin
-      tmp:=StartNode.myEventHandlers[i].TheCode;
-      if (trim(tmp)<>'')  then
-      begin
-         tmp:=trim(StartNode.myEventHandlers[i].InitCode);
-         if not PythonCodeExists then
-           PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
 
-         tmp:=StartNode.myEventHandlers[i].TheCode;
-         if not PythonCodeExists then
-           PythonCodeExists := (FoundStringCI(tmp,'RunPython(')>0);
-
-      end;
-    end;
-  if not PythonCodeExists then
-    for i:=0 to length(StartNode.ChildNodes)-1 do
-      CheckEventCode(StartNode.ChildNodes[i]);
-
-end;
-procedure CheckForPythonCode;
-var
-  i:integer;
-begin
-  PythonCodeExists:=false;
-  for i:=0 to length(CodeRootNode.ChildNodes)-1 do
-  begin
-    if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
-    begin
-       PythonCodeExists:=true;
-    end;
-  end;
-  if not PythonCodeExists then
-  begin
-    // also check ALL Pascal event code for 'RunPython' calls...
-    PythonCodeExists:=false;
-    CheckEventCode(SystemNodeTree);
-  end;
-
-end;
 
 {$ifndef Python}
 
 procedure CheckForPythonCode2;
 begin
-  CheckForPythonCode;
+  PythonCodeExists:=CheckForPythonCode;
   if PythonCodeExists then
-    showmessage('Warning: The loaded system contains Python code.  These cannot be executed unless the XIDE framework is built with the ''Python'' option');
+    showmessage('Warning: The loaded system contains Python code.  These cannot be executed unless the XIDE framework is built with the ''-dPython'' option');
 end;
 {$endif}
 
@@ -2951,7 +2918,7 @@ procedure OIDropItem(e:TEventStatus;nodeId:string;myValue:string);
 var
   TreeNodeId,p1:string;
   OriginalSource, OriginalParent:TDataNode;
-  values:TNodeEventValue;
+  //values:TNodeEventValue;
   OriginalPos:integer;
   ok,ItemWasCut:boolean;
 begin
@@ -3349,11 +3316,13 @@ begin
     // close XForm windows
     for i:=length(OpenXForms)-1 downto 0 do
     begin
-      CloseXForm(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
+      XFormClose(OpenXForms[i].NodeName,OpenXForms[i].NameSpace);
     end;
-    SetSystemName('XIDESystem');
 
+    SetSystemName('XIDESystem');
+    {$ifdef Python}
     PyMemoComponent:=XIDEMain.XIDEForm.XMemo1;
+    {$endif}
 
     ClearInspectors;
     ClearAllDynamicNodes(SystemNodeTree); // clear any existing dynamic screen components under Root
@@ -3368,9 +3337,6 @@ begin
     RebuildResourcesTree;
     InitialiseStyleDesigner;
 
-    //InitDMTree;
-    //DMChanged:=false;
-    //RebuildDMTree;
  end;
 
 
@@ -3405,6 +3371,7 @@ begin
   dm2:=UIRootNode.GetAttribute('DeploymentMode',false).AttribValue;
   UIRootNode.SetAttributeValue('SystemName',deployname);
 
+  ok:=true;
   ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
   DeleteGreyOverlay('Grey1');
   if ok then
@@ -3477,8 +3444,17 @@ begin
 
   {$ifndef JScript}
   lines:=TStringList.Create;
-  // Compile the user-created event code into a unit.
-  ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS');
+  PascalCodeExists:=CheckForPascalCode;
+  ok:=true;
+  if ConfigfpcPath<>'' then    // Pascal compiler is available
+    // Compile the user-created event code into a unit.
+    ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS')
+  else if PascalCodeExists then
+  begin
+    ok:=false;
+    ShowMessage('Warning:  Pascal code cannot be compiled (fpc unavailable - check Settings)');
+  end;
+
   if ok then
   begin
      Screen.Cursor := crHourglass;
@@ -3679,8 +3655,11 @@ begin
   if CodeEditForm.CodeEdit.MessageLines<>'' then
   begin
 
-    CodeEditForm.Mode:='dll';
-    CodeEditForm.InitialiseOnShow('Compiler Errors','','');
+    //CodeEditForm.Mode:='dll';
+    CodeEditForm.Context:='dll';
+    CodeEditForm.Language:='Pascal';
+
+    CodeEditForm.InitialiseOnShow('','');
 
     ShowXForm('CodeEditForm',true);     // the relevant text and message contents have already been populated
 
@@ -3703,9 +3682,9 @@ begin
 
   if ok then
   begin
-    asm
-      console.log('CompleteToggleToRunMode calling event OnEnterRunMode');
-    end;
+    //asm
+    //  console.log('CompleteToggleToRunMode calling event OnEnterRunMode');
+    //end;
     {$ifdef Python}
     asm
     async function waitForNewPackages() {
@@ -3768,8 +3747,6 @@ begin
     GatherSourcedAttributes(UIRootNode);
     PushAllSourcesToAttributes;
 
-    //ok:=BuildLocalDB(StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue));
-
     SuppressUserEvents:=false;
 
     HandleEventLater(nil,'OnEnterRunMode',SystemRootName,'','');
@@ -3784,11 +3761,7 @@ begin
     {$else}
     GatherSourcedAttributes(UIRootNode);
     PushAllSourcesToAttributes;
-    asm console.log('ToggleToRunModeAfterCompile 1'); end;
-    //v:=StrToInt(UIRootNode.GetAttribute('DBVersion',false).AttribValue);
-    //asm
-    //  ok=pas.XDataModel.BuildLocalDB(v,pas.XObjectInsp.CompleteToggleToRunMode);
-    //end;
+    //asm console.log('ToggleToRunModeAfterCompile 1'); end;
     CompleteToggleToRunMode(ok);
     {$endif}
   end
@@ -3821,15 +3794,17 @@ procedure ContinueToggleToRunMode;
 var
   ok:Boolean;
 begin
-    // Compile the user-created event code, using embedded pas2js compiler
-    // and generate js
-    ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
-    asm console.log('calling ToggleToRunModeAfterCompile'); end;
-    ToggleToRunModeAfterCompile(ok);
-    asm console.log('ToggleToRunModeAfterCompile done'); end;
-    {$ifndef Python}
-    DeleteGreyOverlay('Grey1');
-    {$endif}
+  ok:=true;
+  //asm console.log('ContinueToggleToRunMode...'); end;
+  // Compile the user-created event code, using embedded pas2js compiler
+  // and generate js
+  ok:=CompileEventCode(CodeEditForm.CodeEdit,'JSJS');
+  //asm console.log('calling ToggleToRunModeAfterCompile'); end;
+  ToggleToRunModeAfterCompile(ok);
+  //asm console.log('ToggleToRunModeAfterCompile done'); end;
+  {$ifndef Python}
+  DeleteGreyOverlay('Grey1');
+  {$endif}
 end;
 {$endif}
 
@@ -3878,13 +3853,28 @@ begin
     {$endif}
 
     SetLength(SourcedAttribs,0);
+
     {$ifndef JScript}
-    // Check pas2js Compilation of the user-created event code first.
-    ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS');
+    PascalCodeExists := CheckForPascalCode;
+
+    FPCAvailable:=false;
+    ok:=true;
+    if ConfigfpcPath<>'' then    // Pascal compiler is available
+    begin
+      FPCAvailable:=true;
+      // Check pas2js Compilation of the user-created event code first.
+      ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazJS');
+    end
+    else if PascalCodeExists then
+    begin
+      ShowMessage('Warning:  Pascal code cannot be compiled (fpc unavailable - check Settings)');
+    end;
+
     if ok then
     begin
-      // Now Compile the user-created event code into the dll.
-      ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazDll');
+      if (ConfigfpcPath<>'') then
+        // Now Compile the user-created event code into the dll.
+        ok:=CompileEventCode(CodeEditForm.CodeEdit,'LazDll');
       ToggleToRunModeAfterCompile(ok);
     end
     else
@@ -3926,7 +3916,9 @@ begin
   else
   begin
     // Go to Design Mode
+    {$ifdef Python}
     PyScriptsExecuted:=false;
+    {$endif}
     if StartingUp=false then
     begin
       // First, STOP any running GPU components
@@ -3978,7 +3970,7 @@ begin
    end;
 end;
 
-procedure EditEventCode(NodeNameToEdit,EventToEdit,MainCode,InitCode:String);
+procedure UpdateEventCode(NodeNameToEdit,EventToEdit,MainCode,InitCode:String);
 var
   targetNode:TDataNode;
   i:integer;
@@ -4206,8 +4198,9 @@ end;
 procedure TOIEventWrapper.OIEditEvent(e:TEventStatus;nodeId:string;myValue:string);
 var
   bits:TStringList;
-  NodeNameToEdit,EventToEdit,EventInitCode:String;
+  NodeNameToEdit,EventToEdit:String;
   EventNode:TDataNode;
+  Event:TEventHandlerRec;
 begin
       bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
       if bits.Count = 4 then
@@ -4217,9 +4210,10 @@ begin
           NodeNameToEdit:=bits[1];
           EventToEdit:=bits[2];
           EventNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
-          EventInitCode:=EventNode.GetEventCode(EventToEdit);
+          //EventInitCode:=EventNode.GetEventCode(EventToEdit);
+          Event:= EventNode.GetEvent(EventToEdit);
           //showmessage('OIEditEvent '+nodeId+' '+myValue);
-          EditEventCode(NodeNameToEdit,EventToEdit,myValue,EventInitCode);
+          UpdateEventCode(NodeNameToEdit,EventToEdit,myValue,Event.InitCode);
         end;
       end;
 end;
@@ -4231,6 +4225,37 @@ begin
     RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
 end;
 
+procedure TOIEventWrapper.RunPyEvent(e:TEventStatus;nodeId:string;myValue:string);
+ type
+    TMyFunc=procedure(e:TEventStatus;nodeID:AnsiString;myValue:AnsiString); stdcall;     // same as TEventHandler
+ var
+   i:integer;
+   m: TMethod;
+   MainCode,InitCode,NodeName:String;
+   bits:TStringList;
+   eventNode:TDataNode;
+ begin
+   glbEvent:=e;
+   bits:=stringsplit(nodeId,'.');
+   NodeName:=bits[bits.count-1];
+
+   eventNode:=FindDataNodeById(UIRootNode,NodeName,'',true);
+
+   // fetch the Python script to be executed
+   for i:=0 to eventNode.myEventTypes.count-1 do
+   begin
+     if (eventNode.myEventTypes[i] = e.EventType)
+     or ((eventNode.NodeType='TXTrapEvents') and (eventNode.myEventTypes[i]='Any')) then
+     begin
+       MainCode := eventNode.myEventHandlers[i].TheCode;
+       InitCode := eventNode.myEventHandlers[i].InitCode;
+     end;
+   end;
+
+   ExecuteEventHandler(e,NodeId, myValue, nil,nil,InitCode,MainCode) // deals with init/main things.....
+
+ end;
+
 procedure CodeEditorClosed(EditBoxNode:TdataNode);
 var
   tmp:string;
@@ -4239,36 +4264,35 @@ begin
   //showmessage('CodeEditorClosed. Mode='+CodeEditForm.Mode+' return status '+ CodeEditStatus);
   if CodeEditStatus = 'ok' then
   begin
-    tmp:=CodeEditForm.CodeEdit.ItemValue;
-    if CodeEditForm.Mode='EventCode' then
+    //if CodeEditForm.Mode='EventCode' then
+    if CodeEditForm.Context='EventCode' then
     begin
       if EditBoxNode<>nil then
          // set value of the associated edit box
          TXEditBox(EditBoxNode.ScreenObject).ItemValue:=CodeEditForm.CodeEdit.ItemValue;
          // nb. above doesn't trigger the onchange event for the edit box.
+      if CodeEditForm.CodeEdit.ItemValue = LineEnding then CodeEditForm.CodeEdit.ItemValue:='';
+      if CodeEditForm.CodeEditInit.ItemValue = LineEnding then CodeEditForm.CodeEditInit.ItemValue:='';
       // update the Code data...
-      EditEventCode(CodeEditForm.TargetNodeName,CodeEditForm.EventType,CodeEditForm.CodeEdit.ItemValue,
-                                                                       CodeEditForm.CodeEditInit.ItemValue);
+      UpdateEventCode(CodeEditForm.TargetNodeName,CodeEditForm.EventType,CodeEditForm.CodeEdit.ItemValue,
+                                                                         CodeEditForm.CodeEditInit.ItemValue);
       if ObjectInspectorSelectedNavTreeNode<>nil then
         RefreshObjectInspector(ObjectInspectorSelectedNavTreeNode);
 
     end
-    else if (CodeEditForm.Mode='UnitCode')
-      or (CodeEditForm.Mode='PasUnitCode')
-      or (CodeEditForm.Mode='PythonScriptCode')
-      //or (CodeEditForm.Mode='DMOpCode')
+    //else if (CodeEditForm.Mode='UnitCode')
+    //  or (CodeEditForm.Mode='PasUnitCode')
+    //  or (CodeEditForm.Mode='PythonScriptCode')
+    else if (CodeEditForm.Context='UnitCode')
+      or (CodeEditForm.Context='PasUnitCode')
+      or (CodeEditForm.Context='PythonScriptCode')
     then
     begin
-      tmp:=CodeEditForm.TargetNodeName;
-      // name of unit is in TargetNodeName
-      //if (CodeEditForm.Mode='DMOpCode') then
-      //  CodeNode:=FindDataNodeById(DMRoot,CodeEditForm.TargetNodeName,'',true)
-      //else
-        CodeNode:=FindDataNodeById(CodeRootNode,CodeEditForm.TargetNodeName,'',true);
+      CodeNode:=FindDataNodeById(CodeRootNode,CodeEditForm.TargetNodeName,'',true);
       tmp:=CodeEditForm.CodeEdit.ItemValue;
       CodeNode.SetAttributeValue('Code',tmp,'String');
     end
-    else if (CodeEditForm.Mode='SearchCode')  then
+    else if (CodeEditForm.Context='SearchCode')  then
     begin
       // do nothing
     end;
@@ -4348,20 +4372,34 @@ end;
 
 procedure TOIEventWrapper.OIEditEventCodeFromCodeTree(NodeNameToEdit:string;EventToEdit:string);
 var
-  EventCode, EventInitCode:string;
+  EventCode, EventInitCode, Language:string;
   targetNode:TDataNode;
+  Event:TEventHandlerRec;
+  ok:Boolean;
 begin
   // pop up the syntax editor.
   OIEditBox:=nil;
   targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
-  EventCode:=targetNode.GetEventCode(EventToEdit);
-  EventInitCode:=targetNode.GetEventInitCode(EventToEdit);
+  Event:=targetNode.GetEvent(EventToEdit);
+  EventCode:=Event.TheCode;
+  EventInitCode:=Event.InitCode;
+  Language:=Event.EventLanguage;
   if Trim(EventCode)='' then
   begin
+    {$ifdef Python}
+    ok:=XIDEConfirm('Confirm Pascal event? (otherwise Python)');
+    if ok then Language:='Pascal'
+    else Language:='Python';
+    {$else}
+    Language:='Pascal';
+    {$endif}
     // provide a template event procedure
-    EventCode:= 'begin' + LineEnding +
-                ' ' + LineEnding +
-                'end;' + LineEnding;
+    if Language='Python' then
+      EventCode:= '# Python Event Code'
+    else
+      EventCode:= 'begin' + LineEnding +
+                  ' ' + LineEnding +
+                  'end;' + LineEnding;
   end;
   CodeEditForm.CodeEdit.ItemValue := EventCode;
   CodeEditForm.CodeEditInit.ItemValue := EventInitCode;
@@ -4370,8 +4408,9 @@ begin
   CodeEditForm.CodeEditInit.MessageLines:='';
 
   CodeEditForm.CodeEditMainTabs.TabIndex:=0;
-  CodeEditForm.Mode:='EventCode';
-  CodeEditForm.InitialiseOnShow('Event Handler',NodeNameToEdit,EventToEdit);
+  CodeEditForm.Context:='EventCode';
+  CodeEditForm.Language := Language;
+  CodeEditForm.InitialiseOnShow(NodeNameToEdit,EventToEdit);
   ShowXForm('CodeEditForm',true);
 
 end;
@@ -4380,8 +4419,10 @@ procedure TOIEventWrapper.OIEditEventCode(e:TEventStatus;nodeId:string;myValue:s
 var
   EditBoxName, EventCode:string;
   bits:TStringList;
-  NodeNameToEdit,EventToEdit:String;
+  NodeNameToEdit,EventToEdit,Language:String;
   targetNode:TDataNode;
+  Event:TEventHandlerRec;
+  ok:Boolean;
 begin
   bits:=stringsplit(nodeId,AttributeEditorNameDelimiter);
   if bits.Count = 4 then
@@ -4393,6 +4434,8 @@ begin
     end;
   end;
   bits.Free;
+  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
+  Event:=targetNode.GetEvent(EventToEdit);
   // pop up the syntax editor.
   // remove the 'Btn' suffix
   EditBoxName:=Copy(nodeId,1,length(nodeId)-3);
@@ -4400,25 +4443,42 @@ begin
   EventCode:=TXEditBox(OIEditBox.ScreenObject).ItemValue;
   if Trim(EventCode)='' then
   begin
+    {$ifdef Python}
+    if (Event.InitCode='') and (Event.TheCode='') then
+    begin
+    ok:=XIDEConfirm('Confirm Pascal event? (otherwise Python)');
+    if ok then Language:='Pascal'
+    else Language:='Python';
+    end
+    else Language:=Event.EventLanguage;
+    {$else}
+    Language:='Pascal';
+    {$endif}
+
     // provide a template event procedure
-    if (FoundString(EventToEdit,'Thread')=1)
-    and (FoundString(EventToEdit,'ThreadVars')<>1) then
-      EventCode:= DfltThreadEventCode(NodeNameToEdit)
-    else if (EventToEdit='DropAccepted') then
-      EventCode := DfltTreeNodeEventCode
+//    if (FoundString(EventToEdit,'Thread')=1)
+//    and (FoundString(EventToEdit,'ThreadVars')<>1) then
+//      EventCode:= DfltThreadEventCode(NodeNameToEdit)
+//    else
+    if (EventToEdit='DropAccepted') then
+      EventCode := DfltTreeNodeEventCode(Language)
     else
-      EventCode:= DfltEventCode;
-  end;
+      EventCode:= DfltEventCode(Language);
+  end
+  else
+    Language:=Event.EventLanguage;
+
+  Event.EventLanguage:=Language;
   CodeEditForm.CodeEdit.ItemValue := EventCode;
-  targetNode:=FindDataNodeById(UIRootNode,NodeNameToEdit,'',true);
-  CodeEditForm.CodeEditInit.ItemValue := targetNode.GetEventInitCode(EventToEdit);
+  CodeEditForm.CodeEditInit.ItemValue := Event.InitCode;
 
   CodeEditForm.CodeEdit.MessageLines:='';
   CodeEditForm.CodeEditInit.MessageLines:='';
 
-  CodeEditForm.Mode:='EventCode';
+  CodeEditForm.Context:='EventCode';
+  CodeEditForm.Language := Language;
   CodeEditForm.CodeEditMainTabs.TabIndex:=0;
-  CodeEditForm.InitialiseOnShow('Event Handler',NodeNameToEdit,EventToEdit);
+  CodeEditForm.InitialiseOnShow(NodeNameToEdit,EventToEdit);
 
   ShowXForm('CodeEditForm',true);
 
@@ -5033,7 +5093,6 @@ var
   UnitCode, EventType:string;
   tmp,NodeNameToEdit:String;
   bits:TStringList;
-  //AllKernels:TAnimCodeArray;
 begin
   if ObjectInspectorSelectedCodeTreeNode<>nil then
   begin
@@ -5056,8 +5115,13 @@ begin
       CodeEditForm.CodeEdit.ItemValue := UnitCode;
       CodeEditForm.CodeEdit.MessageLines:='';
 
-      CodeEditForm.Mode:=ObjectInspectorSelectedCodeTreeNode.NodeType+'Code';
-      CodeEditForm.InitialiseOnShow(ObjectInspectorSelectedCodeTreeNode.NodeType,NodeNameToEdit,'');
+      CodeEditForm.Context:=ObjectInspectorSelectedCodeTreeNode.NodeType+'Code';
+      if CodeEditForm.Context='PythonScriptCode' then
+        CodeEditForm.Language:='Python'
+      else
+        CodeEditForm.Language:='Pascal';
+      //CodeEditForm.InitialiseOnShow(ObjectInspectorSelectedCodeTreeNode.NodeType,NodeNameToEdit,'');
+      CodeEditForm.InitialiseOnShow(NodeNameToEdit,'');
       {$ifdef JScript}
       ShowXForm('CodeEditForm',true);
       {$endif}
@@ -5089,7 +5153,7 @@ begin
       bits:=StringSplit(tmp,')');
       if bits.Count=2 then
       begin
-        // event follows the space
+        // event type follows the space
         EventType:=TrimWhiteSpace(bits[1]);
         if EventType<>'' then
           // Pop up the event code editor
@@ -5117,13 +5181,13 @@ begin
   CodeEditForm.CodeEdit.ItemValue := '';
   CodeEditForm.CodeEdit.MessageLines:='';
 
-  CodeEditForm.Mode:='SearchCode';
+  CodeEditForm.Context:='SearchCode';
   if (ObjectInspectorSelectedCodeTreeNode<>nil)
   and (ObjectInspectorSelectedCodeTreeNode.NodeType='PasUnit') then
   begin
     CodeEditForm.CodeEditFindTxt.ItemValue:=OISelectedCodeProcName;
   end;
-  CodeEditForm.InitialiseOnShow('Search Results','','');
+  CodeEditForm.InitialiseOnShow('','');
   ShowXForm('CodeEditForm',true);
   {$ifdef JScript}
   CodeEditForm.CodeEditFindTxt.HasFocus:=true;
@@ -5263,7 +5327,94 @@ begin
 end;
 {$endif}
 
+procedure CheckPyEventCode(StartNode:TDataNode;var found:Boolean);
+var
+  i:integer;
+  tmp:string;
+begin
+  if (StartNode.IsDynamic) or (StartNode=UIRootNode) then
+    for i:=0 to length(StartNode.myEventHandlers)-1 do
+    begin
+      if StartNode.myEventHandlers[i].EventLanguage = 'Python' then
+        found := true
+      else
+      begin
+      tmp:=StartNode.myEventHandlers[i].TheCode;
+      if (trim(tmp)<>'')  then
+      begin
+         tmp:=trim(StartNode.myEventHandlers[i].InitCode);
+         if not found then
+           found := (FoundStringCI(tmp,'RunPython(')>0);
 
+         tmp:=StartNode.myEventHandlers[i].TheCode;
+         if not found then
+           found := (FoundStringCI(tmp,'RunPython(')>0);
+
+      end;
+      end;
+    end;
+  if not found then
+    for i:=0 to length(StartNode.ChildNodes)-1 do
+      CheckPyEventCode(StartNode.ChildNodes[i],found);
+
+end;
+function CheckForPythonCode:Boolean;
+var
+  i:integer;
+  found:Boolean;
+begin
+  found:=false;
+  for i:=0 to length(CodeRootNode.ChildNodes)-1 do
+  begin
+    if CodeRootNode.ChildNodes[i].NodeType='PythonScript' then
+    begin
+       found:=true;
+    end;
+  end;
+  if not found then
+  begin
+    // also check ALL Pascal event code for 'RunPython' calls...
+    CheckPyEventCode(SystemNodeTree,found);
+  end;
+  result:=found;
+end;
+
+procedure CheckPasEventCode(StartNode:TDataNode;var found:Boolean);
+var
+  i:integer;
+  tmp:string;
+begin
+  if (StartNode.IsDynamic) or (StartNode=UIRootNode) then
+    for i:=0 to length(StartNode.myEventHandlers)-1 do
+    begin
+      if StartNode.myEventHandlers[i].EventLanguage = 'Pascal' then
+        found := true;
+    end;
+  if not found then
+    for i:=0 to length(StartNode.ChildNodes)-1 do
+      CheckPasEventCode(StartNode.ChildNodes[i],found);
+
+end;
+function CheckForPascalCode:Boolean;
+var
+  i:integer;
+  found:Boolean;
+begin
+  found:=false;
+  for i:=0 to length(CodeRootNode.ChildNodes)-1 do
+  begin
+    if CodeRootNode.ChildNodes[i].NodeType='PasUnit' then
+    begin
+       found:=true;
+    end;
+  end;
+  if not found then
+  begin
+    // also check ALL event code ...
+    CheckPasEventCode(SystemNodeTree,found);
+  end;
+  result:=found;
+end;
 
 begin
   AddAttribOptions('Root','DeploymentMode',DeploymentModeOptions);

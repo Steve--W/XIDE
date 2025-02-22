@@ -12,7 +12,7 @@
 unit InterfaceTypes;
 (*
    Interface declarations
-   for use with the dynamically created dll, used for executing user event code (also see unit CompileUserCode)
+   for use with the dynamically created units, used for executing user event code (also see unit CompileUserCode)
  *)
 
 {$ifndef JScript}
@@ -24,6 +24,7 @@ interface
 uses
   Classes, SysUtils, EventsInterface;
 
+{$ifndef Dll}
 type
 Tshowmessage=procedure(msg:String) of object;
 Tsetpropertyvalue=procedure(nodeName:String;propName:String;newValue:String) of object;
@@ -79,7 +80,7 @@ TPyodidePackageLoaded=function(nm:String):Boolean of object;
 //TDSAppendRow=function(e:TEventStatus;DSName:String;recObject:TObject):Boolean of object;
 //TDSDeleteRow=function(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean of object;
 //TDSDeleteAllRows=function(e:TEventStatus;DSName:String):Boolean of object;
-
+{$endif}
 
 {$ifdef JScript}
 var
@@ -139,7 +140,7 @@ PyodidePackageLoaded:TPyodidePackageLoaded;
 
 //DSDatasetToString:TDSDatasetToString;
 
-var EventsNameSpace:String;
+//var EventsNameSpace:String;   //moved into XComponents
 
 type TMethodsClass = class(TObject)
  public
@@ -292,7 +293,7 @@ end;
 procedure TMethodsClass.mmiSetEventsNameSpace(NameSpace:String);
 begin
   asm
-  pas.InterfaceTypes.EventsNameSpace=NameSpace;
+  pas.EventsInterface.EventsNameSpace=NameSpace;
   end;
 end;
 procedure TMethodsClass.mmishowmessage(msg:String);
@@ -304,18 +305,18 @@ end;
 procedure TMethodsClass.mmisetpropertyvalue(nodeName:String;propName:String;newValue:String);
 begin
   asm
-  pas.NodeUtils.EditAttributeValue2(nodeName,pas.InterfaceTypes.EventsNameSpace,propName,newValue);
+  pas.NodeUtils.EditAttributeValue2(nodeName,pas.EventsInterface.EventsNameSpace,propName,newValue);
   end;
 end;
 procedure TMethodsClass.mmisetpropertyvalueindexed(nodeName:String;propName:String;newValue:TStringArray; x,y:integer);
 begin
   asm
-  pas.NodeUtils.EditAttributeValueIndexed(nodeName,pas.InterfaceTypes.EventsNameSpace,propName,newValue,x,y);
+  pas.NodeUtils.EditAttributeValueIndexed(nodeName,pas.EventsInterface.EventsNameSpace,propName,newValue,x,y);
 
 
-  if (pas.InterfaceTypes.EventsNameSpace!='') {
+  if (pas.EventsInterface.EventsNameSpace!='') {
 
-     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.UIRootNode,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
+     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.UIRootNode,nodeName,pas.EventsInterface.EventsNameSpace,true);
      if (mynode!=null) {
        if (myNode.NodeType=='TXCompositeIntf') {
           // find the composite container
@@ -335,7 +336,7 @@ var
 begin
   asm
   //var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
-  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.UIRootNode,nodeName,pas.InterfaceTypes.EventsNameSpace,true);
+  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.UIRootNode,nodeName,pas.EventsInterface.EventsNameSpace,true);
   if (myNode!=null) {
     // special case for actual height/width attributes...
     if ((propName=='ActualHeight')||(propName=='ActualWidth')) {
@@ -377,14 +378,14 @@ end;
 procedure TMethodsClass.mmiShowXForm(XFormID:String; modal:Boolean);
 begin
   asm
-  //alert('calling showxform '+XFormID+' ns='+pas.InterfaceTypes.EventsNameSpace);
-  pas.XForm.ShowXForm(XFormID,modal,pas.InterfaceTypes.EventsNameSpace);
+  //alert('calling showxform '+XFormID+' ns='+pas.EventsInterface.EventsNameSpace);
+  pas.XForm.ShowXForm(XFormID,modal,pas.EventsInterface.EventsNameSpace);
   end;
 end;
 procedure TMethodsClass.mmiCloseXForm(XFormID:String);
 begin
   asm
-  pas.XForm.CloseXForm(XFormID,pas.InterfaceTypes.EventsNameSpace);
+  pas.XForm.CloseXForm(XFormID,pas.EventsInterface.EventsNameSpace);
   end;
 end;
 procedure TMethodsClass.mmiCopyToClip(str:String);
@@ -403,9 +404,10 @@ begin
   // The pasted string is then held in e.ReturnString, which cn be picked up in the
   // 'Main' section of the event handler.
   str:='';
+  e:=glbEvent;  ///// in case called from Python, where passing 'e' in and out via function args is tricky...
   asm
     {
-      if (e!=null)
+      if ((e!=null)&&(e!=undefined ))
       {
         if (e.InitRunning==false) {
           alert('Warning: CopyFromClip must be called from the "Init" section of an event handler');
@@ -433,7 +435,7 @@ end;
 procedure TMethodsClass.mmiLoadTableFromExcelCopy(TableName,CopiedString:String);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
     {
       myNode.LoadTableFromExcelCopy(CopiedString);
@@ -446,7 +448,7 @@ var
 begin
   dta:='';
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
     {
       dta = myNode.GetTableDataForExcel;
@@ -458,7 +460,7 @@ end;
 procedure TMethodsClass.mmiLoadTableFromNumArray(TableName:String;NumArray:T2DNumArray);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
     {
       myNode.LoadTableFromNumArray(NumArray);
@@ -469,7 +471,7 @@ end;
 procedure TMethodsClass.mmiLoad3DTableFromNumArray(TableName:String;NumArray:T3DNumArray);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TX3DTable'))
     {
       myNode.LoadTableFrom3DNumArray(NumArray);
@@ -481,7 +483,7 @@ end;
 procedure TMethodsClass.mmiLoadTableFromStringArray(TableName:String;StrArray:T2DStringArray);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
     {
       myNode.LoadTableFromStringArray(StrArray);
@@ -495,7 +497,7 @@ var
 begin
   setlength(arr,0);
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
     {
       arr = myNode.GetCellsAsArray(SkipHeader);
@@ -509,12 +511,12 @@ var
 begin
   setlength(arr,0);
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TX3DTable'))
     {
       arr = myNode.Get3DNumArray(0);
-      console.log('mmiGet3DTableNumArray done');
-      console.log(arr);
+      //console.log('mmiGet3DTableNumArray done');
+      //console.log(arr);
     }
   end;
   result:=arr;
@@ -525,20 +527,20 @@ begin
   // timeout here basically (eg.) because TreeNodeClick opens the tree node on a timeout, and we want to see
   // those changes on screen before continuing.
   asm
-    myTimeout(pas.Events.handleEvent,5,'handleEvent',0,null,EventType,NodeId,pas.InterfaceTypes.EventsNameSpace,myValue);
+    myTimeout(pas.Events.handleEvent,5,'handleEvent',0,null,EventType,NodeId,pas.EventsInterface.EventsNameSpace,myValue);
   end;
 end;
 
 procedure TMethodsClass.mmiMoveComponent(nodeId:string;NewParentId:string);
 begin
   asm
-  pas.XObjectInsp.OIMoveItem(nodeId,pas.InterfaceTypes.EventsNameSpace,NewParentId);
+  pas.XObjectInsp.OIMoveItem(nodeId,pas.EventsInterface.EventsNameSpace,NewParentId);
   end;
 end;
 procedure TMethodsClass.mmiCopyComponent(nodeId,NewParentId,NewName:string);
 begin
   asm
-  pas.XObjectInsp.OICopyToNewParent(nodeId,pas.InterfaceTypes.EventsNameSpace,NewParentId,NewName);
+  pas.XObjectInsp.OICopyToNewParent(nodeId,pas.EventsInterface.EventsNameSpace,NewParentId,NewName);
   end;
 end;
 function TMethodsClass.mmiDeleteComponent(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm:Boolean=true):Boolean;
@@ -546,14 +548,14 @@ var
   Deleted:Boolean;
 begin
   asm
-  Deleted=pas.XObjectInsp.OIDeleteItem(nodeId,pas.InterfaceTypes.EventsNameSpace,ShowNotFoundMsg,ShowConfirm);
+  Deleted=pas.XObjectInsp.OIDeleteItem(nodeId,pas.EventsInterface.EventsNameSpace,ShowNotFoundMsg,ShowConfirm);
   end;
   result:=Deleted;
 end;
 procedure TMethodsClass.mmiDeleteSelectedTreeNode(TreeName:string);
 begin
   asm
-  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TreeName,pas.InterfaceTypes.EventsNameSpace,true);
+  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TreeName,pas.EventsInterface.EventsNameSpace,true);
   if ((myNode!=null)&&(myNode.NodeType=='TXTree')) {
     myNode.DeleteSelectedNode();
     }
@@ -562,7 +564,7 @@ end;
 procedure TMethodsClass.mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       myNode.SetParamNumValue(pName,pValue,true);
     }
@@ -571,7 +573,7 @@ end;
 procedure TMethodsClass.mmiSetGPUParamNumValueFromStr(GPUName,pName:String;pValue:String);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       myNode.SetParamNumValueFromStr(pName,pValue,true);
     }
@@ -580,7 +582,7 @@ end;
 procedure TMethodsClass.mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       myNode.SetParam2DNumValue(pName,pValue,true);
     }
@@ -589,7 +591,7 @@ end;
 procedure TMethodsClass.mmiSetGPUParam2DNumValueFromStr(GPUName,pName:String;pValue:String);
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       myNode.SetParam2DNumValueFromStr(pName,pValue,true);
     }
@@ -599,7 +601,7 @@ procedure TMethodsClass.mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integ
 begin
 asm
 //alert('mmiSetGPUConstIntValue '+GPUName+' '+pName);
-  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
   if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
     myNode.SetConstIntValue(pName,pValue);
   }
@@ -612,7 +614,7 @@ begin
   cval:=0;
   asm
   //alert('mmiSetGPUConstIntValue '+GPUName+' '+pName);
-  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+  var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
   if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
     cval=myNode.GetConstIntValue(pName);
   }
@@ -624,7 +626,7 @@ var
   pval:TNumArray;
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pval=myNode.GetParamNumValue(pName);
     }
@@ -636,7 +638,7 @@ var
   pval:T2DNumArray;
 begin
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pval=myNode.GetParam2DNumValue(pName);
     }
@@ -743,7 +745,7 @@ var
 begin
   pxval:=nil;
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pxval=pas.XGPUCanvas.GetOutputArrayValue(GPUName);
     }
@@ -757,7 +759,7 @@ var
 begin
   pxval:='';
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pxval=pas.XGPUCanvas.GetOutputArrayString(GPUName);
     }
@@ -771,7 +773,7 @@ var
 begin
   pxval:=nil;
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pxval=pas.XGPUCanvas.GetStageArrayValue(GPUName);
     }
@@ -785,7 +787,7 @@ var
 begin
   pxval:='';
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pxval=pas.XGPUCanvas.GetStageArrayString(GPUName);
     }
@@ -798,7 +800,7 @@ var
 begin
   pxval:=nil;
   asm
-    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.InterfaceTypes.EventsNameSpace,true);
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pxval=pas.XGPUCanvas.GetInitStageArrayValue(GPUName);
     }
@@ -850,89 +852,7 @@ begin
   result:=found;
 end;
 
-
-//function TMethodsClass.mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
-//var
-//  ok:Boolean;
-//begin
-//  e.AsyncProcsRunning.Add('DSFetchRow');
-//  asm
-//    // DSKeyValues is a string delimited by ';' - one value per key field
-//    var keyvalues = DSKeyValues.split(';');
-//    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
-//    if (keyvalues.length == keynodes.length) {
-//      //console.log('mmiDSFetchRow. keyvalues=');
-//      //console.log(keyvalues);
-//      if (keyvalues.length>0) {
-//        ok=pas.XDataModel.DSGetIndexedRecordAsObject(DSName,'DSFetchRow',keyvalues,e);
-//        }
-//    }
-//    else ok=false;
-//  end;
-//  result:=ok;
-//end;
-
-//function TMethodsClass.mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean;
-//var
-//  ok:Boolean;
-//begin
-//  ok:=true;
-//  e.AsyncProcsRunning.Add('DSAppendRow');
-//  asm
-//    ok=pas.XDataModel.DSAppendRecordFromObject(DSName,'DSAppendRow',recObject,e);
-//  end;
-//  result:=ok;
-//end;
-
-//function TMethodsClass.mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;
-//var
-//  ok:Boolean;
-//begin
-//  e.AsyncProcsRunning.Add('DSDeleteRow');
-//  asm
-//    // DSKeyValues is a string delimited by ';' - one value per key field
-//    var keyvalues = DSKeyValues.split(';');
-//    var keynodes = pas.XDataModel.DMGetKeyFields(DSName);
-//    if (keyvalues.length == keynodes.length) {
-//      console.log('mmiDSDeleteRow. keyvalues=');
-//      console.log(keyvalues);
-//      if (keyvalues.length>0) {
-//        ok=pas.XDataModel.DSDeleteARow(e,DSName,'DSDeleteRow',keyvalues);
-//        }
-//    }
-//    else ok=false;
-//  end;
-//  result:=ok;
-//end;
-
-//function TMethodsClass.mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean;
-//var
-//  ok:Boolean;
-//begin
-//  ok:=true;
-//  e.AsyncProcsRunning.Add('DSDeleteAllRows');
-//  asm
-//    console.log('mmiDSDeleteAllRows. ');
-//    ok=pas.XDataModel.DSEmptyDataset(e,DSName,'DSDeleteAllRows');
-//  end;
-//  result:=ok;
-//end;
-
-
-
-(*function TMethodsClass.mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean;
-var
-  ok:Boolean;
 begin
-  asm
-    ok=pas.XDataModel.DSDataToStringAsync(e,dsName);
-  end;
-  result:=ok;
-end;
-*)
-
-begin
-  EventsNameSpace:='';
   SetInterfaceContext;
   {$endif}
 end.

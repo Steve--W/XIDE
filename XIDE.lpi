@@ -198,6 +198,9 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
       </Checks>
     </CodeGeneration>
     <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf3"/>
+      </Debugging>
       <Options>
         <Win32>
           <GraphicApplication Value="True"/>
@@ -209,8 +212,8 @@ IncPath += &apos;;$PkgDir(XComponents)&apos;;    // location of rtl.lrs"/>
         <ShowDebugInfo Value="True"/>
       </Verbosity>
       <CustomOptions Value="-dChromium
--dPython
--dTensorflowJS"/>
+-dTensorflowJS
+-dPython"/>
     </Other>
   </CompilerOptions>
   <Debugging>

@@ -8,8 +8,8 @@ unit XIDEComponents;
 interface
 
 uses
-  XGPUCanvas, XThreads, WebTranspilerUtils, XComposite, XCompositeIntf, 
-  XGPUEditor, X3DTable, XDBTable, LazarusPackageIntf;
+  XGPUCanvas, WebTranspilerUtils, XComposite, XCompositeIntf, XGPUEditor, 
+  X3DTable, LazarusPackageIntf;
 
 implementation
 

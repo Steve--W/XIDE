@@ -55,12 +55,15 @@ type
     CodeEditFindGlobal: TXCheckBox;
     CodeEditContextLabel: TXLabel;
     {$ifndef JScript}
+    procedure CodeEditHandleChange(e: TEventStatus; nodeID: AnsiString;
+      myValue: AnsiString);
+    procedure FormActivate(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
     {$endif}
     procedure Initialise;
-    procedure InitialiseOnShow(Context,NodeName,EvType:String);
+    procedure InitialiseOnShow(NodeName,EvType:String);
     procedure CodeEditHandleClickMessage(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditInitHandleClickMessage(e: TEventStatus; nodeID: AnsiString; myValue: AnsiString);
     procedure CodeEditCancelBtnHandleButtonClick(e:TEventStatus;nodeID: AnsiString; myValue: AnsiString);
@@ -78,7 +81,9 @@ type
   private
 
   public
-    Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode, DMOpsCode, GPUKernel
+    //Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode, GPUKernel
+    Context:String;              //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode
+    Language:String;             //  Pascal, Python
     TargetNodeName:String;
     TargetNameSpace:String;
     EventType:String;
@@ -101,24 +106,24 @@ uses XObjectInsp;
 
 { TCodeEditForm }
 
-procedure TCodeEditForm.InitialiseOnShow(Context,NodeName,EvType:String);
+procedure TCodeEditForm.InitialiseOnShow(NodeName,EvType:String);
 begin
   TargetNodeName:=NodeName;
   TargetNameSpace:='';
   EventType:=EvType;
-  self.CodeEditContextLabel.LabelCaption:=Context+' '+NodeName+' '+EvType;
+  self.CodeEditContextLabel.LabelCaption:=Language+'   '+Context+' '+NodeName+' '+EvType;
   CodeEdit.LabelText:='';
 
   CodeEditFindGlobal.Checked:=false;
 
-  if (Mode='dll') then
+  if (Context='dll') then
   begin
     CodeEditFindTxt.ItemValue:='';
     CodeEdit.ContainerHeight:='100%';           // CodeEdit is % of the parent component (tabpage)
     CodeEditInitTab.IsVisible:=false;
     CodeEdit.MessagesHeight:='30%';
   end
-  else if ((Mode='EventCode') or (Mode='GPUKernel')) then
+  else if ((Context='EventCode') or (Context='GPUKernel')) then
   begin
     CodeEditFindTxt.ItemValue:='';
     if CodeEdit.MessageLines='' then
@@ -127,20 +132,20 @@ begin
       CodeEdit.MessagesHeight:='30%';
     CodeEdit.ContainerHeight:='98%';           // CodeEdit is % of the parent component (tabpage)
 
-    if FoundString(EventType,'Thread')<>1 then
+//    if FoundString(EventType,'Thread')<>1 then
     begin
       CodeEditInitTab.IsVisible:=true;
       CodeEditInit.ContainerHeight:='98%';
       CodeEditInit.MessagesHeight:='1';
-     end
-    else
-    begin
-      // no initialisation code allowed for worker threads
-      CodeEditInitTab.IsVisible:=false;
     end;
+//    else
+//    begin
+//      // no initialisation code allowed for worker threads
+//      CodeEditInitTab.IsVisible:=false;
+//    end;
   end
   else
-  if (Mode='SearchCode') then
+  if (Context='SearchCode') then
   begin
     CodeEdit.ContainerHeight:='100%';           // CodeEdit is % of the parent component (tabpage)
     CodeEditInitTab.IsVisible:=false;
@@ -174,10 +179,10 @@ begin
     CodeEditInit.MessageLines:=CodeEdit.MessageLines;
   end;
 
-  if (Mode<>'EventCode') then
+  if (Context<>'EventCode') then
     CodeEditMainTabs.TabIndex:=0;
 
-  if (Mode<>'PythonScriptCode') then
+  if (Language<>'Python') then
     CodeEdit.Language:='Pascal'
   else
     CodeEdit.Language:='Python';
@@ -185,12 +190,25 @@ begin
 end;
 
 {$ifndef JScript}
+
+procedure TCodeEditForm.CodeEditHandleChange(e: TEventStatus;
+  nodeID: AnsiString; myValue: AnsiString);
+begin
+
+end;
+
+procedure TCodeEditForm.FormActivate(Sender: TObject);
+begin
+  Screen.cursor:=crDefault;
+end;
+
 procedure TCodeEditForm.FormCreate(Sender: TObject);
 begin
   myNode:=DoXFormCreated(self);
 
   Initialise;
 end;
+
 
 procedure TCodeEditForm.FormResize(Sender: TObject);
 begin
@@ -204,9 +222,9 @@ procedure TCodeEditForm.FormShow(Sender: TObject);
 begin
   // scroll the messages to the bottom
   CodeEdit.TheMessages.VertScrollBar.Position:=CodeEdit.TheMessages.Lines.Count-1;
-  if (Mode='dll') or (Mode='GPUKernel') then
+  if (Context='dll') or (Context='GPUKernel') then
     NavigateToFirstError
-  else if (Mode='SearchCode') then
+  else if (Context='SearchCode') then
   begin
     // if navigating here from a PasUnit sub-procedure on the code tree, then automatically run a search
     // for instances of the procedure name...
@@ -349,7 +367,8 @@ var
   FStrings,FStrings2:TStringList;
   TargetNode:TDataNode;
   targetLine:integer;
-  Context,FileType:String;
+  //Context,
+  FileType:String;
 begin
   {$ifndef JScript}
     tmp1:=LoadIncludeFile(nil,FileName,'tempinc/');
@@ -405,8 +424,8 @@ begin
           if (self.TargetNameSpace='')
           and (self.EventType<>'') then
           begin
-            self.Mode:='EventCode';
-            Context:='Event Handler';
+            self.Context:='EventCode';
+            //Context:='Event Handler';
 
             CodeEditInitTab.IsVisible:=true;
 
@@ -446,8 +465,8 @@ begin
         self.EventType:='';
         if TargetNode<>nil then
         begin
-          self.Mode:='UnitCode';
-          Context:='PasUnit';
+          self.Context:='UnitCode';
+          //Context:='PasUnit';
           CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',false).AttribValue;
           targetLine:=StrToInt(linenum)-1;     // -1 because there is no top line (unit xxx;) in the source code
         end;
@@ -456,7 +475,7 @@ begin
     FreeAndNil(FStrings2);
     if self.TargetNameSpace='' then
     begin
-      self.InitialiseOnShow(Context,self.TargetNodeName,self.EventType);
+      self.InitialiseOnShow(self.TargetNodeName,self.EventType);
       SetCursorPosition(targetLine,strToInt(charPos));
     end
     else
@@ -476,7 +495,7 @@ var linenumber,targetLine:integer;
     SelectedLine,FileName,CharPos:string;
     FoundLineNum:Boolean;
     FStrings,bits:TStringList;
-    LineNum,Context:String;
+    LineNum:String;
     TargetNode:TDataNode;
     {$ifdef JScript}
     Messages:TStringList;
@@ -517,8 +536,8 @@ begin
    FStrings:=StringSplit(FileName,'.');
    if ((FStrings.Count=2)
      and (FStrings[1]='inc'))
-   or (CodeEditForm.Mode = 'dll')
-   or (CodeEditForm.Mode = 'GPUKernel') then
+   or (CodeEditForm.Context = 'dll')
+   or (CodeEditForm.Context = 'GPUKernel') then
    begin
      DisplayIncFile(FileName,lineNum,CharPos);
    end
@@ -530,7 +549,7 @@ begin
 
      // save any edits already done...
      CodeEditStatus:='ok';
-     if CodeEditForm.Mode<>'SearchCode' then
+     if CodeEditForm.Context<>'SearchCode' then
        CodeEditorClosed(nil);
 
      if FStrings.Count>1 then
@@ -546,8 +565,8 @@ begin
        begin
          if (FStrings[1]='AnimationCode') then
          begin
-           self.Mode:='AnimationCode';
-           Context:=targetNode.NodeType;
+           self.Context:='AnimationCode';
+           //Context:=targetNode.NodeType;
            self.EventType:='';
            CodeEditInit.ItemValue:='';
            CodeEdit.ItemValue:='';
@@ -557,8 +576,8 @@ begin
          if FStrings.Count>2 then
          begin
            self.EventType:=FStrings[1];
-           self.Mode:='EventCode';
-           Context:='Event Handler';
+           self.Context:='EventCode';
+           //Context:='Event Handler';
            CodeEditInit.ItemValue:=TargetNode.GetEventInitCode(self.EventType);
            CodeEdit.ItemValue:=TargetNode.GetEventCode(self.EventType);
            if FStrings[2]='EventInitCode' then
@@ -573,12 +592,18 @@ begin
          else
          begin
            if targetNode.NodeType='PasUnit' then
-             self.Mode:='PasUnitCode'
+           begin
+             self.Context:='PasUnitCode';
+             self.Language:='Pascal';
+           end
            else if targetNode.NodeType='PythonScript' then
-             self.Mode:='PythonScriptCode';
+           begin
+             self.Context:='PythonScriptCode';
+             self.Language:='Python';
+           end;
            //else if targetNode.NodeType='DMOp' then
            //  self.Mode:='DMOpCode';
-           Context:=targetNode.NodeType;
+           //Context:=targetNode.NodeType;
            self.EventType:='';
            CodeEditInit.ItemValue:='';
            CodeEdit.ItemValue:=TargetNode.GetAttribute('Code',true).AttribValue;
@@ -589,10 +614,10 @@ begin
 
      targetLine:=StrToInt(linenum)+1;
      if (targetNode<>nil) then
-       if (self.Mode<>'GPUKernel')
-       and (self.Mode<>'AnimationCode') then
+       if (self.Context<>'GPUKernel')
+       and (self.Context<>'AnimationCode') then
        begin
-         self.InitialiseOnShow(Context,targetNode.NodeName,self.EventType);
+         self.InitialiseOnShow(targetNode.NodeName,self.EventType);
          SetCursorPosition(targetLine,strToInt(charPos));
        end
        else
@@ -623,7 +648,7 @@ procedure TCodeEditForm.CodeEditMainTabsHandleChange(e: TEventStatus;
 begin
   if CodeEditMainTabs.TabIndex = 1 then
     if CodeEditForm.CodeEditInit.ItemValue = '' then
-      CodeEditForm.CodeEditInit.ItemValue := DfltEventCode;
+      CodeEditForm.CodeEditInit.ItemValue := DfltEventCode(CodeEditForm.Language);
 end;
 
 procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
@@ -680,14 +705,16 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
   var dflt:String;
       i,k,numchildren:integer;
       AllKernels:TAnimCodeArray;
+      Event:TEventHandlerRec;
   begin
-    dflt:=DfltEventCode;
     if CurrentItem<>nil then
     if CurrentItem.NameSpace='' then
     begin
         numchildren:=length(CurrentItem.ChildNodes);
         for i:=0 to CurrentItem.myEventTypes.Count-1 do
         begin
+          Event:=CurrentItem.GetEvent(CurrentItem.myEventTypes[i]);
+          dflt:=DfltEventCode(Event.EventLanguage);
           if (CurrentItem.HasUserEventCode(CurrentItem.myEventTypes[i]))
           and (CurrentItem.GetEventCode(CurrentItem.myEventTypes[i])<>dflt) then
           begin
@@ -738,11 +765,11 @@ begin
   // (list found elements in messages block)
   //!! save any changes first....??
   CodeEditStatus:='ok';
-  if CodeEditForm.Mode<>'SearchCode' then
+  if CodeEditForm.Context<>'SearchCode' then
   begin
     CodeEditorClosed(nil);
-    CodeEditForm.Mode:='SearchCode';
-    CodeEditForm.InitialiseOnShow('Search Results','','');
+    CodeEditForm.Context:='SearchCode';
+    CodeEditForm.InitialiseOnShow('','');
   end;
 
   self.CodeEdit.MessageLines:='';
