@@ -51,6 +51,7 @@ TDeleteComponent=function(nodeId:string;ShowNotFoundMsg:Boolean=true;ShowConfirm
 TDeleteSelectedTreeNode=procedure(TreeName:string) of object;
 TGetGPUParamNumValue=function(GPUName,pName:String):TNumArray of object;
 TGetGPUParam2DNumValue=function(GPUName,pName:String):T2DNumArray of object;
+TGetGPUParam3DNumValue=function(GPUName,pName:String):T3DNumArray of object;
 TGetGPUConstIntValue=function(GPUName,pName:String):integer of object;
 TSetGPUParamNumValue=procedure(GPUName,pName:String;pValue:TNumArray) of object;
 TSetGPUParamNumValueFromStr=procedure(GPUName,pName:String;pValue:String) of object;
@@ -109,6 +110,7 @@ DeleteComponent:TDeleteComponent;
 DeleteSelectedTreeNode:TDeleteSelectedTreeNode;
 GetGPUParamNumValue:TGetGPUParamNumValue;
 GetGPUParam2DNumValue:TGetGPUParam2DNumValue;
+GetGPUParam3DNumValue:TGetGPUParam3DNumValue;
 GetGPUConstIntValue:TGetGPUConstIntValue;
 SetGPUParamNumValue:TSetGPUParamNumValue;
 SetGPUParamNumValueFromStr:TSetGPUParamNumValueFromStr;
@@ -173,11 +175,14 @@ type TMethodsClass = class(TObject)
  procedure mmiDeleteSelectedTreeNode(TreeName:string);
  function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;
  function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;
+ function mmiGetGPUParam3DNumValue(GPUName,pName:String):T3DNumArray;
  function mmiGetGPUConstIntValue(GPUName,pName:String):integer;
  procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);
  procedure mmiSetGPUParamNumValueFromStr(GPUName,pName:String;pValue:String);
  procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);
  procedure mmiSetGPUParam2DNumValueFromStr(GPUName,pName:String;pValue:String);
+ procedure mmiSetGPUParam3DNumValue(GPUName,pName:String;pValue:T3DNumArray);
+ procedure mmiSetGPUParam3DNumValueFromStr(GPUName,pName:String;pValue:String);
  procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);
  procedure mmiStartMain(e:TEventStatus);
  procedure mmiShowBusy(e:TEventStatus);
@@ -244,6 +249,7 @@ begin
   deleteselectedtreenode:=@appmethods.mmiDeleteSelectedTreeNode;
   getgpuparamnumvalue:=@appmethods.mmiGetGPUParamNumValue;
   getgpuparam2dnumvalue:=@appmethods.mmiGetGPUParam2DNumValue;
+  getgpuparam3dnumvalue:=@appmethods.mmiGetGPUParam3DNumValue;
   getgpuconstintvalue:=@appmethods.mmiGetGPUConstIntValue;
   setgpuparamnumvalue:=@appmethods.mmiSetGPUParamNumValue;
   setgpuparamnumvaluefromstr:=@appmethods.mmiSetGPUParamNumValueFromStr;
@@ -588,12 +594,30 @@ begin
     }
   end;
 end;
+procedure TMethodsClass.mmiSetGPUParam3DNumValue(GPUName,pName:String;pValue:T3DNumArray);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      myNode.SetParam3DNumValue(pName,pValue,true);
+    }
+  end;
+end;
 procedure TMethodsClass.mmiSetGPUParam2DNumValueFromStr(GPUName,pName:String;pValue:String);
 begin
   asm
     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       myNode.SetParam2DNumValueFromStr(pName,pValue,true);
+    }
+  end;
+end;
+procedure TMethodsClass.mmiSetGPUParam3DNumValueFromStr(GPUName,pName:String;pValue:String);
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      myNode.SetParam3DNumValueFromStr(pName,pValue,true);
     }
   end;
 end;
@@ -641,6 +665,18 @@ begin
     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
       pval=myNode.GetParam2DNumValue(pName);
+    }
+  end;
+  result:=pval;
+end;
+function TMethodsClass.mmiGetGPUParam3DNumValue(GPUName,pName:String):T3DNumArray;
+var
+  pval:T3DNumArray;
+begin
+  asm
+    var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,GPUName,pas.EventsInterface.EventsNameSpace,true);
+    if ((myNode!=null)&&(myNode.NodeType=='TXGPUCanvas')) {
+      pval=myNode.GetParam3DNumValue(pName);
     }
   end;
   result:=pval;
@@ -825,6 +861,9 @@ begin
     var ob=document.getElementById(nm+"Contents");
     if (ob!=null) {
       ob.src=str;
+    }
+    else {
+      console.log('Error in SetImageSource. Cannot find element '+ nm+'Contents');
     }
   end;
 end;

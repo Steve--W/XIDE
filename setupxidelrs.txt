@@ -1,5 +1,4 @@
 c:/Laz19Projects/XIDE/XIDEComponents/webtranspilerutils.pas
-c:/Laz19Projects/XIDE/XIDEComponents/xthreads.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xgpucanvas.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xgpueditor.pas
 c:/Laz19Projects/XIDE/XIDEComponents/xcomposite.pas

@@ -15,7 +15,7 @@ object XIDEForm: TXIDEForm
   LCLVersion = '3.4.0.0'
   object MyRootDiv: TXScrollBox
     Name = 'MyRootDiv'
-    Tag = 189286176
+    Tag = 189751888
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -51,7 +51,7 @@ object XIDEForm: TXIDEForm
     ScrollType = 'Both'
     object RootHBox: TXHBox
       Name = 'RootHBox'
-      Tag = 186649984
+      Tag = 189765872
       AnchorSideRight.Side = asrBottom
       Left = 0
       Height = 724
@@ -71,7 +71,7 @@ object XIDEForm: TXIDEForm
       InheritColor = False
       object ResourceInspectorTabs: TXTabControl
         Name = 'ResourceInspectorTabs'
-        Tag = 189284000
+        Tag = 189752336
         AnchorSideRight.Side = asrBottom
         Left = 2
         Height = 720
@@ -110,7 +110,7 @@ object XIDEForm: TXIDEForm
             Width = 223
             Align = alTop
             AutoSize = True
-            myControl.Tag = 189284224
+            myControl.Tag = 189750544
             myControl.AnchorSideLeft.Control = ResourceTree
             myControl.AnchorSideTop.Side = asrBottom
             myControl.Left = 0
@@ -254,7 +254,7 @@ object XIDEForm: TXIDEForm
             Width = 223
             Align = alTop
             AutoSize = True
-            myControl.Tag = 189282112
+            myControl.Tag = 189470848
             myControl.AnchorSideLeft.Control = StyleResources
             myControl.AnchorSideTop.Side = asrBottom
             myControl.Left = 0
@@ -296,7 +296,7 @@ object XIDEForm: TXIDEForm
       end
       object InnerRootVBox: TXVBox
         Name = 'InnerRootVBox'
-        Tag = 189285952
+        Tag = 189752944
         Left = 233
         Height = 720
         Top = 2
@@ -315,7 +315,7 @@ object XIDEForm: TXIDEForm
         InheritColor = False
         object ObjectInspectorTabs: TXTabControl
           Name = 'ObjectInspectorTabs'
-          Tag = 189279776
+          Tag = 189470048
           Left = 2
           Height = 716
           Top = 2
@@ -353,7 +353,7 @@ object XIDEForm: TXIDEForm
               Width = 273
               Align = alTop
               AutoSize = True
-              myControl.Tag = 189280736
+              myControl.Tag = 189468832
               myControl.AnchorSideLeft.Control = NavTree
               myControl.AnchorSideTop.Side = asrBottom
               myControl.Left = 0
@@ -628,7 +628,7 @@ object XIDEForm: TXIDEForm
             end
             object OITabs: TXTabControl
               Name = 'OITabs'
-              Tag = 189277696
+              Tag = 167107536
               Left = 0
               Height = 319
               Top = 338
@@ -659,7 +659,7 @@ object XIDEForm: TXIDEForm
                 BgColor = clWhite
                 object PropertyEditorScrollbox: TXScrollBox
                   Name = 'PropertyEditorScrollbox'
-                  Tag = 189275680
+                  Tag = 214564416
                   AnchorSideLeft.Control = OIPropertiesTab
                   AnchorSideTop.Side = asrCenter
                   Left = 0
@@ -702,7 +702,7 @@ object XIDEForm: TXIDEForm
                 BgColor = clWhite
                 object EventsEditorScrollBox: TXScrollBox
                   Name = 'EventsEditorScrollBox'
-                  Tag = 189276640
+                  Tag = 214563872
                   AnchorSideLeft.Control = OIEventsTab
                   AnchorSideTop.Side = asrCenter
                   Left = 0
@@ -744,7 +744,7 @@ object XIDEForm: TXIDEForm
                 BgColor = clWhite
                 object CompositePropsScrollbox: TXScrollBox
                   Name = 'CompositePropsScrollbox'
-                  Tag = 189276896
+                  Tag = 214563616
                   AnchorSideLeft.Control = OICompositePropsTab
                   AnchorSideTop.Side = asrCenter
                   Left = 0
@@ -779,7 +779,7 @@ object XIDEForm: TXIDEForm
             end
             object OIButtonGroup: TXHBox
               Name = 'OIButtonGroup'
-              Tag = 198876880
+              Tag = 189765360
               Left = 0
               Height = 30
               Top = 657
@@ -846,7 +846,7 @@ object XIDEForm: TXIDEForm
               Width = 273
               Align = alTop
               AutoSize = True
-              myControl.Tag = 189276032
+              myControl.Tag = 163036736
               myControl.AnchorSideLeft.Control = CodeTree
               myControl.AnchorSideTop.Side = asrBottom
               myControl.Left = 0
@@ -1222,7 +1222,7 @@ object XIDEForm: TXIDEForm
               Width = 273
               Align = alTop
               AutoSize = True
-              myControl.Tag = 189274624
+              myControl.Tag = 214557216
               myControl.AnchorSideLeft.Control = XMemo1
               myControl.AnchorSideTop.Side = asrBottom
               myControl.Left = 0
@@ -1273,7 +1273,7 @@ object XIDEForm: TXIDEForm
               Width = 273
               Align = alTop
               AutoSize = True
-              myControl.Tag = 189270784
+              myControl.Tag = 214556544
               myControl.AnchorSideLeft.Control = StyleSheet
               myControl.AnchorSideTop.Side = asrBottom
               myControl.Left = 0
@@ -1424,7 +1424,7 @@ object XIDEForm: TXIDEForm
             end
             object StyleTreeScrollBox: TXScrollBox
               Name = 'StyleTreeScrollBox'
-              Tag = 189269312
+              Tag = 214558400
               Left = 0
               Height = 271
               Top = 369
@@ -1462,7 +1462,7 @@ object XIDEForm: TXIDEForm
                 Width = 262
                 Align = alTop
                 AutoSize = True
-                myControl.Tag = 189269888
+                myControl.Tag = 214557856
                 myControl.AnchorSideLeft.Control = StyleNodeQualifier
                 myControl.AnchorSideTop.Side = asrBottom
                 myControl.Left = 0
@@ -1502,7 +1502,7 @@ object XIDEForm: TXIDEForm
                 Width = 262
                 Align = alTop
                 AutoSize = True
-                myControl.Tag = 186777696
+                myControl.Tag = 214557600
                 myControl.AnchorSideLeft.Control = QualifierEditBox
                 myControl.AnchorSideTop.Side = asrBottom
                 myControl.Left = 0
@@ -1570,7 +1570,7 @@ object XIDEForm: TXIDEForm
                 Width = 262
                 Align = alTop
                 AutoSize = True
-                myControl.Tag = 186777312
+                myControl.Tag = 189764304
                 myControl.AnchorSideLeft.Control = GeneratedStyleSheetText
                 myControl.AnchorSideTop.Side = asrBottom
                 myControl.Left = 2
@@ -1642,7 +1642,7 @@ object XIDEForm: TXIDEForm
       end
       object UIRoot: TXScrollBox
         Name = 'UIRoot'
-        Tag = 186742272
+        Tag = 189763824
         Left = 516
         Height = 720
         Top = 2

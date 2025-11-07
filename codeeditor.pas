@@ -702,7 +702,7 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
   {$endif}
 
   procedure SearchEventsCode(CurrentItem:TDataNode);
-  var dflt:String;
+  var dflt,evt:String;
       i,k,numchildren:integer;
       AllKernels:TAnimCodeArray;
       Event:TEventHandlerRec;
@@ -713,17 +713,19 @@ procedure TCodeEditForm.DoGlobalSearch(TextToFind:String);
         numchildren:=length(CurrentItem.ChildNodes);
         for i:=0 to CurrentItem.myEventTypes.Count-1 do
         begin
-          Event:=CurrentItem.GetEvent(CurrentItem.myEventTypes[i]);
-          dflt:=DfltEventCode(Event.EventLanguage);
-          if (CurrentItem.HasUserEventCode(CurrentItem.myEventTypes[i]))
-          and (CurrentItem.GetEventCode(CurrentItem.myEventTypes[i])<>dflt) then
+          if (CurrentItem.HasUserEventCode(CurrentItem.myEventTypes[i])) then
           begin
-             SearchThisText(CurrentItem.nodeName+'.'+CurrentItem.myEventTypes[i],
+            Event:=CurrentItem.GetEvent(CurrentItem.myEventTypes[i]);
+            dflt:=DfltEventCode(Event.EventLanguage);
+            if (CurrentItem.GetEventCode(CurrentItem.myEventTypes[i])<>dflt) then
+            begin
+              SearchThisText(CurrentItem.nodeName+'.'+CurrentItem.myEventTypes[i],
                             'EventCode',
                             CurrentItem.GetEventCode(CurrentItem.myEventTypes[i]));
-             SearchThisText(CurrentItem.nodeName+'.'+CurrentItem.myEventTypes[i],
+              SearchThisText(CurrentItem.nodeName+'.'+CurrentItem.myEventTypes[i],
                             'EventInitCode',
                             CurrentItem.GetEventInitCode(CurrentItem.myEventTypes[i]));
+            end;
           end;
         end;
         if (CurrentItem.NodeType='TXGPUCanvas') then

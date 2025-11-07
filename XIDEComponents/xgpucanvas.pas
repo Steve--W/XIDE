@@ -44,8 +44,13 @@ type TGPU2DNumParam = record
   ParamName:String;
   ParamValue:T2DNumArray;
   end;
+type TGPU3DNumParam = record
+  ParamName:String;
+  ParamValue:T3DNumArray;
+  end;
 type TGPUNumParams = Array of TGPUNumParam;
 type TGPU2DNumParams = Array of TGPU2DNumParam;
+type TGPU3DNumParams = Array of TGPU3DNumParam;
 type TGPUIntConst = record
   ConstName:String;
   ConstValue:integer;
@@ -58,6 +63,8 @@ type
     { Private declarations }
     ParamNumArray:TGPUNumParams;
     Param2DNumArray:TGPU2DNumParams;
+    Param3DNumArray:TGPU3DNumParams;
+    KernelKeepsArr:array of integer;
     ConstIntArray:TGPUIntConsts;
 //    {$ifndef JScript}
 //    fHandleOnNewFrame:TEventHandler;
@@ -70,6 +77,7 @@ type
     function GetOutputPixelArray:Boolean;
     function GetParamNumList:string;
     function GetParam2DNumList:string;
+    function GetParam3DNumList:string;
     function GetConstIntList:string;
     function GetMaxIterations:integer;
     function GetStartIteration:integer;
@@ -80,8 +88,10 @@ type
     function GetKernelXDims:string;      //array of integer eg. [100,200,300]
     function GetKernelYDims:string;
     function GetKernelZDims:string;
-    function GetEmulationMode:Boolean;
-    function GetEmulationFrame:Integer;
+    function GetKernelRepeats:string;
+    function GetKernelKeep:string;
+//    function GetEmulationMode:Boolean;
+//    function GetEmulationFrame:Integer;
 
     procedure SetAnimationCode(AValue:string);
     procedure SetActive(AValue:Boolean);
@@ -91,6 +101,7 @@ type
     procedure SetParamNumList(AValue:string);
     procedure SetConstIntList(AValue:string);
     procedure SetParam2DNumList(AValue:string);
+    procedure SetParam3DNumList(AValue:string);
     procedure SetMaxIterations(AValue:integer);
     procedure SetStartIteration(AValue:integer);
     procedure SetNumFrames(AValue:integer);
@@ -100,8 +111,10 @@ type
     procedure SetKernelXDims(AValue:string);
     procedure SetKernelYDims(AValue:string);
     procedure SetKernelZDims(AValue:string);
-    procedure SetEmulationMode(AValue:Boolean);
-    procedure SetEmulationFrame(AValue:integer);
+    procedure SetKernelRepeats(AValue:string);
+    procedure SetKernelKeep(AValue:string);
+//    procedure SetEmulationMode(AValue:Boolean);
+//    procedure SetEmulationFrame(AValue:integer);
 
     procedure SetMyEventTypes;  override;
     procedure SetPropertyDefaults;
@@ -112,6 +125,21 @@ type
     function GPUJSAnimationFooter:String;
     procedure setupGPUPage;
     function AddFuncsBlockIfMissing(GPUCode:String):String;
+
+    function JSInitialCode:String;
+    function JSDeclareParameters:String;
+    function JSCreateCommonFuncs(AnimCode:TStringList):String;
+    function JSAddKernelParams(n:integer):String;
+    function JSCreateKernels(AnimCode:TStringList;KName,plist:String):String;
+    function JSCreateGraphicalKernel(AnimCode:TStringList;KName,plist:String):String;
+    function JSInitialiseStageArray:String;
+    function JSBuildKernels(KName,plist:String):String;
+    //function JSRunSuperKernel:String;
+    function JSRunPipelinedKernels(KName,plist:String):String;
+    function JSGetPixelArray:String;
+    function JSPostMessageCode:String;
+    function JSFinalCode:String;
+
 
     {$ifndef JScript}
     procedure DoGPUCanvasConstructor;
@@ -129,6 +157,7 @@ type
     GPUOutputString:String;
     animCounterString:String;
     Dimensions:TDimsArray;
+    KernelRepeatsArr:array of integer;
     {$ifndef JScript}
     constructor Create(TheOwner: TComponent); override;
     constructor Create(TheOwner: TComponent;IsDynamic:Boolean); override;
@@ -151,22 +180,20 @@ type
     function FullXMLString:String;
     function GetParamNumValue(pName:String):TNumArray;
     function GetParam2DNumValue(pName:String):T2DNumArray;
+    function GetParam3DNumValue(pName:String):T3DNumArray;
     function GetConstIntValue(pName:String):integer;
     procedure SetParamNumValue(pName:String;pValue:TNumArray;ForwardToWidget:Boolean);
     procedure SetParam2DNumValue(pName:String;pValue:T2DNumArray;ForwardToWidget:Boolean);
+    procedure SetParam3DNumValue(pName:String;pValue:T3DNumArray;ForwardToWidget:Boolean);
     procedure SetConstIntValue(pName:String;pValue:integer);
     function CompileAndTrimAnimCode:TStringList;
     function FetchAllAnimCode:TAnimCodeArray;
     function BuildKernelList:String;
+    function ParamKeepsList:String;
     function KernelDimsString(KNum:integer):String;
     function BuildPascalAnimationUnit(Compiler:TObject;RunMode:String):Boolean;
-    function BuildDimensionsArray(var xdims,ydims,zdims:TStringList):boolean;
+    function BuildDimensionsArray(var xdims,ydims,zdims,repeats,keeps:TStringList):boolean;
     function CheckForKernels(AnimCode:TStringList):Boolean;
-    function JSInitialCode:String;
-    function JSDeclareParameters:String;
-    function JSGetPixelArray:String;
-    function JSPostMessageCode:String;
-    function JSFinalCode:String;
     function ExecEmulatorFunc(animcounter,NumZPixels,NumYPixels,NumXPixels:integer):TGPUPixelArray;
 
 published
@@ -180,6 +207,7 @@ published
     property AnimationCode: String read GetAnimationCode write SetAnimationCode;
     property ParamNumList: String read GetParamNumList write SetParamNumList;
     property Param2DNumList: String read GetParam2DNumList write SetParam2DNumList;
+    property Param3DNumList: String read GetParam3DNumList write SetParam3DNumList;
     property ConstIntList: String read GetConstIntList write SetConstIntList;
     property MaxIterations: integer read GetMaxIterations write SetMaxIterations;
     property StartIteration: integer read GetStartIteration write SetStartIteration;
@@ -190,9 +218,11 @@ published
     property KernelXDims: String read GetKernelXDims write SetKernelXDims;
     property KernelYDims: String read GetKernelYDims write SetKernelYDims;
     property KernelZDims: String read GetKernelZDims write SetKernelZDims;
-    property EmulationMode: Boolean read GetEmulationMode write SetEmulationMode;
-    property EmulationFrame: integer read GetEmulationFrame write SetEmulationFrame;
-    function GPUJSCodeForEmulationMode(AnimCode:TStringList):String;
+    property KernelRepeats: String read GetKernelRepeats write SetKernelRepeats;
+    property KernelKeep: String read GetKernelKeep write SetKernelKeep;
+//    property EmulationMode: Boolean read GetEmulationMode write SetEmulationMode;
+//    property EmulationFrame: integer read GetEmulationFrame write SetEmulationFrame;
+//    function GPUJSCodeForEmulationMode(AnimCode:TStringList):String;
     procedure CreateNewKernel(allcode:TAnimCodeArray; n:integer);
     procedure RebuildAnimationCode(numK:integer;allcode:TAnimCodeArray);
 
@@ -341,7 +371,7 @@ var
   MType:String;
   TempMsg : ICefProcessMessage;
 begin
-  // A frame display has ended.
+  // A frame display has ended.  (console.log triggers a cef event, which is handled here)
   if (not (csDesigning in componentState))
   and (not StartingUp)
   and (self.myNode<>nil)
@@ -405,10 +435,10 @@ begin
       oText := message.ArgumentList.GetString(0);
       sText := message.ArgumentList.GetString(1);
       acText := message.ArgumentList.GetString(2);
-      // convert the array string to 3d numeric array
      self.GPUOutputString:=oText;   // the pixel array
-     self.GPUStageString:=sText;  //the final stage array
+     self.GPUStageString:=sText;  //the final stage array from kernel stack
      self.animCounterString:=acText;
+     // convert the array string to 3d numeric array
      //self.GPUStageArray:=JSONStringTo3DNumArray(sText);    //!!!! takes ages ..... tbd
      setlength(self.GPUStageArray,0);
      Events.CallHandleEventLater('OnFirstStageDone','', self);     // get back to main thread
@@ -420,10 +450,10 @@ begin
       oText := message.ArgumentList.GetString(0);
       sText := message.ArgumentList.GetString(1);
       acText := message.ArgumentList.GetString(2);
-      // convert the array string to 3d numeric array
      self.GPUOutputString:=oText;   // the pixel array
-     self.GPUStageString:=sText;  //the (current) final stage array
+     self.GPUStageString:=sText;  //the (current) final stage array from kernel stack
      self.animCounterString:=acText;
+     // convert the array string to 3d numeric array
      //self.GPUStageArray:=JSONStringTo3DNumArray(sText);    //!!!! takes ages ..... tbd
      setlength(self.GPUStageArray,0);
      //Events.CallHandleEventLater('OnFrameDone','', self);     // get back to main thread
@@ -553,14 +583,14 @@ function TXGPUCanvas.GetOutputPixelArray:Boolean;
 begin
   result:=myStrToBool(myNode.getAttribute('OutputPixelArray',true).AttribValue);
 end;
-function TXGPUCanvas.GetEmulationMode:Boolean;
-begin
-  result:=myStrToBool(myNode.getAttribute('EmulationMode',true).AttribValue);
-end;
-function TXGPUCanvas.GetEmulationFrame:integer;
-begin
-  result:=StrToInt(myNode.getAttribute('EmulationFrame',true).AttribValue);
-end;
+//function TXGPUCanvas.GetEmulationMode:Boolean;
+//begin
+//  result:=myStrToBool(myNode.getAttribute('EmulationMode',true).AttribValue);
+//end;
+//function TXGPUCanvas.GetEmulationFrame:integer;
+//begin
+//  result:=StrToInt(myNode.getAttribute('EmulationFrame',true).AttribValue);
+//end;
 //function TXGPUCanvas.GetFetchFrameOutput:Boolean;
 //begin
 //  result:=myStrToBool(myNode.getAttribute('FetchFrameOutput',true).AttribValue);
@@ -572,6 +602,10 @@ end;
 function TXGPUCanvas.GetParam2DNumList:string;
 begin
   result:=myNode.getAttribute('Param2DNumList',true).AttribValue;
+end;
+function TXGPUCanvas.GetParam3DNumList:string;
+begin
+  result:=myNode.getAttribute('Param3DNumList',true).AttribValue;
 end;
 function TXGPUCanvas.GetConstIntList:string;
 begin
@@ -613,18 +647,42 @@ function TXGPUCanvas.GetKernelZDims:string;
 begin
   result:=myNode.getAttribute('KernelZDims',true).AttribValue;
 end;
+function TXGPUCanvas.GetKernelRepeats:string;
+begin
+  result:=myNode.getAttribute('KernelRepeats',true).AttribValue;
+end;
+function TXGPUCanvas.GetKernelKeep:string;
+begin
+  result:=myNode.getAttribute('KernelKeep',true).AttribValue;
+end;
+
+function TXGPUCanvas.ParamKeepsList:String;
+var
+  n:integer;
+  str:String;
+begin
+  for n:=0 to length(self.KernelKeepsArr)-1 do
+    if self.KernelKeepsArr[n]>0 then
+    begin
+      if str<>'' then str:=str+',';
+      str:=str + 'K'+inttostr(n)+'keep';
+    end;
+  result:= str;
+end;
 
 function TXGPUCanvas.FullParamList:String;
 var
   plist:String;
 begin
   plist:='';
-  if self.ParamNumList<>'' then plist:=','+self.ParamNumList;
+  if self.ParamNumList<>'' then plist:=plist+','+self.ParamNumList;
   if self.Param2DNumList<>'' then plist:=plist+','+self.Param2DNumList;
+  if self.Param3DNumList<>'' then plist:=plist+','+self.Param3DNumList;
+  plist:=plist+','+self.ParamKeepsList;
   result:=plist;
 end;
 
-function TXGPUCanvas.BuildDimensionsArray(var xdims,ydims,zdims:TStringList):boolean;
+function TXGPUCanvas.BuildDimensionsArray(var xdims,ydims,zdims,repeats,keeps:TStringList):boolean;
 var
   TempStr:String;
   n:integer;
@@ -640,12 +698,26 @@ begin
   self.Dimensions[1,0]:=0;
   self.Dimensions[1,1]:=0;
   self.Dimensions[1,2]:=0;
+  //the core 'nested' kernels start at index 2...
   TempStr:=self.KernelXDims;
   xdims:=JSONStringToStringList(TempStr);
   TempStr:=self.KernelyDims;
   ydims:=JSONStringToStringList(TempStr);
   TempStr:=self.KernelzDims;
   zdims:=JSONStringToStringList(TempStr);
+
+  setlength(self.KernelRepeatsArr,numKernels);
+  for n:=0 to numKernels-1 do
+    self.KernelRepeatsArr[n]:=1;
+  TempStr:=self.KernelRepeats;
+  repeats:=JSONStringToStringList(TempStr);
+
+  setlength(self.KernelKeepsArr,numKernels);
+  TempStr:=self.KernelKeep;
+  keeps:=JSONStringToStringList(TempStr);
+  for n:=0 to numKernels-1 do
+    self.KernelKeepsArr[n]:=StrtoInt(keeps[n]);
+
   // ... some validation tests ...
   if xdims.Count<>numKernels then
   begin
@@ -660,6 +732,11 @@ begin
   if zdims.Count<>numKernels then
   begin
     showmessage('Number of Kernel Z Dimensions must match number of kernels (in '+self.myNode.NodeName+')');
+    EXIT;
+  end;
+  if repeats.Count<>numKernels then
+  begin
+    showmessage('Number of Kernel repeats must match number of kernels (in '+self.myNode.NodeName+')');
     EXIT;
   end;
   for n:=1 to numKernels do
@@ -679,6 +756,21 @@ begin
       showmessage('GPU KernelZDims item '+inttostr(n)+' is not numeric (in '+self.myNode.NodeName+')');
       EXIT;
     end;
+    if not IsStrFloatNum(repeats[n-1]) then
+    begin
+      showmessage('GPU KernelRepeats item '+inttostr(n)+' is not numeric (in '+self.myNode.NodeName+')');
+      EXIT;
+    end;
+    if not IsStrFloatNum(keeps[n-1]) then
+    begin
+      showmessage('GPU KernelKeep item '+inttostr(n)+' is not numeric (in '+self.myNode.NodeName+')');
+      EXIT;
+    end
+    else if (keeps[n-1]<>'0') and (keeps[n-1]<>'1') and (keeps[n-1]<>'2') then
+    begin
+      showmessage('GPU KernelKeep item '+inttostr(n)+' must be 0''s, 1''s or 2''s (in '+self.myNode.NodeName+')');
+      EXIT;
+    end;
   end;
   // set up the kernel dimensions...
   //for n:=1 to numKernels do
@@ -689,6 +781,27 @@ begin
     self.Dimensions[n,1]:=strtoint(ydims[n-2]);
     self.Dimensions[n,2]:=strtoint(zdims[n-2]);
   end;
+  // validate repeats
+  for n:=0 to numKernels-1 do
+  begin
+    self.KernelRepeatsArr[n]:=strtoint(repeats[n]);
+    if n>0 then
+      if self.KernelRepeatsArr[n]>1 then
+        if (self.Dimensions[n+1,0]<>self.Dimensions[n+2,0])
+        or (self.Dimensions[n+1,1]<>self.Dimensions[n+2,1])
+        or (self.Dimensions[n+1,2]<>self.Dimensions[n+2,2])
+        then
+        begin
+          showmessage('GPU Kernel '+inttostr(n)+' input and output dimensions must match for repeats>1 (in '+self.myNode.NodeName+')');
+          EXIT;
+        end;
+  end;
+  // validate keeps
+  for n:=0 to numKernels-1 do
+  begin
+    self.KernelKeepsArr[n]:=strtoint(keeps[n]);
+  end;
+
   result:=true;
 end;
 
@@ -717,7 +830,7 @@ begin
     'document.title = "'+myNode.NodeName+' '+myNode.NodeType+'"; ' + LineEnding
     +'/*/ ------------------------------------ Initialise the GPU ---------------------------------/*/ ' + LineEnding
     +'const '+self.MyNode.NodeName+'Matrix = new GPU({mode: ''gpu''});   '+LineEnding
-    +'const '+self.MyNode.NodeName+' = new GPU({mode: ''gpu''});   '+LineEnding
+//    +'const '+self.MyNode.NodeName+' = new GPU({mode: ''gpu''});   '+LineEnding
     +'let running=true; '+LineEnding;
     str:= str + 'let outputArrayString = ''[]'';'+LineEnding;
     str:= str + 'var GPUIntervalRunner;  '  + LineEnding;
@@ -729,7 +842,8 @@ var
   str,vstr:String;
   vn:TNumArray;
   va:T2DNumArray;
-  i,j,k:integer;
+  vaa:T3DNumArray;
+  i,j,k,l:integer;
 begin
   str:= '/*/ -------------------------------- Initialise Parameters List -------------------------/*/ ' + LineEnding;
   // Numeric parameters are 1-D arrays of values
@@ -764,6 +878,43 @@ begin
     vstr:=vstr+']';
     str:=str+'let '+Param2DNumArray[i].ParamName+' = '+vstr+';' +LineEnding;
   end;
+  str:=str+LineEnding;
+  // Add the 3D arrays of values
+  for i:=0 to length(self.Param3DNumArray)-1 do
+  begin
+    vaa:=Param3DNumArray[i].ParamValue;
+    vstr:='[';
+    for j:=0 to length(vaa)-1 do
+    begin
+      if j>0 then vstr:=vstr+',';
+      vstr:=vstr+'[';
+      for k:=0 to length(vaa[j])-1 do
+      begin
+        if k>0 then vstr:=vstr+',';
+        vstr:=vstr+'[';
+        for l:=0 to length(vaa[j,k])-1 do
+        begin
+          if l>0 then vstr:=vstr+',';
+          vstr:=vstr+floattostr(vaa[j,k,l]);
+        end;
+        vstr:=vstr+']';
+      end;
+      vstr:=vstr+']';
+    end;
+    vstr:=vstr+']';
+    str:=str+'let '+Param3DNumArray[i].ParamName+' = '+vstr+';' +LineEnding;
+  end;
+  // Add placeholders for any 'keep' kernel outputs
+  if numKernels>0 then
+  begin
+    for k:=0 to numKernels-1 do
+    begin
+      if self.KernelKeepsArr[k]>0 then
+        str:=str
+        +'let K'+inttostr(k)+'keep=[[[0]]];  '+LineEnding;
+    end;
+  end;
+
   str:=str+LineEnding;
   result:=str;
 end;
@@ -1032,30 +1183,132 @@ begin
   result:=names;
 end;
 
-function TXGPUCanvas.GPUJSCode(AnimCode:TStringList):String;
-//function TXGPUCanvas.GPUJSCode(AnimCode:TStringList;dims:TDimsArray):String;
+//-------------------------------------------------------------------------
+function TXGPUCanvas.JSAddKernelParams(n:integer):String;
 var
-  str,vstr,plist, KName,tempstr:String;
-  i,j,k,d:integer;
-  h,w,n:integer;
-  xdims,ydims,zdims,fnames,fcode:TStringList;
-  ok:boolean;
-  allcode:TAnimCodeArray;
+  paramstr:string;
+  d,i:integer;
 begin
-  result:='';
-  ok := CheckForKernels(AnimCode);
-  if not ok then EXIT;
+  paramstr := '{  output: [';
+  for d:=0 to length(self.Dimensions[n+2])-1 do
+  begin
+    if d>0 then paramstr:=paramstr+',';
+    paramstr:= paramstr + inttostr(self.Dimensions[n+2,d]);
+  end;
 
-  str:=JSInitialCode;
-  str:=str + JSDeclareParameters;
-  str:=str + JSPostMessageCode;
-  str:=str + JSGetPixelArray;
+  paramstr:= paramstr
+  +'],' + LineEnding
+  +'  fixIntegerDivisionAccuracy: false,' + LineEnding
+  +'  graphical: false,' + LineEnding
+  +'  loopMaxIterations:'+IntToStr(self.MaxIterations)+', ' + LineEnding;
 
-  plist:=self.FullParamList;
-  KName:=self.MyNode.NodeName+'CanvasRenderFn';
+//    str:= str
+//    +'])' + LineEnding
+//    +'  .setGraphical(false)             ' + LineEnding
+//    +'  .setUseLegacyEncoder(true)       ' + LineEnding;
 
-  // Create common functions
-  allcode := FetchAllAnimCode;
+  // integer parameters are loaded as constants
+  if length(self.ConstIntArray)>0 then
+  begin
+    paramstr:=paramstr
+    +'  constants:{';
+    for i:=0 to length(self.ConstIntArray)-1 do
+    begin
+      if i>0 then paramstr:=paramstr+', ';
+      paramstr:=paramstr
+      +self.ConstIntArray[i].ConstName+': '+inttostr(self.ConstIntArray[i].ConstValue);
+    end;
+    paramstr:=paramstr
+    +'},'+ LineEnding;
+  end;
+  paramstr:=paramstr + '  useLegacyEncoder: true,' + LineEnding;
+  paramstr:=paramstr + '  outputToTexture: true' + LineEnding;
+  paramstr:= paramstr + '});' + LineEnding;
+  paramstr:=paramstr+LineEnding;
+  result:=paramstr;
+end;
+
+//-------------------------------------------------------------------------
+//function TXGPUCanvas.JSRunSuperKernel:String;
+//begin
+//  str:='';
+//  str:=str
+//  +'/*/-------------------Build the nested SuperKernel  ----------------------/*/' + LineEnding
+//  +'let AnimationCounterValue='+IntToStr(self.StartIteration)+'; '  +LineEnding
+//  +'let AnimationCounterMax='+IntToStr(self.NumFrames)+'; '  +LineEnding;
+//
+////combineKernels(k,k,...,lastKernel,combinedKernel)
+//  if numKernels>0 then
+//  begin
+//    str:=str
+//    +'const superKernel = '+self.MyNode.NodeName+'Matrix.combineKernels('+LineEnding;
+//
+//    for n:=0 to numKernels-1 do
+//    begin
+//      if self.KernelRepeatsArr[n]>1 then
+//        for r:=0 to self.KernelRepeatsArr[n]-1 do
+//        begin
+//          str:=str
+//          +'    '+KName+inttostr(n)+'_'+inttostr(r)
+//          +', '+LineEnding;
+//        end
+//      else
+//        str:=str
+//        +'    '+KName+inttostr(n)
+//        +', '+LineEnding;
+//      //str:=str+LineEnding;
+//    end;
+//
+//    str:=str
+//      +'    function(myArray,AnimationCounterValue'+plist+') {'+LineEnding
+//      +'      var rslt='+LineEnding;
+//    for n:=numKernels-1 downto 0 do
+//    begin
+//      if self.KernelRepeatsArr[n]>1 then
+//      begin
+//        for r:=self.KernelRepeatsArr[n]-1 downto 0 do
+//          str:=str
+//          +'        '+KName+inttostr(n)+'_'+inttostr(r)+'( '+LineEnding;
+//      end
+//      else
+//        str:=str
+//        +'        '+KName+inttostr(n)+'( '+LineEnding;
+//      if n=0 then
+//        str:=str+'        '+'myArray,'+LineEnding;
+//    end;
+//    for n:=0 to numKernels-1 do
+//    begin
+//      for r:=0 to self.KernelRepeatsArr[n]-1 do
+//      begin
+//        str:=str
+//        +'        '+'AnimationCounterValue'+plist+')';
+//        if (n<numKernels-1) or (r<self.KernelRepeatsArr[n]-1) then
+//          str:=str+','
+//        else
+//          str:=str+';';
+//        str:=str+LineEnding;
+//      end;
+//    end;
+//    str:=str
+//    +'      return rslt;'+LineEnding
+//    +'    });'+LineEnding;
+//
+//    str:=str
+//    +'    /*/-------------------Run the Nested Kernels ----------------------/*/    ' + LineEnding
+//    +'    outputStageArray = superKernel(stageArray,AnimationCounterValue'+plist+');  '+LineEnding
+//    +'    PostMessageStageArray("'+myNode.NodeName+'",AnimationCounterValue);' + LineEnding;
+//  end;
+//  result:=Str;
+//end;
+
+//-------------------------------------------------------------------------
+function TXGPUCanvas.JSCreateCommonFuncs(AnimCode:TStringList):String;
+var
+  str:String;
+  fnames,fcode:TStringList;
+  n:integer;
+begin
+  str:='';
   if trim(AnimCode[1])<>'' then
   begin
     ////// find the func names !!!!!!!!  (using the original Pascal code)
@@ -1071,68 +1324,69 @@ begin
       +');'  + LineEnding;
     end;
   end;
+  result:=str;
+end;
 
-  // Build the Dimensions array
-  ok:=self.BuildDimensionsArray(xdims,ydims,zdims);
-  if not ok then EXIT;
-
-
-  // Create the required set of non-graphical kernels.
+//-------------------------------------------------------------------------
+function TXGPUCanvas.JSCreateKernels(AnimCode:TStringList;KName,plist:String):String;
+var
+  str:String;
+  n,r:integer;
+begin
+  // Create the set of non-graphical kernels.
   // All these kernels operate with the same set of parameters.
+  str:='';
   for n:=0 to numKernels-1 do
   begin
+    //ShowMessage('creating kernel'+inttostr(n));
     str:=str
-    +'/*/------------ Create Kernel '+inttostr(n)+' -------/*/ ' + LineEnding
-    +'const '+KName+inttostr(n)+' = '+self.MyNode.NodeName+'Matrix.createKernel(function(myArray,AnimationCounterValue'+plist
+    +'/*/------------ Create Kernel '+inttostr(n)+' Function-------/*/ ' + LineEnding
+    +'const '+KName+inttostr(n)+'Func = function(myArray,AnimationCounterValue'+plist
        +') { ' + LineEnding;
     str:=str + '  var myValue=0.0;' + LineEnding;
-    //str:=str + AnimCode[n+1];
     str:=str + AnimCode[n+2];          // extra 1 for common functions
     str:=str + '  return myValue;' + LineEnding;   // this goes into the relevant x,y,z position in outputArray
     str:= str
-    +'},'+LineEnding
-    +'{  output: [';
-    for d:=0 to length(self.Dimensions[n+2])-1 do
+    +'}'+LineEnding;
+
+    if self.KernelRepeatsArr[n]>1 then
     begin
-      if d>0 then str:=str+',';
-      str:= str + inttostr(self.Dimensions[n+2,d]);
-    end;
-
-    str:= str
-    +'],' + LineEnding
-    +'  graphical: false,' + LineEnding;
-
-//    str:= str
-//    +'])' + LineEnding
-//    +'  .setGraphical(false)             ' + LineEnding
-//    +'  .setUseLegacyEncoder(true)       ' + LineEnding;
-
-    // integer parameters are loaded as constants
-    if length(self.ConstIntArray)>0 then
-    begin
-      str:=str
-      +'  constants:{';
-      for i:=0 to length(self.ConstIntArray)-1 do
+      for r:=0 to self.KernelRepeatsArr[n]-1 do
       begin
-        if i>0 then str:=str+', ';
         str:=str
-        +self.ConstIntArray[i].ConstName+': '+inttostr(self.ConstIntArray[i].ConstValue);
+        +'/*/------------ Create Kernel '+inttostr(n)+'_'+inttostr(r)+' -------/*/ ' + LineEnding
+        +'const '+KName+inttostr(n)+'_'+inttostr(r)+' = '+self.MyNode.NodeName+'Matrix.createKernel('+ KName+inttostr(n)+'Func'
+        +','+LineEnding;
+        str:=str + JSAddKernelParams(n);
       end;
+    end
+    else
+    begin
       str:=str
-      +'},'+ LineEnding;
+      +'/*/------------ Create Kernel '+inttostr(n)+' -------/*/ ' + LineEnding
+      +'const '+KName+inttostr(n)+' = '+self.MyNode.NodeName+'Matrix.createKernel('+ KName+inttostr(n)+'Func'
+      +','+LineEnding;
+      str:=str + JSAddKernelParams(n);
     end;
-    str:=str + '  useLegacyEncoder: true' + LineEnding;
-    str:= str + '});' + LineEnding;
-    str:=str+LineEnding;
-  end;
 
+  end;
+  result:=str;
+end;
+
+//-------------------------------------------------------------------------
+function TXGPUCanvas.JSCreateGraphicalKernel(AnimCode:TStringList;KName,plist:String):String;
+var
+  str:String;
+  h,w,i:integer;
+begin
   //.......... Create a final Kernel (Graphical) ..............
+  str:='';
   h:=self.ActualHeight;
   w:=self.ActualWidth;
 
   str:=str
   +'/*/------------ Create Graphical Kernel -------/*/ ' + LineEnding
-  +'const '+KName+'G = '+self.MyNode.NodeName+'.createKernel(function(myArray,AnimationCounterValue'+plist
+  +'const '+KName+'G = '+self.MyNode.NodeName+'Matrix.createKernel(function(myArray,AnimationCounterValue'+plist
   +') { ' + LineEnding
   +'  var r = 0  ;      ' + LineEnding
   +'  var g = 0  ; /*/--initalise the default colour for the GPUCanvas pixel in r,g,b,a format --/*/  ' + LineEnding
@@ -1161,53 +1415,17 @@ begin
   end;
   str:= str + ';' + LineEnding;
   str:=str+LineEnding;
+  result:=str;
+end;
 
-  str:=str
-  +'/*/-------------------Build the nested Kernel codes ----------------------/*/' + LineEnding
-  +'let AnimationCounterValue='+IntToStr(self.StartIteration)+'; '  +LineEnding
-  +'let AnimationCounterMax='+IntToStr(self.NumFrames)+'; '  +LineEnding;
-
-//combineKernels(k,k,...,lastKernel,combinedKernel)
-  if numKernels>0 then
-  begin
-    str:=str
-    +'const superKernel = '+self.MyNode.NodeName+'Matrix.combineKernels('+LineEnding;
-
-    for n:=0 to numKernels-1 do
-    begin
-      str:=str
-      +'    '+KName+inttostr(n)
-      +', ';
-      str:=str+LineEnding;
-    end;
-    str:=str
-      +'    function(myArray,AnimationCounterValue'+plist+') {'+LineEnding
-      +'      var rslt='+LineEnding;
-    for n:=numKernels-1 downto 0 do
-    begin
-      str:=str
-      +'        '+KName+inttostr(n)+'( '+LineEnding;
-      if n=0 then
-        str:=str+'        '+'myArray,'+LineEnding;
-    end;
-    for n:=0 to numKernels-1 do
-    begin
-      str:=str
-      +'        '+'AnimationCounterValue'+plist+')';
-      if n<numKernels-1 then
-        str:=str+','
-      else
-        str:=str+';';
-      str:=str+LineEnding;
-    end;
-    str:=str
-    +'      return rslt;'+LineEnding
-    +'    });'+LineEnding;
-  end;
-
-
+//-------------------------------------------------------------------------
+function TXGPUCanvas.JSInitialiseStageArray:String;
+var
+  str:String;
+begin
   // Initialise the stageArray...   [3D array of real]
   // Initial values come from the 'XGPU3DTable' component (data held in property InitStageData)
+  str:='';
   {$ifndef JScript}
   str:=str
   +'let stageArray='+StringUtils.DelChars(self.InitStageData,'"')+';   '+LineEnding;
@@ -1226,32 +1444,176 @@ begin
   else
     str:=str+'let outputStageArray=[[[0]]];' +LineEnding;
   str:=str+LineEnding;
-  str:=str+'function StartTheGPU() {'+LineEnding;
+  result:=str;
+end;
 
-
+//-------------------------------------------------------------------------
+function TXGPUCanvas.JSBuildKernels(KName,plist:String):String;
+var
+  str:String;
+  n,r:integer;
+begin
+  str:='';
   // Run the combined non-graphical kernels...
+  // Call the build method for each kernel in turn (flushes out transpile errors)
+   for n:=0 to numKernels-1 do
+   begin
+     if self.KernelRepeatsArr[n]>1 then
+     begin
+       for r:=0 to self.KernelRepeatsArr[n]-1 do
+       begin
+         str:=str
+         +'    '+KName+inttostr(n)+'_'+inttostr(r)+'.build(stageArray,AnimationCounterValue'+plist+');  '+LineEnding
+         +'    console.log("Kernel '+inttostr(n)+'_'+inttostr(r)+' built ok");  '+LineEnding;
+       end;
+     end
+     else
+     begin
+       str:=str
+       +'    '+KName+inttostr(n)+'.build(stageArray,AnimationCounterValue'+plist+');  '+LineEnding
+       +'    console.log("Kernel '+inttostr(n)+' built ok");  '+LineEnding;
+     end;
+   end;
+   str:=str+LineEnding;
+   result:=str;
+end;
+
+//-------------------------------------------------------------------------
+function TXGPUCanvas.JSRunPipelinedKernels(KName,plist:String):String;
+var
+  str,prevko:String;
+  n,i,r:integer;
+  koname:TStringList;
+begin
+  str:='';
+  str:=str
+  +'/*/-------------------Run the pipelined Kernel codes ----------------------/*/' + LineEnding;
+
   if numKernels>0 then
   begin
-    // Call the build method for each kernel in turn (flushes out transpile errors)
+    koname:=TStringList.Create;
+    i:=0;
     for n:=0 to numKernels-1 do
     begin
-      str:=str
-      +'    '+KName+inttostr(n)+'.build(stageArray,AnimationCounterValue'+plist+');  '+LineEnding
-      +'    console.log("Kernel '+inttostr(n)+' built ok");  '+LineEnding;
+      if self.KernelRepeatsArr[n]>1 then
+      begin
+        for r:=0 to self.KernelRepeatsArr[n]-1 do
+        begin
+          if i=0 then prevko:='stageArray'
+          else prevko:=koname[i-1];
+          koname.Add('K'+inttostr(n)+'_'+inttostr(r)+'out');
+          str:=str
+          +'    const '+koname[i]+' = '
+          +KName+inttostr(n)+'_'+inttostr(r)+'('+prevko+', '
+          +'AnimationCounterValue'+plist+');'
+          +LineEnding;
+          if self.KernelKeepsArr[n]>0 then
+            str:=str
+            +'    K'+inttostr(n)+'keep = '+koname[i]+'.toArray();'+LineEnding;
+          if n>0 then
+          begin
+            //if self.KernelKeepsArr[n-1]=0 then
+              if i>0 then
+                str:=str
+                +'    '+koname[i-1]+'.delete();'+LineEnding;
+          end;
+          i:=i+1;
+        end;
+      end
+      else
+      begin
+        if i=0 then prevko:='stageArray'
+        else prevko:=koname[i-1];
+        koname.Add('K'+inttostr(n)+'out');
+        str:=str             //const result0 =
+        +'    const '+koname[i]+' = '
+        +KName+inttostr(n)+'('+prevko+', '
+        +'AnimationCounterValue'+plist+');'
+        +LineEnding;
+        if self.KernelKeepsArr[n]>0 then
+          str:=str
+          +'    K'+inttostr(n)+'keep = '+koname[i]+'.toArray();'+LineEnding;
+        if n>0 then
+        begin
+          //if self.KernelKeepsArr[n-1]=0 then
+            if i>0 then
+              str:=str
+              +'    '+koname[i-1]+'.delete();'+LineEnding;
+        end;
+        i:=i+1;
+      end;
     end;
-    str:=str+LineEnding;
+    if n=numKernels-1 then
+      str:=str+LineEnding;
+      str:=str
+      +'    outputStageArray = '+koname[i-1]+'.toArray();' + LineEnding;
 
     str:=str
-    +'    /*/-------------------Run the Nested Kernels ----------------------/*/    ' + LineEnding
-    +'    outputStageArray = superKernel(stageArray,AnimationCounterValue'+plist+');  '+LineEnding
     +'    PostMessageStageArray("'+myNode.NodeName+'",AnimationCounterValue);' + LineEnding;
   end
   else
     str:=str
     +'    outputStageArray = stageArray;  '+LineEnding;
+  result:=str;
+end;
+
+//-------------------------------------------------------------------------
+function TXGPUCanvas.GPUJSCode(AnimCode:TStringList):String;
+var
+  str,vstr,plist, KName,tempstr,prevko:String;
+  i,j,k,d:integer;
+  h,w,n,r:integer;
+  xdims,ydims,zdims,repeats,keeps,fnames,koname:TStringList;
+  ok:boolean;
+  allcode:TAnimCodeArray;
+begin
+  result:='';
+  ok := CheckForKernels(AnimCode);
+  if not ok then EXIT;
+
+  str:=JSInitialCode;
+  str:=str + JSDeclareParameters;
+  str:=str + JSPostMessageCode;
+  str:=str + JSGetPixelArray;
+
+  plist:=self.FullParamList;
+  KName:=self.MyNode.NodeName+'CanvasRenderFn';
+  allcode := FetchAllAnimCode;
+
+  // Create common functions
+  str:=str+JSCreateCommonFuncs(AnimCode);
+
+  // Build the Dimensions array
+  ok:=self.BuildDimensionsArray(xdims,ydims,zdims,repeats,keeps);
+  if not ok then EXIT;
+
+  // Create the set of non-graphical kernels.
+  str:=str + JSCreateKernels(AnimCode,KName,plist);
+
+  //.......... Create a final Kernel (Graphical) ..............
+  str:=str+JSCreateGraphicalKernel(AnimCode,KName,plist);
 
   str:=str
-  +'    /*/-------------------Run the Graphical Kernel and place the result on the web page----------------------/*/    ' + LineEnding
+  +'let AnimationCounterValue='+IntToStr(self.StartIteration)+'; '  +LineEnding
+  +'let AnimationCounterMax='+IntToStr(self.NumFrames)+'; '  +LineEnding;
+
+  //.......... Initialise the stage array ..............
+  str:=str + JSInitialiseStageArray;
+
+  //......... Create function StartTheGPU() .............
+  str:=str+'function StartTheGPU() {'+LineEnding;
+
+  str:=str + JSBuildKernels(KName,plist);
+
+//    ................... Create SuperKernel, with all kernels nested
+//    str:=str + JSRunSuperKernel;
+//
+
+  str:=str + JSRunPipelinedKernels(KName,plist);
+
+  str:=str+LineEnding;
+  str:=str
+  +'    /*/-------------------Run the Graphical Kernel and place the result on the page----------------------/*/    ' + LineEnding
   +'    '+KName+'G(outputStageArray,AnimationCounterValue'+plist+');               ' + LineEnding;
   if ((self.Animated=False) or (self.OutputPixelArray=true)) then
     str:=str
@@ -1279,7 +1641,7 @@ begin
   result:=str;
 end;
 
-function TXGPUCanvas.GPUJSCodeForEmulationMode(AnimCode:TStringList):String;
+(*function TXGPUCanvas.GPUJSCodeForEmulationMode(AnimCode:TStringList):String;
 var
   str,KName,tempstr:String;
   h,w,n:integer;
@@ -1341,7 +1703,7 @@ begin
   str:=str+'function StartTheGPU() {'+LineEnding;
 
   str:=str
-  +'    /*/-------------------Run the Graphical Kernel and place the result on the web page----------------------/*/    ' + LineEnding
+  +'    /*/-------------------Run the Graphical Kernel and place the result on the page----------------------/*/    ' + LineEnding
   +'    '+KName+'G(stageArray);               ' + LineEnding;
 
   // Put the GPU bitmap on the page...
@@ -1355,7 +1717,7 @@ begin
   str:=str + JSFinalCode;
 
   result:=str;
-end;
+end;   *)
 
 procedure SetOutputArrayValue(NodeName:String;const AValue,cval:String);
 var
@@ -1695,13 +2057,14 @@ end;
 function TXGPUCanvas.BuildPascalAnimationUnit(Compiler:TObject;RunMode:String):Boolean;
 // Wrap the user-supplied code from the AnimationCode property in a unit, for compilation to JavaScript by pas2js.
 // RunMode is 'GPU' if we are generating actual GPU kernels to run in the GPU canvas.
-// Otherwise, RunMode is set for compilation of system event code, and the GPU kernels are included in this
+// Otherwise, RunMode is set for compilation of system event code,
+// and the GPU kernels are included in this
 // for generation of a GPU emulation unit (LazDll,LasJS,JSJS, etc).
 var
   PascalHeader:TStringList;
   txt:String;
   AllAnimationCode:TAnimCodeArray;
-  TheAnimationCode,xdims,ydims,zdims:TStringList;
+  TheAnimationCode,xdims,ydims,zdims,repeats,keeps:TStringList;
   i,n:integer;
   ok:boolean;
 begin
@@ -1715,9 +2078,9 @@ begin
     PascalHeader.Add('interface');
     PascalHeader.Add('uses Classes, SysUtils, Math;');
   end
-  else
+  else                //LazJS
   begin
-    // creating the emulation unit...
+    // creating the gpu code unit...
     PascalHeader.Add('unit GPUCode'+self.myNode.NodeName+';');
     PascalHeader.Add('{$ifndef JScript}');
     PascalHeader.Add('{$mode objfpc}{$H+}');
@@ -1734,6 +2097,7 @@ begin
   PascalHeader.Add(' type ');
   PascalHeader.Add('     TNumArray = array of real;');
   PascalHeader.Add('     T2DNumArray = array of TNumArray;');
+  PascalHeader.Add('     T3DNumArray = array of T2DNumArray;');
   PascalHeader.Add('     TConstantsRecord=record');
   PascalHeader.Add('       dummycons:integer;');
   for i:=0 to length(self.ConstIntArray)-1 do
@@ -1791,6 +2155,13 @@ begin
   else if RunMode='LazJS' then
     PascalHeader.Add('     result:=System.sin(v)/System.cos(v);	');
   PascalHeader.Add('   end;	');
+  PascalHeader.Add('   function arctan(a,b: real):real;	');
+  PascalHeader.Add('   begin	');
+  if RunMode='LazDll' then
+    PascalHeader.Add('     result:=Math.ArcSin(a)/sqrt(1-a*a);	')
+  else if RunMode='LazJS' then
+    PascalHeader.Add('     result:=System.ArcTan(a,b);	');
+  PascalHeader.Add('   end;	');
   PascalHeader.Add('   function sqr(d: TFuncNotSupported):TFuncNotSupported;	');
   PascalHeader.Add('   begin	');
   PascalHeader.Add('   end;	');
@@ -1805,8 +2176,17 @@ begin
   begin
     PascalHeader.Add('   var '+Param2DNumArray[i].ParamName+':T2DNumArray;');
   end;
+  for i:=0 to length(self.Param3DNumArray)-1 do
+  begin
+    PascalHeader.Add('   var '+Param3DNumArray[i].ParamName+':T3DNumArray;');
+  end;
+  for i:=0 to length(self.KernelKeepsArr)-1 do
+  begin
+    PascalHeader.Add('   var K'+inttostr(i)+'keep:T3DNumArray;');
+  end;
   PascalHeader.Add('   var  this:TGPUThread;');
   PascalHeader.Add('   type  T2DArray=Array of Array of real;');
+  PascalHeader.Add('   type  T3DArray=Array of T2DArray;');
   PascalHeader.Add('   type  TmyArray=Array of T2DArray;');
   PascalHeader.Add('   var  myArray:TMyArray;');
   PascalHeader.Add('   var  r,g,b,a:real;');
@@ -1846,7 +2226,7 @@ begin
 
   if RunMode<>'GPU' then
   begin
-    ok:=self.BuildDimensionsArray(xdims,ydims,zdims);
+    ok:=self.BuildDimensionsArray(xdims,ydims,zdims,repeats,keeps);
     if ok then
     begin
       PascalHeader.Add('function Emulate_'+self.myNode.NodeName+'(animcounter,NumZPixels,NumYPixels,NumXPixels:integer):TGPUPixelArray; {$ifdef Dll}stdcall;{$endif}');
@@ -1866,6 +2246,10 @@ begin
       for i:=0 to length(self.Param2DNumArray)-1 do
       begin
         PascalHeader.Add('   '+Param2DNumArray[i].ParamName+':=GetGPUParam2DNumValue('''+self.myNode.NodeName+''','''+Param2DNumArray[i].ParamName+''');');
+      end;
+      for i:=0 to length(self.Param3DNumArray)-1 do
+      begin
+        PascalHeader.Add('   '+Param3DNumArray[i].ParamName+':=GetGPUParam3DNumValue('''+self.myNode.NodeName+''','''+Param3DNumArray[i].ParamName+''');');
       end;
       for i:=0 to length(self.ConstIntArray)-1 do
       begin
@@ -2181,6 +2565,7 @@ begin
       // Now filter out any qualifiers that may have been added by pas2js
       // eg. parameter variable P1 will have translated to $impl.P1
       // and also modify calls to some maths ffunctions...
+      Pas2JSRaw := myStringReplace(Pas2JSRaw,'$impl.arctan','atan',-1,-1);
       Pas2JSRaw := myStringReplace(Pas2JSRaw,'$impl.','',-1,-1);
       Pas2JSRaw := myStringReplace(Pas2JSRaw,'This.','this.',-1,-1);
       Pas2JSRaw := myStringReplace(Pas2JSRaw,'pas.System.Trunc','Math.floor',-1,-1);
@@ -2249,7 +2634,7 @@ begin
       EXIT;
     end;
 
-    if self.EmulationMode = false then
+//    if self.EmulationMode = false then
     begin
     // Get the set of kernel output dimensions
     // and wrap it with the GPU JS...
@@ -2262,10 +2647,10 @@ begin
       GPURunnableHTML:=GPURunnableHTML + GPUJSAnimationFooter;
       {$endif}
     end;
-    end
-    else
-    begin
-      FullString:= GPUJSCodeForEmulationMode(Pas2JSTrimmed);
+//    end
+//    else
+//    begin
+//      FullString:= GPUJSCodeForEmulationMode(Pas2JSTrimmed);
     end;
 
     tmp:=UnSubstituteSpecials(gpujs);
@@ -2358,6 +2743,18 @@ begin
     if Param2DNumArray[i].ParamName=pName then
     begin
       pval:=Param2DNumArray[i].ParamValue;
+    end;
+  result:=pval;
+end;
+function TXGPUCanvas.GetParam3DNumValue(pName:String):T3DNumArray;
+var
+  i:integer;
+  pval:T3DNumArray;
+begin
+  for i:=0 to length(Param3DNumArray)-1 do
+    if Param3DNumArray[i].ParamName=pName then
+    begin
+      pval:=Param3DNumArray[i].ParamValue;
     end;
   result:=pval;
 end;
@@ -2489,6 +2886,63 @@ begin
     end;
   end;
 end;
+procedure TXGPUCanvas.SetParam3DNumValue(pName:String;pValue:T3DNumArray;ForwardToWidget:Boolean);
+var
+  i,j,k,l:integer;
+  tmp,p1,p2:String;
+  myurl:string;
+begin
+  p1:= trim(uppercase(pName));
+  for i:=0 to length(Param3DNumArray)-1 do
+  begin
+    p2:= trim(uppercase(Param3DNumArray[i].ParamName));
+    if p1 = p2 then
+    begin
+      SetLength(Param3DNumArray[i].ParamValue,length(pValue));
+      for j:=0 to length(pValue)-1 do
+      begin
+        setLength(Param3DNumArray[i].ParamValue[j],length(pValue[j]));
+        for k:=0 to length(pValue[0])-1 do
+        begin
+          setLength(Param3DNumArray[i].ParamValue[j,k],length(pValue[j,k]));
+          for l:=0 to length(pValue[0,0])-1 do
+            Param3DNumArray[i].ParamValue[j,k,l]:=pValue[j,k,l];
+        end;
+      end;
+
+(*      if (ForwardToWidget)
+      and (self.Active)
+      and (self.HTMLSource<>'')
+      and (self.HTMLSource<>'about:blank') then
+      begin
+        {$ifndef JScript}
+        {$ifdef Chromium}
+        myurl:= myChromium.Browser.MainFrame.GetURL();
+        if myurl<>'about:blank' then
+        begin
+          tmp:=Num2dArrayToString(pValue);
+          tmp:='RunCode("'+pName+'='+tmp+';")';
+          myChromium.Browser.MainFrame.ExecuteJavaScript(tmp, myurl, 0);
+        end;
+        {$else}
+        //!!!! need to refresh the GPU canvas display when it's on a separate browser page....  ??
+        myurl:='';
+        {$endif}
+        {$else}
+        asm
+          var ob=document.getElementById(this.NameSpace+this.NodeName+'Contents');
+          if (ob!=null) {
+            //alert('found iframe. posting param message');
+            ob.contentWindow.postMessage({"objid":this.NodeName, "mtype":"SetNumParam", "pName":pName, "pValue":pValue},"*");
+            }
+        end;
+        {$endif}
+      end;
+      *)
+    end;
+  end;
+end;
+
 
 procedure TXGPUCanvas.SetConstIntValue(pName:String;pValue:integer);
 var
@@ -2577,16 +3031,16 @@ begin
   begin
     HandleEvent('OnStart',self.myNode.NodeName,self.myNode.NameSpace,'');
 
-    if self.EmulationMode=true then
-    begin
-      animcounter:=self.EmulationFrame;
-      NumZPixels:=1;
-      NumYPixels:=h;
-      NumXPixels:=w;
-      arr:=self.ExecEmulatorFunc(animcounter,NumZPixels,NumYPixels,NumXPixels);
-      arr3d:=Num3DArrayToJSONString(arr[0]);
-      self.InitStageData:=arr3d;
-    end;
+//    if self.EmulationMode=true then
+//    begin
+//      animcounter:=self.EmulationFrame;
+//      NumZPixels:=1;
+//      NumYPixels:=h;
+//      NumXPixels:=w;
+//      arr:=self.ExecEmulatorFunc(animcounter,NumZPixels,NumYPixels,NumXPixels);
+//      arr3d:=Num3DArrayToJSONString(arr[0]);
+//      self.InitStageData:=arr3d;
+//    end;
     SetupGPUPage;
   end;
 end;
@@ -2666,14 +3120,14 @@ procedure TXGPUCanvas.SetOutputPixelArray(AValue:Boolean);
 begin
   myNode.SetAttributeValue('OutputPixelArray',myBoolToStr(AValue),'Boolean');
 end;
-procedure TXGPUCanvas.SetEmulationMode(AValue:Boolean);
-begin
-  myNode.SetAttributeValue('EmulationMode',myBoolToStr(AValue),'Boolean');
-end;
-procedure TXGPUCanvas.SetEmulationFrame(AValue:integer);
-begin
-  myNode.SetAttributeValue('EmulationFrame',intToStr(AValue),'Integer');
-end;
+//procedure TXGPUCanvas.SetEmulationMode(AValue:Boolean);
+//begin
+//  myNode.SetAttributeValue('EmulationMode',myBoolToStr(AValue),'Boolean');
+//end;
+//procedure TXGPUCanvas.SetEmulationFrame(AValue:integer);
+//begin
+//  myNode.SetAttributeValue('EmulationFrame',intToStr(AValue),'Integer');
+//end;
 procedure TXGPUCanvas.SetParamNumList(AValue:string);
 var
   pNames:TStringList;
@@ -2727,6 +3181,34 @@ begin
   end;
 
 end;
+procedure TXGPUCanvas.SetParam3DNumList(AValue:string);
+var
+  pNames:TStringList;
+  i:integer;
+begin
+  myNode.SetAttributeValue('Param3DNumList',AValue,'String');
+  SetLength(Param3DNumArray,0);
+
+  //use this comma-delimited list to initialise Param3DNumArray.
+  if AValue<>'' then
+  begin
+    pNames:=TStringList.Create;
+    pNames.StrictDelimiter:=true;
+    pNames.LineBreak:=',';
+    pNames.Text:=AValue;
+    SetLength(Param3DNumArray,pNames.Count);
+    for i:=0 to pNames.Count-1 do
+    begin
+      Param3DNumArray[i].ParamName:=trim(pNames[i]);
+      SetLength(Param3DNumArray[i].ParamValue,1);
+      SetLength(Param3DNumArray[i].ParamValue[0],1);
+      SetLength(Param3DNumArray[i].ParamValue[0,0],1);
+      Param3DNumArray[i].ParamValue[0,0,0]:=0;
+    end;
+    pNames.Free;
+  end;
+
+end;
 procedure TXGPUCanvas.SetConstIntList(AValue:string);
 var
   pNames:TStringList;
@@ -2768,6 +3250,25 @@ end;
 procedure TXGPUCanvas.SetKernelZDims(AValue:string);
 begin
   myNode.SetAttributeValue('KernelZDims',AValue,'String');
+end;
+procedure TXGPUCanvas.SetKernelRepeats(AValue:string);
+begin
+  myNode.SetAttributeValue('KernelRepeats',AValue,'String');
+end;
+procedure TXGPUCanvas.SetKernelKeep(AValue:string);
+var
+  keeps:TStringList;
+  n:integer;
+begin
+  myNode.SetAttributeValue('KernelKeep',AValue,'String');
+  //use this comma-delimited list to initialise KernelKeepsArr.
+  if AValue<>'' then
+  begin
+    keeps:=JSONStringToStringList(AValue);
+    SetLength(self.KernelKeepsArr,self.NumKernels);
+    for n:=0 to self.NumKernels-1 do
+      self.KernelKeepsArr[n]:=StrtoInt(keeps[n]);
+  end;
 end;
 procedure TXGPUCanvas.SetMaxIterations(AValue:integer);
 begin
@@ -2848,6 +3349,7 @@ begin
   AddDefaultAttribute(myDefaultAttribs,'OutputPixelArray','Boolean','False','When GPU is animated, this makes the pixel array available after every frame',false);
   AddDefaultAttribute(myDefaultAttribs,'ParamNumList','String','','List of numeric parameters (1D arrays) to be passed in to kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'Param2DNumList','String','','List of numeric parameters (2D arrays) to be passed in to kernels',false);
+  AddDefaultAttribute(myDefaultAttribs,'Param3DNumList','String','','List of numeric parameters (3D arrays) to be passed in to kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'ConstIntList','String','','List of integer constants to be passed in to kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'MaxIterations','Integer','512','Any loops defined inside a kernel must have a maximum iteration count defined by MaxIterations',false);
   AddDefaultAttribute(myDefaultAttribs,'StartIteration','Integer','1','Initial value for AnimationCounterValue',false);
@@ -2860,8 +3362,10 @@ begin
   AddDefaultAttribute(myDefaultAttribs,'KernelXDims','String','[]','x-dimensions of output from the non-graphical kernels eg. [100,150] for 2 kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'KernelYDims','String','[]','y-dimensions of output from the non-graphical kernels eg. [100,150] for 2 kernels',false);
   AddDefaultAttribute(myDefaultAttribs,'KernelZDims','String','[]','z-dimensions of output from the non-graphical kernels eg. [1,2] for 2 kernels',false);
-  AddDefaultAttribute(myDefaultAttribs,'EmulationMode','Boolean','False','When true, GPU will activate using the pascal kernel code, and display the result',false);
-  AddDefaultAttribute(myDefaultAttribs,'EmulationFrame','Integer','1','Animation frame to be run in emulation mode',false);
+  AddDefaultAttribute(myDefaultAttribs,'KernelRepeats','String','[]','number or repetitions for non-graphical kernels eg. [1,2,1] for 3 kernels, repeating kernel 2 twice',false);
+  AddDefaultAttribute(myDefaultAttribs,'KernelKeep','String','[]','set to 1 for kernels whose output is kept for a later kernel eg. [0,1,0] for 3 kernels, keeping kernel 2 output as array',false);
+//  AddDefaultAttribute(myDefaultAttribs,'EmulationMode','Boolean','False','When true, GPU will activate using the pascal kernel code, and display the result',false);
+//  AddDefaultAttribute(myDefaultAttribs,'EmulationFrame','Integer','1','Animation frame to be run in emulation mode',false);
   AddDefaultsToTable(MyNodeType,myDefaultAttribs);
 
   AddAttribOptions(MyNodeType,'Alignment',AlignmentOptions);

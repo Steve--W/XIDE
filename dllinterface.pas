@@ -52,9 +52,11 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiDeleteSelectedTreeNode(TreeName:string);   stdcall;
     function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
     function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;  stdcall;
+    function mmiGetGPUParam3DNumValue(GPUName,pName:String):T3DNumArray;  stdcall;
     function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
     procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
     procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);  stdcall;
+    procedure mmiSetGPUParam3DNumValue(GPUName,pName:String;pValue:T3DNumArray);  stdcall;
     procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
     procedure mmiStartMain(e:TEventStatus);    stdcall;
     procedure mmiShowBusy(e:TEventStatus);    stdcall;
@@ -110,9 +112,11 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiDeleteSelectedTreeNode(TreeName:string);   stdcall;
       function mmiGetGPUParamNumValue(GPUName,pName:String):TNumArray;  stdcall;
       function mmiGetGPUParam2DNumValue(GPUName,pName:String):T2DNumArray;  stdcall;
+      function mmiGetGPUParam3DNumValue(GPUName,pName:String):T3DNumArray;  stdcall;
       function mmiGetGPUConstIntValue(GPUName,pName:String):integer;  stdcall;
       procedure mmiSetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);  stdcall;
       procedure mmiSetGPUParam2DNumValue(GPUName,pName:String;pValue:T2DNumArray);  stdcall;
+      procedure mmiSetGPUParam3DNumValue(GPUName,pName:String;pValue:T3DNumArray);  stdcall;
       procedure mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
       procedure mmiStartMain(e:TEventStatus); stdcall;
       procedure mmiShowBusy(e:TEventStatus); stdcall;
@@ -200,6 +204,7 @@ begin
      myTag:=TEventTimerTag.Create;
      myTag.ProcName:=ProcName;
      myTag.e:=ReturnEvent;
+
      //DllEventTimer.Tag:=WinSizeDependentInt(myTag);
      //DllEventTimer.Enabled:=true;
      myTimer:=CreateEventTimer;
@@ -609,6 +614,18 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      end;
    end;
 
+   procedure TMyMethodObject.mmiSetGPUParam3DNumValue(GPUName,pName:String;pValue:T3DNumArray);  stdcall;
+   var
+     myNode:TDataNode;
+   begin
+    //showmessage('mmiSetGPUParam2DNumValue GPUName='+GPUName);
+     myNode:=FindDataNodeById(UIRootNode,GPUName,StrPas(EventsNameSpace),true);  //SystemNodeTree?
+     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+     begin
+       TXGPUCanvas(myNode.ScreenObject).SetParam3DNumValue(pName,pValue,true);
+     end;
+   end;
+
    procedure TMyMethodObject.mmiSetGPUConstIntValue(GPUName,pName:String;pValue:integer);  stdcall;
    var
      myNode:TDataNode;
@@ -659,6 +676,19 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
      begin
        result:=TXGPUCanvas(myNode.ScreenObject).GetParam2DNumValue(pName);
+     end;
+   end;
+
+   function TMyMethodObject.mmiGetGPUParam3DNumValue(GPUName,pName:String):T3DNumArray;  stdcall;
+   var
+     myNode:TDataNode;
+   begin
+     result:=nil;
+    //showmessage('mmiSetGPUParamNumValue GPUName='+GPUName);
+     myNode:=FindDataNodeById(UIRootNode,GPUName,StrPas(EventsNameSpace),true);  //SystemNodeTree?
+     if (mynode<>nil) and (myNode.NodeType='TXGPUCanvas') then
+     begin
+       result:=TXGPUCanvas(myNode.ScreenObject).GetParam3DNumValue(pName);
      end;
    end;
 

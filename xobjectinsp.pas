@@ -396,7 +396,6 @@ begin
         // This is a raw Pascal unit or a Python script.
         // Pascal: If the compiler has been run (pas2js), then there will be a list of defined procedures/functions
         // available for display in this tree.
-        //i:=length(pyUnitFuncs);
         for i:=0 to length(XIDEProcsList)-1 do
         begin
           if lowercase(XIDEProcsList[i].FileName) = lowercase(CurrentItem.NodeName)+'.pas' then
@@ -2080,6 +2079,25 @@ begin
   end;
 end;
 
+function SiblingHasNotAlign(ParentNode:TDataNode;CheckAlignment:String):Boolean;
+var
+  i,numchildren:integer;
+  alg:String;
+begin
+  numchildren:=length(ParentNode.ChildNodes);
+  result:=false;
+  for i :=0 to numchildren-1 do
+  begin
+    if (ParentNode.ChildNodes[i].NodeType = 'TXVBox')
+    or (ParentNode.ChildNodes[i].NodeType = 'TXHBox') then
+    begin
+      alg:=TWrapperPanel(ParentNode.ChildNodes[i].ScreenObject).Alignment;
+      if TWrapperPanel(ParentNode.ChildNodes[i].ScreenObject).Alignment <> CheckAlignment then
+        result:=true;
+    end;
+  end;
+end;
+
 function CanAddChildToParent(ParentNode,SourceNode:TDataNode):Boolean;
 begin
   result:=false;
@@ -2110,14 +2128,12 @@ begin
     ShowMessage('Only XForm and Non-Visual items can be added to the UI Root Node - please select another container')
   else if (SourceNode.NodeClass='UI') and (ParentNode.NodeType='TXForm') and (ParentNode.NodeName=MainForm.Name) then
     ShowMessage('In the main form, UI items can only be added within the UI Root Node')
-  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType='DMRoot') and (SourceNode.NodeType<>'DMClass') then
-  //  ShowMessage('Only a DMClass can be inserted under a DMRoot element')
-  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMContains') then
-  //  ShowMessage('A DMContains can only be inserted under a DMClass element')
-  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMOp') then
-  //  ShowMessage('A DMOp can only be inserted under a DMClass element')
-  //else if (ParentNode.NodeClass='DM') and (ParentNode.NodeType<>'DMClass') and (SourceNode.NodeType='DMRef') then
-  //  ShowMessage('A DMRef can only be inserted under a DMClass element')
+  else if (ParentNode.NodeType='TXVBox') and ((SourceNode.NodeType='TXVBox') or (SourceNode.NodeType='TXHBox'))
+       and SiblingHasNotAlign(ParentNode,'Left') then
+         ShowMessage('The parent vbox can only carry one container whose alignment is not ''Left''. Create a new parent vbox first')
+  else if (ParentNode.NodeType='TXHBox') and ((SourceNode.NodeType='TXVBox') or (SourceNode.NodeType='TXHBox'))
+       and SiblingHasNotAlign(ParentNode,'Top') then
+         ShowMessage('The parent hbox can only carry one container whose alignment is not ''Top''. Create a new parent hbox first')
   else
     // all ok - go ahead and paste
     result:=true;
@@ -3326,6 +3342,7 @@ begin
 
     ClearInspectors;
     ClearAllDynamicNodes(SystemNodeTree); // clear any existing dynamic screen components under Root
+    setlength(XIDEProcsList,0);
 
     // open the properties tab in the object inspector
     XIDEForm.ObjectInspectorTabs.TabIndex:=0;    //(UIDesigner)

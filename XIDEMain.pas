@@ -9,7 +9,6 @@
 
  **********************************************************************
  *)
-
 unit XIDEMain;
 {$ifndef JScript}
 {$mode objfpc}{$H+}
@@ -686,7 +685,6 @@ begin
   DoToggleDesignRunMode(ToggleDesignRunMode);
 end;
 
-
 procedure TXIDEForm.StyleTreeEditBtnHandleButtonClick(e: TEventStatus;
   nodeID: AnsiString; myValue: AnsiString);
 begin
@@ -1005,7 +1003,11 @@ begin
     ExtraHTML:=PyodideScript;
     {$endif}
     {$ifdef TensorflowJS}
-    ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"> </script> '); //##### <!-- Import @tensorflow/tfjs -->
+    //##### <!-- Import @tensorflow/tfjs -->
+    //ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"> </script> ');
+    ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"> ');
+    ExtraHTML.Add('tf.ENV.set("WEBGL_PACK", false); ');
+    ExtraHTML.Add('</script> ');
     {$endif}
 
     //ExtraHTML.Add('<script src="http://asterius.netlify.app/demo/pandoc/pandoc.js"></script> ');  //###### pandoc test
@@ -1023,7 +1025,6 @@ begin
   ExtraDirectives.free;
   ExtraHTML.Free;
 end;
-
 
 procedure TXIDEForm.CompilerShowLogClick(Sender: TObject);
 begin

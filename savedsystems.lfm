@@ -8,10 +8,10 @@ object SavedSystemsForm: TSavedSystemsForm
   ClientWidth = 400
   OnCreate = FormCreate
   OnResize = FormResize
-  LCLVersion = '2.1.0.0'
+  LCLVersion = '3.4.0.0'
   object SavedSystemsVBox: TXVBox
     Name = 'SavedSystemsVBox'
-    Tag = 468627536
+    Tag = 195157040
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrCenter
     Left = 0
@@ -33,18 +33,20 @@ object SavedSystemsForm: TSavedSystemsForm
       Name = 'SavedSystemsList'
       Tag = -1
       Left = 2
-      Height = 330
+      Height = 15
       Top = 2
       Width = 396
       Align = alTop
       AutoSize = True
-      myControl.Tag = 468627600
+      myControl.Tag = 195224912
       myControl.AnchorSideLeft.Control = SavedSystemsList
-      myControl.AnchorSideTop.Side = asrBottom
+      myControl.AnchorSideLeft.Side = asrCenter
+      myControl.AnchorSideTop.Side = asrCenter
       myControl.Left = 0
       myControl.Height = 312
-      myControl.Top = 18
+      myControl.Top = -148
       myControl.Width = 398
+      myControl.Anchors = []
       myControl.Constraints.MaxHeight = 312
       myControl.Constraints.MaxWidth = 398
       myControl.Constraints.MinHeight = 312
@@ -91,7 +93,7 @@ object SavedSystemsForm: TSavedSystemsForm
       Tag = -1
       Left = 0
       Height = 40
-      Top = 334
+      Top = 19
       Width = 400
       Align = alTop
       AutoSize = True

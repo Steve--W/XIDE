@@ -207,6 +207,7 @@ begin
   CurrentSuffix:=suffix;
   DiscoverSavedSystems(suffix,NamesList);
   PopulateFilesList(NamesList);
+  SavedSystemsSortBtn.Caption := 'Sort by Date';
   NamesList.Free;
 end;
 end.

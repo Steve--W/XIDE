@@ -512,51 +512,6 @@ begin
 end;
 
 
-(*procedure AddExecFunc(Namespace:String;UnitCode:TStringList);
-begin
-  UnitCode.Add('type THandler = procedure(e:TEventStatus;NodeId:AnsiString;myValue:AnsiString); ');
-  UnitCode.Add('procedure ExecuteEventHandler(e:TEventStatus;NodeId: AnsiString; myValue: AnsiString; initfunc,mainfunc:THandler); ' );
-  UnitCode.Add('var  ' );
-  UnitCode.Add('  asyncWaiting:boolean; ' );
-  UnitCode.Add('begin' );
-  UnitCode.Add('  asyncWaiting := false;' );
-  UnitCode.Add('  if (e<>nil) then' );
-  UnitCode.Add('    asyncWaiting := e.EventHasWaitingAsyncProcs;' );
-  UnitCode.Add('  AppMethods.mmiSetEventsNameSpace('''+Namespace+''');' );
-  UnitCode.Add('  if ((e=nil) or (e.InitDone=false)) ' );
-  UnitCode.Add('  and (not asyncWaiting) then ' );
-  UnitCode.Add('  begin ' );
-  UnitCode.Add('    if (e=nil) then' );
-  UnitCode.Add('    begin ' );
-  UnitCode.Add('      e:=TEventStatus.Create(e.eventType,NodeId);' );
-  UnitCode.Add('      e.NameSpace:='''+Namespace+''';' );
-  UnitCode.Add('    end;' );
-  UnitCode.Add('    e.InitRunning:=true; ' );
-  UnitCode.Add('    e.InitDone:=true;' );
-  UnitCode.Add('    initfunc(e,NodeId,myValue);' );
-  UnitCode.Add('    e.InitRunning:=false;' );
-  UnitCode.Add('  end;' );
-  UnitCode.Add('  if e.AsyncProcsRunning.Count = 1 then' );
-  UnitCode.Add('    e.ClearAsync(''ShowBusy'');' );
-  UnitCode.Add('  if e.EventHasWaitingAsyncProcs = false then ' );
-  UnitCode.Add('  begin ' );
-  {$ifndef JScript}
-  UnitCode.Add('    mainfunc(e,NodeId,myValue);' );
-  {$else}
-  UnitCode.Add('    if (e.eventType = ''DropAccepted'')' );
-  UnitCode.Add('    or (e.eventType = ''DragStart'') then' );
-  UnitCode.Add('      mainfunc(e,NodeId,myValue) ' );   // must do these synchronously
-  UnitCode.Add('    else ' );
-  UnitCode.Add('    begin ' );
-  UnitCode.Add('      asm' );     /// timeout/job-queue so that any changes made in the 'init' secton will be refreshed on screen
-  UnitCode.Add('      myTimeout(mainfunc,5,''Event Main'',0,e,NodeId,myValue); ');
-  UnitCode.Add('      end;' );
-  UnitCode.Add('    end;' );
-  {$endif}
-  UnitCode.Add('  end;' );
-  UnitCode.Add('end;' );
-end;
-*)
 function GatherUserUnits(RunMode:String; Compiler:TObject):String;
 var
     i:integer;
@@ -1618,28 +1573,9 @@ begin
              ' ' + LineEnding +
              'end;' + LineEnding;
 end;
-//function   DfltThreadEventCode(NodeName:String):string;
-//begin
-//  result:= 'begin' + LineEnding +
-//           '  with XVars'+NodeName+' do ' + LineEnding +
-//           '  begin' + LineEnding +
-//           '  end;' + LineEnding +
-//           'end;' + LineEnding;
-//end;
 function   DfltTreeNodeEventCode(Language:String):string;
 begin
   if Language = 'Pascal' then
-//  result:= 'var' + LineEnding +
-//          '  values:TNodeEventValue;' + LineEnding +
-//          '  SourceName,SrcText,DstText:String;'  + LineEnding +
-//          'begin' + LineEnding +
-//          '  values:=TNodeEventValue(e.ValueObject);' + LineEnding +
-//          '  SourceName:=values.SourceName;  // name of tree being dragged from' + LineEnding +
-//          '  SrcText:=values.SrcText;        // text of treenode being dragged' + LineEnding +
-//          '  DstText:=values.DstText;        // text of treenode being dragged over' + LineEnding +
-//          '  // set e.ReturnString to "True" or "False" ' + LineEnding +
-//          '  e.ReturnString:=''True'';' + LineEnding +
-//          'end;' + LineEnding
    result:= 'var' + LineEnding +
             '  SourceName,SrcText,DstText:String;'  + LineEnding +
             'begin' + LineEnding +

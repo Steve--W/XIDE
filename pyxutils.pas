@@ -384,6 +384,11 @@ begin
     arr2dn:=mmo.mmiGetGPUParam2DNumValue(fnArgs[0], fnArgs[1]);
     v:=arr2dn;
   end
+  else if fname='GetGPUParam3DNumValue' then
+  begin
+    arr3dn:=mmo.mmiGetGPUParam3DNumValue(fnArgs[0], fnArgs[1]);
+    v:=arr3dn;
+  end
   else if fname='GetGPUConstIntValue' then
   begin
     i:=mmo.mmiGetGPUConstIntValue(fnArgs[0], fnArgs[1]);
@@ -398,6 +403,11 @@ begin
   begin
     arr2dn:=ConvertArrayOfVariantTo2DNumArray(fnargs[2]);
     mmo.mmiSetGPUParam2DNumValue(fnArgs[0], fnArgs[1], arr2dn)
+  end
+  else if fname='SetGPUParam3DNumValue' then
+  begin
+    arr3dn:=ConvertArrayOfVariantTo3DNumArray(fnargs[2]);
+    mmo.mmiSetGPUParam3DNumValue(fnArgs[0], fnArgs[1], arr3dn)
   end
   else if fname='SetGPUConstIntValue' then
     mmo.mmiSetGPUConstIntValue(fnArgs[0], fnArgs[1], fnargs[2])
@@ -505,7 +515,8 @@ with PythonEngine1 do
     // run the requested function
     v:=RunInterfaceFunc(e,fname,fnArgs);
     if e<>nil then
-      e.ReturnString:=GetEFromPythonFunc();
+      if e.ReturnString = '' then
+        e.ReturnString:=GetEFromPythonFunc();
       //e.ReturnString:=PythonEngine1.PyObjectAsString(PythonEngine1.PyObject_GetAttrString(glbPyObjE,'ReturnString'));
 
     // pass the current e values onward to Python
@@ -1047,12 +1058,16 @@ begin
   InitScript.add('  return RunXIDEFunc(''GetGPUParamNumValue'',(GPUName,pName))');
   InitScript.add('def GetGPUParam2DNumValue(GPUName,pName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUParam2DNumValue'',(GPUName,pName))');
+  InitScript.add('def GetGPUParam3DNumValue(GPUName,pName):');
+  InitScript.add('  return RunXIDEFunc(''GetGPUParam3DNumValue'',(GPUName,pName))');
   InitScript.add('def GetGPUConstIntValue(GPUName,pName):');
   InitScript.add('  return RunXIDEFunc(''GetGPUConstIntValue'',(GPUName,pName))');
   InitScript.add('def SetGPUParamNumValue(GPUName,pName,pValue):');
   InitScript.add('  RunXIDEFunc(''SetGPUParamNumValue'',(GPUName,pName,pValue))');
   InitScript.add('def SetGPUParam2DNumValue(GPUName,pName,pValue):');
   InitScript.add('  RunXIDEFunc(''SetGPUParam2DNumValue'',(GPUName,pName,pValue))');
+  InitScript.add('def SetGPUParam3DNumValue(GPUName,pName,pValue):');
+  InitScript.add('  RunXIDEFunc(''SetGPUParam3DNumValue'',(GPUName,pName,pValue))');
   InitScript.add('def SetGPUConstIntValue(GPUName,pName,pValue):');
   InitScript.add('  RunXIDEFunc(''SetGPUConstIntValue'',(GPUName,pName,pValue))');
   InitScript.add('def StartMain(e):');
@@ -1233,6 +1248,8 @@ end;
   InitScript.add('  return pas.InterfaceTypes.GetGPUParamNumValue(GPUName,pName)');
   InitScript.add('def GetGPUParam2DNumValue(GPUName,pName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUParam2DNumValue(GPUName,pName)');
+  InitScript.add('def GetGPUParam3DNumValue(GPUName,pName):');
+  InitScript.add('  return pas.InterfaceTypes.GetGPUParam3DNumValue(GPUName,pName)');
   InitScript.add('def GetGPUConstIntValue(GPUName,pName):');
   InitScript.add('  return pas.InterfaceTypes.GetGPUConstIntValue(GPUName,pName)');
   InitScript.add('def SetGPUParamNumValue(GPUName,pName,pValue):');
@@ -1240,6 +1257,9 @@ end;
   InitScript.add('def SetGPUParam2DNumValue(GPUName,pName,pValue):');
   InitScript.add('  sss = ConvertNumpyArrayToJSON(np.asarray(pValue))');
   InitScript.add('  pas.InterfaceTypes.SetGPUParam2DNumValueFromStr(GPUName,pName,sss)');
+  InitScript.add('def SetGPUParam3DNumValue(GPUName,pName,pValue):');
+  InitScript.add('  sss = ConvertNumpyArrayToJSON(np.asarray(pValue))');
+  InitScript.add('  pas.InterfaceTypes.SetGPUParam3DNumValueFromStr(GPUName,pName,sss)');
   InitScript.add('def SetGPUConstIntValue(GPUName,pName,pValue):');
   InitScript.add('  pas.InterfaceTypes.SetGPUConstIntValue(GPUName,pName,pValue)');
   InitScript.add('def StartMain(e):');

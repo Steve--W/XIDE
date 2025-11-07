@@ -168,8 +168,10 @@ begin
   '=====================' + LineEnding +
   'function  GetGPUParamNumValue(GPUName,pName:String):TNumArray; '  + LineEnding +
   '                            For the given TXGPUCanvas component, returns the value of the named numeric parameter as an array '  + LineEnding +
-  'function  GetGPUParam2DNumValue(GPUName,pName:String):TNumArray; '  + LineEnding +
+  'function  GetGPUParam2DNumValue(GPUName,pName:String):T2dNumArray; '  + LineEnding +
   '                            For the given TXGPUCanvas component, returns the value of the named 2D numeric parameter as an array '  + LineEnding +
+  'function  GetGPUParam3DNumValue(GPUName,pName:String):T3dNumArray; '  + LineEnding +
+  '                            For the given TXGPUCanvas component, returns the value of the named 3D numeric parameter as an array '  + LineEnding +
   'function  GetGPUConstIntValue(GPUName,pName:String):integer;'  + LineEnding +
   '                            For the given TXGPUCanvas component, returns the value of the named integer parameter '  + LineEnding +
   'procedure SetGPUParamNumValue(GPUName,pName:String;pValue:TNumArray);'  + LineEnding +
