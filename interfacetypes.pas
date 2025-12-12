@@ -457,9 +457,10 @@ begin
     var myNode=pas.NodeUtils.FindDataNodeById(pas.NodeUtils.SystemNodeTree,TableName,pas.EventsInterface.EventsNameSpace,true);
     if ((myNode!=null)&&(myNode.NodeType=='TXTable'))
     {
-      dta = myNode.GetTableDataForExcel;
+      dta = myNode.GetMyTableDataForExcel();
     }
   end;
+
   result:=dta;
 end;
 

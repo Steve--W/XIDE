@@ -484,7 +484,7 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
      myNode:=FindDataNodeById(UIRootNode,TableName,StrPas(EventsNameSpace),true);     //SystemNodeTree?
      if (mynode<>nil) and (myNode.NodeType='TXTable') then
      begin
-       result:=TXTable(myNode.ScreenObject).GetTableDataForExcel;
+       result:=TXTable(myNode.ScreenObject).GetMyTableDataForExcel;
      end;
    end;
 
