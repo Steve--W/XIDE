@@ -1006,9 +1006,33 @@ begin
     //##### <!-- Import @tensorflow/tfjs -->
     //ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"> </script> ');
     ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"> ');
+    ExtraHTML.Add('</script> ');
+    //ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgpu/dist/tf-backend-webgpu.js"></script>');
+    ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@latest/dist/tf-backend-wasm.js"> ');         ExtraHTML.Add('tf.ENV.set("WEBGL_PACK", false); ');
+    ExtraHTML.Add('console.log("configure wasm"); ');
+    ExtraHTML.Add('tf.wasm.setWasmPaths("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/"); ');
+    ExtraHTML.Add('console.log("done"); ');
+    ExtraHTML.Add('</script> ');
+    {$endif}
+
+
+(*    //##### <!-- Import @tensorflow/tfjs -->
+    //ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"> </script> ');
+    ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script> ');
+//    ExtraHTML.Add('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@latest/dist/tf-backend-wasm.js"></script> ');
+
+    // 1. Configure WASM (Do this once at the start of your app)
+    ExtraHTML.Add('<script> ');
+//    ExtraHTML.Add('console.log("configure wasm"); ');
+//    ExtraHTML.Add('tf.wasm.setWasmPaths("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/"); ');
+//    ExtraHTML.Add('console.log("done"); ');
+
     ExtraHTML.Add('tf.ENV.set("WEBGL_PACK", false); ');
     ExtraHTML.Add('</script> ');
     {$endif}
+*)
+
+
 
     //ExtraHTML.Add('<script src="http://asterius.netlify.app/demo/pandoc/pandoc.js"></script> ');  //###### pandoc test
     //ExtraHTML.Add('<script src="file:///C:/Laz19Projects/XIDE/pandoc/pandoc.js"></script> ');  //###### pandoc test
