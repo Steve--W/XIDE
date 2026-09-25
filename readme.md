@@ -91,11 +91,6 @@ Pip requires the PATH variable to include the installed location of pip.exe (gen
 
 Browser - Pyodide is included in XIDE to provide the Python interface.  
 (ref: https://pyodide.org/en/latest/)
-   Offline - If you need to use Pyodide offline, it is necessary to create a local folder (./pyodide_local) containing 
-   the downloaded pyodide toolset (eg. from https://github.com/iodide-project/pyodide/releases/)
-   This folder must also contain the file loadlocal.js, which can be found at:
-   https://github.com/iodide-project/pyodide/tree/6a2dd522f1eb4143f2630deae0a1fa9555546dfe/runlocal.
-   Alternatively there is a pyodide_local folder containing minimum required files provided at: https://github.com/Steve--W/XIDE
 
 Style Designer
 --------------
