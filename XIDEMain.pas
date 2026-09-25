@@ -31,6 +31,7 @@ uses
   XTabControl, XButton, XLabel, XEditBox, XCheckBox, XHyperLink, XRadioBtns,
   XForm, XTable, XProgressBar, XNumericSlider, XNumberSpinner,
   XComboBox, XDatePicker, XColorPicker, XImage, XGroupBox, XCode, XStore,
+  XCheckListBox,
   XBitMap, XTrapEvents, XIDEHelpUnit,
   XHTMLText, XHTMLEditor, EventsInterface,
   // XIDEComponents units...
@@ -940,6 +941,7 @@ begin
  // Application.QueueAsyncCall(@LoadIframes, 0);
 end;
 
+
 procedure TXIDEForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   SaveSystemData;
@@ -965,6 +967,7 @@ begin
   halt;  // sledgehammer fix 30/11/24, to clear the mainform window and stop execution.
 
 end;
+
 
 procedure TXIDEForm.CompileToJSClick(Sender: TObject);
 var
@@ -1060,8 +1063,8 @@ begin
   DoFormResize(self, MyRootDiv);
 end;
 
-
 {$else}
+
 procedure InitialisePage(dummy:string);
 var
   tempstr,dm:string;

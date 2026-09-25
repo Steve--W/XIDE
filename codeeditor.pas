@@ -81,7 +81,6 @@ type
   private
 
   public
-    //Mode:String;               //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode, GPUKernel
     Context:String;              //  dll, EventCode, FunctionCode, UnitCode, PasUnitCode, PythonScriptCode
     Language:String;             //  Pascal, Python
     TargetNodeName:String;
@@ -132,17 +131,10 @@ begin
       CodeEdit.MessagesHeight:='30%';
     CodeEdit.ContainerHeight:='98%';           // CodeEdit is % of the parent component (tabpage)
 
-//    if FoundString(EventType,'Thread')<>1 then
-    begin
-      CodeEditInitTab.IsVisible:=true;
-      CodeEditInit.ContainerHeight:='98%';
-      CodeEditInit.MessagesHeight:='1';
-    end;
-//    else
-//    begin
-//      // no initialisation code allowed for worker threads
-//      CodeEditInitTab.IsVisible:=false;
-//    end;
+    CodeEditInitTab.IsVisible:=true;
+    CodeEditInit.ContainerHeight:='98%';
+    CodeEditInit.MessagesHeight:='1';
+
   end
   else
   if (Context='SearchCode') then
@@ -256,7 +248,7 @@ begin
   asm
     var ob=document.getElementById(this.NameSpace+this.NodeName+'Contents');
     if (ob!=null) {
-      var str='90%';
+      var str='80%';
       pas.HTMLUtils.SetHeightWidthHTML(this,ob,'W',str);
       pas.HTMLUtils.SetHeightWidthHTML(this,ob,'H',str);
     }

@@ -874,6 +874,9 @@ begin
   asm
     try {
       pyodide.loadPackage(nm).then(() => {
+        console.log('loadedPackages:');
+        console.log(pyodide.loadedPackages);
+
         if (nm in pyodide.loadedPackages) {console.log(nm+" is now available"); }
         else {alert('Pyodide failed to load package '+nm+' please check console for details');}
       }).catch(err => alert(err.message+' in PyodideLoadPackage '+nm));

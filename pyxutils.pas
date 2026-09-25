@@ -666,11 +666,12 @@ begin
   script.add('};');
   script.add('</script> ');
 
-  // Load the pyodide script from the web; if unavailable try loading from pyodide_local...
-  script.add('<script src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>');
+  // Load the pyodide script from the web;
+  //script.add('<script src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>');
+  script.add('<script src="https://cdn.jsdelivr.net/pyodide/v0.27.8/full/pyodide.js"></script>');
   script.add('<script type="application/javascript" >');
   script.add('var pyodideReady = 0;');
-  script.add('var PyodideOffline = false;');
+  //script.add('var PyodideOffline = false;');
   script.add('var readyForRunMode = false;');
   script.add('var pystatdiv=document.createElement("div")');
   //script.add('    window.languagePluginUrl = "https://pyodide-cdn2.iodide.io/v0.15.0/full/";');
@@ -713,17 +714,14 @@ begin
   script.add('}');
 
 
-  script.add('var localErrDone = false;');
-  script.add('var pysrc2=document.createElement("script")');
-  script.add('var pysrc3=document.createElement("script")');
+//  script.add('var localErrDone = false;');
+//  script.add('var pysrc2=document.createElement("script")');
+//  script.add('var pysrc3=document.createElement("script")');
   script.add('var pyodide');
-  script.add('pysrc2.setAttribute("type","application/javascript")');
-  script.add('pysrc3.setAttribute("type","application/javascript")');
+//  script.add('pysrc2.setAttribute("type","application/javascript")');
+//  script.add('pysrc3.setAttribute("type","application/javascript")');
 
   script.add('let otherloadedPackages = new Array();');
-  //script.add('document.getElementsByTagName("head")[0].prepend(pywebsrc)');
-  //script.add('pysrc1.setAttribute("src","https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js");');
-  //script.add('pywebsrc.setAttribute("src","https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js");');
   script.add('</script> ');
 
   script.add('<script type="application/javascript" >');
@@ -739,68 +737,65 @@ begin
   script.add('async function loadpyodidefromweb(){');
   script.add('    console.log("try web pyodide load...");');
   script.add('    try {');
-  script.add('      pyodide = await loadPyodide({ indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/" })');
+  //script.add('      pyodide = await loadPyodide({ indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/" })');
+  script.add('      pyodide = await loadPyodide()');
+
   script.add('      if (pyodide) {');
   script.add('        pysrcLoaded();}');
   script.add('      else {');
-  script.add('        await loadpyodidelocal();');    // this calls pysrcLoaded
+  script.add('        alert("cannot load pyodide - Python will be unavailable. See console for messages."); ');
+  script.add('        //await loadpyodidelocal();');    // this calls pysrcLoaded
   script.add('      }');
   script.add('    } catch(err) {');
   script.add('        console.log(err.message);');
-  script.add('        await loadpyodidelocal();');    // this calls pysrcLoaded
+  script.add('        //await loadpyodidelocal();');    // this calls pysrcLoaded
   script.add('    }');
   script.add('}');
 
-  //  full example of offline pyodide at....
-  //https://github.com/basvandertol/pyodide/releases/download/localpyodide-v0.1/localpyodide.zip
-  script.add('function noLocalPyodide(){');
-  script.add('  if (localErrDone==false) {');
-  script.add('    console.log("cannot load local pyodide - Python will be unavailable"); ');
-  script.add('    console.log("To work with Pyodide offline, create a folder ./pyodide_local"); ');
-  script.add('    console.log("   This folder must contain pyodide files, such as provided from:"); ');
-  script.add('    console.log("      https://github.com/basvandertol/pyodide/releases/download/localpyodide-v0.1/localpyodide.zip");');
-//  script.add('    console.log("      https://github.com/iodide-project/pyodide/releases/download/0.14.3/pyodide-build-0.14.3.tar.bz2");');
-//  script.add('    console.log("      https://github.com/iodide-project/pyodide/releases/download/0.18.1/pyodide-build-0.18.1.tar.bz2");');
-//  script.add('    console.log("   and also include the file loadlocal.js, which can be found at:");');
-//  script.add('    console.log("      https://github.com/iodide-project/pyodide/tree/6a2dd522f1eb4143f2630deae0a1fa9555546dfe/runlocal");');
-//  script.add('    console.log("   Alternatively there is a pyodide_local folder containing minimum required files provided at:");');
-//  script.add('    console.log("      https://github.com/Steve--W/XIDE");');
-  script.add('    localErrDone = true;');
-  script.add('    alert("cannot load pyodide - Python will be unavailable. See console for messages."); ');
-  script.add('    setTimeout(HidePystatdiv, 20); ');
-  script.add('}} ');
-
-  script.add('pysrc2.onerror = function (){');
-  script.add('              noLocalPyodide(); ');
-  script.add('            }');
-  script.add('pysrc3.onerror = function (){');
-  script.add('              noLocalPyodide(); ');
-  script.add('            }');
-
-  script.add('async function loadpyodidelocal(){ ');
-  script.add('  SetPystatdiv( "Loading Pyodide Local","red","white",false); ');
-  script.add('  console.log("try local pyodide load..."); ');
-  script.add('  console.log("do languagePluginUrl...."); ');
-  script.add('  window.languagePluginUrl = "./pyodide_local/";');
-  script.add('  pysrc2.setAttribute("src", "pyodide_local/loadlocal.js");');
-  script.add('  pysrc2.async = false;');
-  script.add('  document.getElementsByTagName("head")[0].prepend(pysrc2);');
-  script.add('  pysrc3.setAttribute("src", "pyodide_local/pyodide.js");');
-  script.add('  pysrc3.async = false;');
-  script.add('  pysrc2.after(pysrc3); ');
-  script.add('  pysrc3.addEventListener("load", async function() { ');
-  script.add('  console.log("do await thing...."); ');
-  script.add('  await (async () => {  ');
-  script.add('    console.log("language plugin thing...."); ');
-  script.add('    await languagePluginLoader; ');
-  script.add('      if (pyodide) {');
-  script.add('        console.log("done loadpyodidelocal. calling pysrcLoaded");');
-  script.add('        PyodideOffline=true; ');
-  script.add('        pysrcLoaded();}');
-  script.add('      else {noLocalPyodide();}');
-  script.add('})();');
-script.add('  }); ');
-script.add('}');
+//  //  full example of offline pyodide at....
+//  //https://github.com/basvandertol/pyodide/releases/download/localpyodide-v0.1/localpyodide.zip
+//  script.add('function noLocalPyodide(){');
+//  script.add('  if (localErrDone==false) {');
+//  script.add('    console.log("cannot load local pyodide - Python will be unavailable"); ');
+//  script.add('    console.log("To work with Pyodide offline, create a folder ./pyodide_local"); ');
+//  script.add('    console.log("   This folder must contain pyodide files, such as provided from:"); ');
+//  script.add('    console.log("      https://github.com/basvandertol/pyodide/releases/download/localpyodide-v0.1/localpyodide.zip");');
+//  script.add('    localErrDone = true;');
+//  script.add('    alert("cannot load pyodide - Python will be unavailable. See console for messages."); ');
+//  script.add('    setTimeout(HidePystatdiv, 20); ');
+//  script.add('}} ');
+//
+//  script.add('pysrc2.onerror = function (){');
+//  script.add('              noLocalPyodide(); ');
+//  script.add('            }');
+//  script.add('pysrc3.onerror = function (){');
+//  script.add('              noLocalPyodide(); ');
+//  script.add('            }');
+//
+//  script.add('async function loadpyodidelocal(){ ');
+//  script.add('  SetPystatdiv( "Loading Pyodide Local","red","white",false); ');
+//  script.add('  console.log("try local pyodide load..."); ');
+//  script.add('  console.log("do languagePluginUrl...."); ');
+//  script.add('  window.languagePluginUrl = "./pyodide_local/";');
+//  script.add('  pysrc2.setAttribute("src", "pyodide_local/loadlocal.js");');
+//  script.add('  pysrc2.async = false;');
+//  script.add('  document.getElementsByTagName("head")[0].prepend(pysrc2);');
+//  script.add('  pysrc3.setAttribute("src", "pyodide_local/pyodide.js");');
+//  script.add('  pysrc3.async = false;');
+//  script.add('  pysrc2.after(pysrc3); ');
+//  script.add('  pysrc3.addEventListener("load", async function() { ');
+//  script.add('  console.log("do await thing...."); ');
+//  script.add('  await (async () => {  ');
+//  script.add('    console.log("language plugin thing...."); ');
+//  script.add('    await languagePluginLoader; ');
+//  script.add('      if (pyodide) {');
+//  script.add('        console.log("done loadpyodidelocal. calling pysrcLoaded");');
+//  script.add('        PyodideOffline=true; ');
+//  script.add('        pysrcLoaded();}');
+//  script.add('      else {noLocalPyodide();}');
+//  script.add('})();');
+//script.add('  }); ');
+//script.add('}');
 
 
   script.add('CreatePystatdiv() ');
@@ -808,18 +803,12 @@ script.add('}');
   script.add('</script>');
 
   script.add('<script type="text/javascript" > ');
-  //script.add('pywebsrc.onerror = function (){');
-  //script.add('              console.log("web load failed");');
-  //script.add('              loadpyodidelocal();');
-  //script.add('            } ');
 
   script.add('</script>');
 
   script.add('<script type="text/javascript" > ');
   script.add('function DoFinalInits(){');
-  //script.add('  readyForRunMode = true;');
   script.add('  if (myDeployedMode!="FromLaz") { ');
-  // script.add('  alert("python DoFinalInits - checking for saved system now"); ');
   script.add('    var ok=pas.XObjectInsp.CheckForSavedSystemOnLoad();');
   script.add('  } ');
   script.add('  if (pas.XObjectInsp.RunningDeployedRuntime==true) {');
@@ -841,11 +830,11 @@ script.add('}');
   script.add('  if (pyodideReady==numpaks) {');               // required packages all loaded
   script.add('      console.log(''######### required packages loaded ##################'');');
   script.add('      doContinueFunc(continueFunc);');
-  script.add('      if (PyodideOffline) { ');
-  script.add('        setTimeout(SetPystatdiv, 20, "Pyodide is Local","yellow","black",true);} ');
-  script.add('      else { ');
+//  script.add('      if (PyodideOffline) { ');
+//  script.add('        setTimeout(SetPystatdiv, 20, "Pyodide is Local","yellow","black",true);} ');
+//  script.add('      else { ');
   script.add('      setTimeout(HidePystatdiv, 20); } ');
-  script.add('    };');
+//  script.add('    };');
   script.add(' } ');
 
   script.add('function testPyPkLoaded(pkgName) {');
@@ -857,21 +846,16 @@ script.add('}');
   script.add('''  pas.PyXUtils.PyPkTest=0;\n''+');
   script.add('''except Exception as exception:\n''+');
   script.add('''  pas.PyXUtils.PyPkTest=0;\n'';');
-  //script.add('  console.log(scrip);');
   script.add('  pyodide.runPython(scrip);');
   script.add(' } ');
-  //????'import pkgutil; print(1 if pkgutil.find_loader("module") else 0)'
-  //???? or... try:
-  //  import cow
-  //  print('\nModule was installed')
-  //except ImportError:
-  //  print('\nThere was no such module installed')"
   script.add('function loadPyPkg0(pkgName,numpaks,continueFunc) { ');
   script.add('  if ((!(pkgName in pyodide.loadedPackages)) && (!(otherloadedPackages.includes(pkgName)))) {');
   script.add('    try {');
   script.add('      pyodide.loadPackage(pkgName).then(() => {');
   script.add('      if (pkgName in pyodide.loadedPackages) {');     // sadly, the pkg name is now in this list, even if the load failed.
-  script.add('        testPyPkLoaded(pkgName);');
+  script.add('    console.log("i have now loaded pkg "+ pkgName); ');
+  script.add('        if ((pkgName != "scikit-learn")&&(pkgName != "linear-tree")) { ');     // exception here - scikit-learn is not the import name
+  script.add('          testPyPkLoaded(pkgName); } ');
   script.add('        if (pas.PyXUtils.PyPkTest==1) {');
   script.add('          console.log(pkgName+" is now available");');
   script.add('          pyodideReady = pyodideReady+1;' );
@@ -881,7 +865,8 @@ script.add('}');
   script.add('      } ');
   script.add('      else {' );
   script.add('        console.log("Pyodide failed to load package " +pkgName+ " - attempting with micropip..."); ' );
-  script.add('        if (PyodideOffline==false) { ' );
+  //script.add('        if (PyodideOffline==false) { ' );
+  script.add('        if (1==1) { ' );
   script.add('          pyodide.runPython("import micropip"); ' );
   script.add('          pyodide.runPythonAsync("await micropip.install(''"+pkgName+"'')").then(() => {');
   script.add('            if (1==1) {');
@@ -890,11 +875,12 @@ script.add('}');
   script.add('            }');
   script.add('          },() => {alert("Pyodide/micropip failed to load package " +pkgName+ " - please check console for details");});');
   script.add('        }');
-  script.add('        else {alert("Pyodide is offline. Failed to load package " +pkgName+ " - please check console for details");} ' );
+  //script.add('        else {alert("Pyodide is offline. Failed to load package " +pkgName+ " - please check console for details");} ' );
   script.add('      }  ');
   script.add('    },() => {alert("Pyodide failed to load package " +pkgName+ " - please check console for details");} );');
   script.add('  }  ');
-  script.add('  catch(err) {alert("Pyodide failed to load package " +pkgName+ " - please check console for details");}  ');
+  script.add('  catch(err) {alert("Pyodide failed to load package " +pkgName+ " - please check console for details");  ');
+  script.add('              console.log(err);} ');
   script.add(' }} ');
 
   script.add('function PkgLoaded(pkgName) { ');
@@ -910,11 +896,12 @@ script.add('}');
   script.add('  console.log("Load Package "+mystr); ');
   script.add('  if (mystr=="xarray") {mystr="xarray==0.19.0";} ');
   script.add('  if ((!(pkgNames[i] in pyodide.loadedPackages)) && (!(otherloadedPackages.includes(pkgNames[i])))) {');
-  script.add('    if (PyodideOffline==false) { ');
+//  script.add('    if (PyodideOffline==false) { ');
   script.add('      console.log("Need to load "+mystr); ');
   script.add('      pyodide.runPython("micropip.install(''"+mystr+"'')").then(() => {');
   script.add('        console.log(mystr+" micropip returned ok");');
-  script.add('        testPyPkLoaded(pkgNames[i]);');
+  script.add('        if ((pkgNames[i] != "scikit-learn")&&(pkgNames[i] != "linear-tree")) { ');     // exception here - scikit-learn is not the import name
+  script.add('          testPyPkLoaded(pkgNames[i]);  }    ');
   script.add('        if (pas.PyXUtils.PyPkTest==1) {');
   script.add('          PkgLoaded(pkgNames[i])');
   script.add('          checkReady(pkgNames[i],pkgNames.length+2,continueFunc);');
@@ -925,16 +912,16 @@ script.add('}');
   script.add('          LoadNextPkg(pkgNames,i,continueFunc);');
   script.add('        }');
   script.add('      },() => {alert("Pyodide/micropip failed to load package " +pkgNames[i]+ " - please check console for details");})');
-  script.add('    } ');
-  script.add('    else {');      // offline Pyodide.  micropip.install unavailable
-  script.add('      loadPyPkg0(pkgNames[i],pkgNames.length+2,continueFunc)');
-  script.add('      if (i<pkgNames.length-1) {');
-  script.add('        i=i+1;');
-  script.add('        LoadNextPkg(pkgNames,i,continueFunc); }');
-  script.add('      else { ');
-  script.add('        checkReady("",pkgNames.length+2,continueFunc);');
-  script.add('      }');
-  script.add('    } ');
+//  script.add('    } ');
+//  script.add('    else {');      // offline Pyodide.  micropip.install unavailable
+//  script.add('      loadPyPkg0(pkgNames[i],pkgNames.length+2,continueFunc)');
+//  script.add('      if (i<pkgNames.length-1) {');
+//  script.add('        i=i+1;');
+//  script.add('        LoadNextPkg(pkgNames,i,continueFunc); }');
+//  script.add('      else { ');
+//  script.add('        checkReady("",pkgNames.length+2,continueFunc);');
+//  script.add('      }');
+//  script.add('    } ');
   script.add('  } ');
   script.add('  else {');
   script.add('    console.log(mystr + " already loaded. "); ');
@@ -951,8 +938,6 @@ script.add('}');
   script.add('async function loadPyPkgs(continueFunc) { ');
   script.add('  console.log("loadPyPkgs"); ' );
   script.add('  pyodide.runPython("import micropip"); ' );
-    //???           //https://pypi.org/project/numpy/#files
-  //script.add('  ShowPystatdiv()');
   script.add('  SetPystatdiv("Loading Packages","red","white",false); ');
   script.add('  var pkNames=pas.PyXUtils.BuildPackageList();' );
   script.add('  if (pkNames.length>0) {await LoadNextPkg(pkNames,0,continueFunc);} ' );
@@ -1013,9 +998,7 @@ begin
   InitScript.add('  PyInterfaceVar.Value = Xmsg');
   InitScript.add('  return Xmsg.rslt');
   InitScript.add('def GetPropertyValue(NodeName,PropName):');
-  //InitScript.add('  print(''GetPropertyValue(''+NodeName+'',''+PropName+'')'')');
   InitScript.add('  return RunXIDEFunc(''GetPropertyValue'',(NodeName,PropName)).decode(''utf-8'')');
-//  InitScript.add('  print(msg.args[0]+'' ''+msg.args[1]+'' = ''+msg.rslt)');
   InitScript.add('def SetPropertyValue(NodeName,PropName,NewValue):');
   InitScript.add('  RunXIDEFunc(''SetPropertyValue'',(NodeName,PropName,NewValue))');
   InitScript.add('def ShowMessage(Messg):');
@@ -1103,15 +1086,9 @@ begin
   InitScript.add('  return json.dumps(npArray.tolist())');
   InitScript.add('def SetPyConsole(nm):');
   InitScript.add('  RunXIDEFunc(''RedirectPyLog'',(nm,))');
-//  InitScript.add('def ResetXArrays(DefaultDims):');
-//  InitScript.add('  RunXIDEFunc(''BuildXArrays'',(DefaultDims,))');
 
   InitScript.add('def UpdatepyLoadedFuncs(sss):');
   InitScript.add('  RunXIDEFunc(''UpdatepyLoadedFuncs'',(sss,))');
-//  InitScript.add('def CreateNumpyArrayFrom2DNumArray(ArrayName,numArray):');
-//  InitScript.add('  print("CreateNumpyArrayFrom2DNumArray")');
-//  InitScript.add('  npTbl = np.array(numArray)');
-//  InitScript.add('  vars()[ArrayName] = npTbl');
 
   InitScript.add('print(''Python Engine Initialised'')');
 
@@ -1121,29 +1098,6 @@ begin
 
 end;
 {$else}
-//function ConvertArrayOfVariantTo1DNumArray(varr:TArgs):TNumArray;
-//var
-//  arr:TNumArray;
-//  v:Variant;
-//  varri:TArgs;
-//  i,l:integer;
-//begin
-//  setlength(arr,length(varr));
-//  for i:=0 to length(varr)-1 do
-//  begin
-//    v:=varr[i];
-//    if v<>null then
-//      try
-//       arr[i]:=Double(v);
-//      except
-//        on exception do
-//          arr[i]:=-999;
-//      end
-//    else
-//      arr[i]:=-999;
-//  end;
-//  result:=arr;
-//end;
 
 procedure RunInitialScript;
 var
@@ -1170,14 +1124,6 @@ end;
 
   InitScript.add('print("Initialising Pyodide Python environment...")');
 
-  //InitScript.add('class eClass:');
-  //InitScript.add('  EventType = ''''');
-  //InitScript.add('  NodeId = ''''');
-  //InitScript.add('  NameSpace = ''''');
-  //InitScript.add('  InitRunning = False');
-  //InitScript.add('  ReturnString = ''''');
-  //InitScript.add('  AsyncProcsRunning = []');
-  //InitScript.add('e = eClass()');
   InitScript.add('');
   InitScript.add('from js import pas');
   InitScript.add('import io');
@@ -1190,8 +1136,6 @@ end;
   InitScript.add('    sys.stdout.flush()');
   InitScript.add('    f = open("pystdout.txt","r")');
   InitScript.add('    contents = f.read()');
-  //InitScript.add('    SetPropertyValue(nm,"ItemValue","kkkkkk")');
-  //InitScript.add('    ConsoleLog(">"+contents+"<")');
   InitScript.add('    SetPropertyValue(nm,"ItemValue",str(contents))');
   InitScript.add('  except FileNotFoundError:');
   InitScript.add('    print("no stdout file for "+nm)');
@@ -1396,24 +1340,6 @@ begin
   {$endif}
 end;
 
-(*function JSONStringToList(s:String):TStringList;
-var
-  Parser:TJSONParser;
-  Arr:TJSONArray;
-  i:integer;
-  ss:String;
-  bits:TStringList;
-begin
-  Parser:=TJSONParser.Create(s);
-  Arr := Parser.Parse as TJSONArray;
-  bits:=TStringList.Create;
-  for i := 0 to Arr.Count - 1 do
-    begin
-      ss := Arr.Objects[i].AsString;
-      //WriteLn(i+1, ': ', SubObj.Strings['NAME'], ', ', SubObj.Strings['SEX'], ', ', SubObj.Strings['COUNTRY']);
-      bits.add(ss);
-    end;
-end;  *)
 
 procedure UpdatepyLoadedFuncs(sss:String);
 // sss is a JSON string....load into a stringlist

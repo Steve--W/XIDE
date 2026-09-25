@@ -999,6 +999,7 @@ begin
   RegisterResource('RUI','TXButton','TXButton','Selectors','Button');
   //AddAttrib(AttrParams,'Enabled','Boolean','True',false);
   RegisterResource('RUI','TXCheckBox','TXCheckBox','Selectors','Checkbox');
+  RegisterResource('RUI','TXCheckListBox','TXCheckListBox','Selectors','CheckListbox');
   RegisterResource('RUI','TXRadioBtns','TXRadioBtns','Selectors','Radio buttons group');
   //AddAttrib(AttrParams,'ItemIndex','Integer','0',false);
   RegisterResource('RUI','TXComboBox','TXComboBox','Selectors','Drop-down selector');

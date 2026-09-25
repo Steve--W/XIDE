@@ -77,11 +77,6 @@ IMyMethodInterface = interface(IInterface)
     procedure mmiWobbleCEF(nm:String);                  stdcall;
     procedure mmiPyodideLoadPackage(nm:String);  stdcall;
     function mmiPyodidePackageLoaded(nm:String):Boolean; stdcall;
-    //function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
-    //function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
-    //function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
-    //function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
-//    function mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
 end;
 
 type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
@@ -137,11 +132,6 @@ type TMyMethodObject = class(TInterfacedObject, IMyMethodInterface)
       procedure mmiWobbleCEF(nm:String);       stdcall;
       procedure mmiPyodideLoadPackage(nm:String);  stdcall;
       function mmiPyodidePackageLoaded(nm:String):Boolean;  stdcall;
-      //function mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
-      //function mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
-      //function mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
-      //function mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
-//      function mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
 
   end;
 
@@ -328,128 +318,7 @@ Function TMyMethodObject.mmiconfirm(Textmessage:string):boolean;    stdcall;
        result:='';
      end;
    end;
-(*
-   function KeyValuesToVarArray(DSName,DSKeyValues:String;var keynames:String;var keys:TVarArray):Boolean;
-   var
-     keyvalues:TStringList;
-     keynodes:TNodesArray;
-     att:String;
-     ok:Boolean;
-     i:integer;
-   begin
-     ok:=true;
-     setlength(keys,0);
-     // DSKeyValues is a string delimited by ';' - one value per key field
-     keyvalues := stringsplit(DSKeyValues,';');
-     keynodes := DMGetKeyFields(DSName);
-     if keyvalues.count = length(keynodes) then
-     begin
-       i:=keyvalues.count;
-       setlength(keys,i);
-       keynames:='';
-       for i:=0 to keyvalues.count-1 do
-       begin
-         if i>0 then keynames:=keynames+';';
-         keynames:=keynames+keynodes[i].NodeName;
-         att:= keynodes[i].GetAttribute('AttribType',false).AttribType;
-         if att = 'Integer' then
-           keys[i] := StrToInt(KeyValues[i])
-         else if att = 'Float' then
-           keys[i] := StrToFloat(KeyValues[i])
-         else if att = 'String' then
-           keys[i] := KeyValues[i];
-       end;
-     end
-     else
-     begin
-       ok:=false;
-     end;
-     result:=ok;
-   end;
-*)
-(*   function TMyMethodObject.mmiDSFetchRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean;  stdcall;
-   // DSFetchRow is an async function (required for browser use), so it must be coded in the
-   // 'Init' section of an event handler. The result here is a boolean.
-   // The fetched data object is held in e.AsyncReturnObject, which cn be picked up in the
-   // 'Main' section of the event handler.
-   var
-     ok:boolean;
-     i:integer;
-     s,keynames:String;
 
-     keys:TVarArray;
-   begin
-     ok:=true;
-     if (e.InitRunning=false) then
-       showmessage('Warning: DSFetchRow must be called from the ''Init'' section of an event handler');
-     e.AsyncProcsRunning.add('DSFetchRow');
-     ok:= KeyValuesToVarArray(DSName,DSKeyValues,keynames,keys);
-
-
-     if ok then
-     begin
-       // if e.ValueObject is nil, can we dynamically create it here???? type===DSName
-       //cls:=classes.GetClass('TDataNode');
-       //newob:=cls.Create;         // works
-       //cls:=classes.getclass(DSName);
-       //newob := cls.Create;       // doesn't work
-
-       ok:=DSGetIndexedRecordAsObject(DSName,'DSFetchRow',keynames,keys,e.ValueObject,e);
-     end;
-     result:=ok;
-   end;
-
-   function TMyMethodObject.mmiDSAppendRow(e:TEventStatus;DSName:String;recObject:TObject):Boolean; stdcall;
-   var
-     ok:boolean;
-   begin
-     if (e.InitRunning=false) then
-       showmessage('Warning: DSAppendRow must be called from the ''Init'' section of an event handler');
-     e.AsyncProcsRunning.add('DSAppendRow');
-
-     ok:=DSAppendRecordFromObject(DSName,'DSAppendRow',recObject,e);
-     result:=ok;
-   end;
-
-   function TMyMethodObject.mmiDSDeleteRow(e:TEventStatus;DSName:String;DSKeyValues:String):Boolean; stdcall;
-   var
-     ok:boolean;
-     keynames:String;
-     keys:TVarArray;
-   begin
-     if (e.InitRunning=false) then
-       showmessage('Warning: DSDeleteRow must be called from the ''Init'' section of an event handler');
-     e.AsyncProcsRunning.add('DSDeleteRow');
-
-     ok:= KeyValuesToVarArray(DSName,DSKeyValues,keynames,keys);
-     if ok then
-       ok:=DSDeleteARow(e,DSName,'DSDeleteRow',keynames,keys);
-     result:=ok;
-   end;
-
-   function TMyMethodObject.mmiDSDeleteAllRows(e:TEventStatus;DSName:String):Boolean; stdcall;
-   var
-     ok:boolean;
-   begin
-     if (e.InitRunning=false) then
-       showmessage('Warning: DSDeleteAllRows must be called from the ''Init'' section of an event handler');
-     e.AsyncProcsRunning.add('DSDeleteAllRows');
-
-     ok:=DSEmptyDataset(e,DSName,'DSDeleteAllRows');
-     result:=ok;
-   end;
-*)
-(*   function TMyMethodObject.mmiDSDatasetToString(e:TEventStatus;dsName:String):Boolean; stdcall;
-   var
-     ok:Boolean;
-   begin
-     if (e.InitRunning=false) then
-       showmessage('Warning: DSDatasetToString must be called from the ''Init'' section of an event handler');
-     e.AsyncProcsRunning.add('DSDatasetToString');
-     ok:=DSDataToStringAsync(e,dsName);
-     result:=ok;
-   end;
-*)
    procedure TMyMethodObject.mmiLaunchHTMLPage(DataString:String);   stdcall;
      var
        filename:String;
